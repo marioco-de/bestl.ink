@@ -13,7 +13,9 @@ import type {
   SuperTenantRow,
   TeamGoalRow,
   Tenant,
+  TenantDomain,
   Webhook,
+  WorkspaceSummary,
 } from "./types";
 import { featuresFromRows, defaultFeatures } from "./features";
 import { parseJsonArray, parseJsonObj } from "./id";
@@ -138,6 +140,47 @@ export async function listPlatformTenants(): Promise<SuperTenantRow[]> {
   return out;
 }
 
+export async function listWorkspacesForUser(userId: string): Promise<WorkspaceSummary[]> {
+  const sql = await getSql();
+  const rows = await sql`
+    select t.id, t.name, t.subdomain, m.role
+    from db_tenant_members m
+    join db_tenants t on t.id = m.tenant_id
+    where m.user_id = ${userId}
+    order by t.name
+  `;
+  return rows.map((r) => {
+    const row = r as Record<string, unknown>;
+    return {
+      id: String(row.id),
+      name: String(row.name),
+      subdomain: String(row.subdomain || ""),
+      role: String(row.role) as WorkspaceSummary["role"],
+    };
+  });
+}
+
+export async function listTenantDomains(tenantId: string): Promise<TenantDomain[]> {
+  const sql = await getSql();
+  const rows = await sql`
+    select id, tenant_id, host, connected, tags, created_at
+    from db_tenant_domains
+    where tenant_id = ${tenantId}
+    order by created_at asc
+  `;
+  return rows.map((r) => {
+    const row = r as Record<string, unknown>;
+    return {
+      id: String(row.id),
+      tenant_id: String(row.tenant_id),
+      host: String(row.host),
+      connected: Boolean(row.connected),
+      tags: parseJsonArray(row.tags),
+      created_at: new Date(row.created_at as string).toISOString(),
+    };
+  });
+}
+
 export async function getMembership(
   userId: string,
   tenantId?: string,
@@ -257,6 +300,8 @@ export async function loadFullState(
       resources: [],
       params: [],
       tags: [],
+      workspaces: await listWorkspacesForUser(userId),
+      domains: [],
       utmPresets: [],
       links: [],
       requests: [],
@@ -299,6 +344,8 @@ export async function loadFullState(
       resources: [],
       params: [],
       tags: [],
+      workspaces: await listWorkspacesForUser(userId),
+      domains: [],
       utmPresets: [],
       links: [],
       requests: [],
@@ -344,6 +391,7 @@ export async function loadFullState(
       ...r,
       content_base64: r.content_base64 ? "1" : null,
       payload: parseJsonObj((r as unknown as { payload?: unknown }).payload),
+      tags: parseJsonArray((r as unknown as { tags?: unknown }).tags),
       allow_download: Boolean(r.allow_download),
       require_nda: Boolean(r.require_nda),
       file_size: r.file_size != null ? Number(r.file_size) : null,
@@ -365,6 +413,14 @@ export async function loadFullState(
   const tags = (
     await sql`select id, name, color from db_tags where tenant_id = ${tid} order by name`
   ) as { id: string; name: string; color: string }[];
+  const workspaces = await listWorkspacesForUser(userId);
+  const domains = tenant.id === "platform" ? [] : await listTenantDomains(tid);
+  const primaryDomain = domains.find((d) => d.connected);
+  if (primaryDomain) {
+    tenant.public_host = primaryDomain.host;
+    tenant.custom_domain = primaryDomain.host;
+    tenant.custom_domain_connected = true;
+  }
 
   const utmPresets = (await sql`
     select * from db_utm_presets where tenant_id = ${tid} order by name
@@ -548,6 +604,8 @@ export async function loadFullState(
     resources,
     params,
     tags,
+    workspaces,
+    domains,
     utmPresets,
     links,
     requests,

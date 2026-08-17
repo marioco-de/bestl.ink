@@ -237,6 +237,140 @@ export const updateTenant = createServerFn({ method: "POST" })
     return loadFullState(context.userId, t.id);
   });
 
+export const createWorkspace = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .inputValidator((d: { company: string; subdomain?: string }) => d)
+  .handler(async ({ context, data }) => {
+    await ensurePlatformSeeded();
+    const company = data.company.trim();
+    if (!company) throw new Error("Name erforderlich");
+    const session = await getSessionUser();
+    const email = session?.email || `${context.userId}@users.bestl.ink`;
+    const name = email.split("@")[0] || "Owner";
+    const tenantId = await createTenantForUser({
+      userId: context.userId,
+      email,
+      name,
+      company,
+      subdomain: data.subdomain,
+    });
+    await audit(tenantId, context.userId, "tenant.created", { company });
+    return loadFullState(context.userId, tenantId);
+  });
+
+export const addTenantDomain = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .inputValidator((d: { host: string; tags?: string[]; tenant_id?: string }) => d)
+  .handler(async ({ context, data }) => {
+    const mem = await getMembership(context.userId, data.tenant_id);
+    if (!mem || mem.member.role === "member") throw new Error("Keine Berechtigung");
+    if (mem.tenant.id === "platform") throw new Error("Kein Workspace gewählt");
+    const host = data.host
+      .trim()
+      .replace(/^https?:\/\//, "")
+      .replace(/\/$/, "")
+      .toLowerCase();
+    if (!host || !host.includes(".")) throw new Error("Gültige Domain erforderlich");
+    const sql = await getSql();
+    const clash = await sql`
+      select id from db_tenant_domains where lower(host) = ${host} limit 1
+    `;
+    if (clash.length) throw new Error("Domain bereits verknüpft");
+    const tenantClash = await sql`
+      select id from db_tenants where lower(custom_domain) = ${host} and id <> ${mem.tenant.id} limit 1
+    `;
+    if (tenantClash.length) throw new Error("Domain bereits verknüpft");
+    await sql`
+      insert into db_tenant_domains (id, tenant_id, host, connected, tags)
+      values (${uid("tdom")}, ${mem.tenant.id}, ${host}, ${false}, ${JSON.stringify(data.tags ?? [])})
+    `;
+    if (!mem.tenant.custom_domain) {
+      await sql`
+        update db_tenants set custom_domain = ${host}, custom_domain_connected = false
+        where id = ${mem.tenant.id}
+      `;
+    }
+    await audit(mem.tenant.id, context.userId, "domain.added", { host });
+    return loadFullState(context.userId, mem.tenant.id);
+  });
+
+export const updateTenantDomain = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .inputValidator(
+    (d: {
+      id: string;
+      connected?: boolean;
+      tags?: string[];
+      tenant_id?: string;
+    }) => d,
+  )
+  .handler(async ({ context, data }) => {
+    const mem = await getMembership(context.userId, data.tenant_id);
+    if (!mem || mem.member.role === "member") throw new Error("Keine Berechtigung");
+    const sql = await getSql();
+    const row = (
+      await sql`
+        select * from db_tenant_domains
+        where id = ${data.id} and tenant_id = ${mem.tenant.id}
+        limit 1
+      `
+    )[0] as Record<string, unknown> | undefined;
+    if (!row) throw new Error("Domain nicht gefunden");
+    const connected = data.connected ?? Boolean(row.connected);
+    const tags = data.tags ?? parseJsonArray(row.tags);
+    await sql`
+      update db_tenant_domains set
+        connected = ${connected},
+        tags = ${JSON.stringify(tags)}
+      where id = ${data.id}
+    `;
+    if (connected) {
+      await sql`
+        update db_tenants set
+          custom_domain = ${String(row.host)},
+          custom_domain_connected = true
+        where id = ${mem.tenant.id}
+      `;
+    }
+    return loadFullState(context.userId, mem.tenant.id);
+  });
+
+export const removeTenantDomain = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .inputValidator((d: { id: string; tenant_id?: string }) => d)
+  .handler(async ({ context, data }) => {
+    const mem = await getMembership(context.userId, data.tenant_id);
+    if (!mem || mem.member.role === "member") throw new Error("Keine Berechtigung");
+    const sql = await getSql();
+    const row = (
+      await sql`
+        select host from db_tenant_domains
+        where id = ${data.id} and tenant_id = ${mem.tenant.id}
+        limit 1
+      `
+    )[0] as { host?: string } | undefined;
+    await sql`
+      delete from db_tenant_domains where id = ${data.id} and tenant_id = ${mem.tenant.id}
+    `;
+    if (row?.host && mem.tenant.custom_domain === row.host) {
+      const next = (
+        await sql`
+          select host, connected from db_tenant_domains
+          where tenant_id = ${mem.tenant.id}
+          order by connected desc, created_at asc
+          limit 1
+        `
+      )[0] as { host?: string; connected?: boolean } | undefined;
+      await sql`
+        update db_tenants set
+          custom_domain = ${next?.host ?? ""},
+          custom_domain_connected = ${Boolean(next?.connected)}
+        where id = ${mem.tenant.id}
+      `;
+    }
+    return loadFullState(context.userId, mem.tenant.id);
+  });
+
 export const createResource = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .inputValidator(
@@ -255,6 +389,7 @@ export const createResource = createServerFn({ method: "POST" })
       allow_download?: boolean;
       require_nda?: boolean;
       nda_text?: string;
+      tags?: string[];
       tenant_id?: string;
     }) => d,
   )
@@ -282,14 +417,15 @@ export const createResource = createServerFn({ method: "POST" })
       insert into db_resources (
         id, tenant_id, type, title, slug, description,
         content_url, content_base64, mime_type, file_name, file_size,
-        allow_download, require_nda, nda_text, payload
+        allow_download, require_nda, nda_text, payload, tags
       ) values (
         ${id}, ${mem.tenant.id}, ${data.type}, ${data.title}, ${slug}, ${data.description ?? ""},
         ${contentUrl}, ${contentB64},
         ${data.mime_type ?? null}, ${data.file_name ?? null}, ${data.file_size ?? null},
         ${data.allow_download ?? true}, ${data.require_nda ?? false},
         ${data.nda_text ?? "Ich akzeptiere die Vertraulichkeitsvereinbarung."},
-        ${JSON.stringify(data.payload ?? {})}
+        ${JSON.stringify(data.payload ?? {})},
+        ${JSON.stringify(data.tags ?? [])}
       )
     `;
     await audit(mem.tenant.id, context.userId, "resource.created", { id, slug });
@@ -361,6 +497,7 @@ export const updateResource = createServerFn({ method: "POST" })
       slug?: string;
       description?: string;
       payload?: JsonObject;
+      tags?: string[];
       file_name?: string;
       tenant_id?: string;
     }) => d,
@@ -382,6 +519,7 @@ export const updateResource = createServerFn({ method: "POST" })
         slug = ${slug},
         description = ${data.description ?? String(existing.description ?? "")},
         payload = ${JSON.stringify(data.payload ?? parseJsonObj(existing.payload))},
+        tags = ${JSON.stringify(data.tags ?? parseJsonArray(existing.tags))},
         file_name = ${data.file_name ?? (existing.file_name as string | null)}
       where id = ${data.id} and tenant_id = ${mem.tenant.id}
     `;
@@ -447,15 +585,42 @@ export const deleteParamNode = createServerFn({ method: "POST" })
 
 export const createTag = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .inputValidator((d: { name: string }) => d)
+  .inputValidator((d: { name: string; color?: string; tenant_id?: string }) => d)
   .handler(async ({ context, data }) => {
-    const mem = await getMembership(context.userId);
+    const mem = await getMembership(context.userId, data.tenant_id);
     if (!mem) throw new Error("Kein Workspace");
     const sql = await getSql();
+    const { normalizeTagColor } = await import("./tags");
     await sql`
-      insert into db_tags (id, tenant_id, name)
-      values (${uid("tag")}, ${mem.tenant.id}, ${data.name.toLowerCase()})
-      on conflict (tenant_id, name) do nothing
+      insert into db_tags (id, tenant_id, name, color)
+      values (
+        ${uid("tag")},
+        ${mem.tenant.id},
+        ${data.name.trim().toLowerCase()},
+        ${normalizeTagColor(data.color)}
+      )
+      on conflict (tenant_id, name) do update set color = excluded.color
+    `;
+    return loadFullState(context.userId, mem.tenant.id);
+  });
+
+export const updateTag = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .inputValidator((d: { id: string; name?: string; color?: string; tenant_id?: string }) => d)
+  .handler(async ({ context, data }) => {
+    const mem = await getMembership(context.userId, data.tenant_id);
+    if (!mem) throw new Error("Kein Workspace");
+    const sql = await getSql();
+    const { normalizeTagColor } = await import("./tags");
+    const cur = (
+      await sql`select name, color from db_tags where id = ${data.id} and tenant_id = ${mem.tenant.id}`
+    )[0] as { name?: string; color?: string } | undefined;
+    if (!cur) throw new Error("Tag nicht gefunden");
+    await sql`
+      update db_tags set
+        name = ${data.name ? data.name.trim().toLowerCase() : String(cur.name)},
+        color = ${data.color ? normalizeTagColor(data.color) : String(cur.color ?? "#64748b")}
+      where id = ${data.id} and tenant_id = ${mem.tenant.id}
     `;
     return loadFullState(context.userId, mem.tenant.id);
   });
@@ -1054,6 +1219,10 @@ export const resolveAccess = createServerFn({ method: "POST" })
             lower(t.custom_domain) = ${host}
             or lower(t.domain) = ${host}
             or (${sub} is not null and t.subdomain = ${sub})
+            or exists (
+              select 1 from db_tenant_domains d
+              where d.tenant_id = t.id and lower(d.host) = ${host}
+            )
           )
         limit 1
       `;

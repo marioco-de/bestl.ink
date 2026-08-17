@@ -30,6 +30,8 @@ import {
 } from "@/lib/docbay/shorts-api";
 import type { FullState, ShortLink } from "@/lib/docbay/types";
 import { formatDateDe, cn } from "@/lib/utils";
+import { TagChip } from "@/components/control/tag-picker";
+import { tagColor } from "@/lib/docbay/tags";
 
 export const Route = createFileRoute("/control/shorts")({
   validateSearch: (s: Record<string, unknown>) => ({
@@ -138,6 +140,13 @@ export function ShortsWorkspace({
                   {url}
                   <span className="text-fg-subtle"> → {s.destination}</span>
                 </p>
+                {(s.tags?.length ?? 0) > 0 && (
+                  <div className="mt-1.5 flex flex-wrap gap-1">
+                    {s.tags.map((n) => (
+                      <TagChip key={n} name={n} color={tagColor(n, state.tags)} on />
+                    ))}
+                  </div>
+                )}
               </div>
               <div className="flex shrink-0 items-center gap-3">
                 <span className="hidden tabular text-xs text-fg-subtle @min-[40rem]/hub:inline">

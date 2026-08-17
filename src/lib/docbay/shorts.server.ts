@@ -210,6 +210,10 @@ export async function findShortBySlug(
           lower(t.custom_domain) = ${h}
           or lower(t.domain) = ${h}
           or t.subdomain = ${h.split(".")[0] ?? ""}
+          or exists (
+            select 1 from db_tenant_domains d
+            where d.tenant_id = t.id and lower(d.host) = ${h}
+          )
         )
       limit 1
     `;

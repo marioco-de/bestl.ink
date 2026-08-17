@@ -65,6 +65,22 @@ export interface Tenant {
   notes: string;
 }
 
+export interface WorkspaceSummary {
+  id: string;
+  name: string;
+  subdomain: string;
+  role: MemberRole;
+}
+
+export interface TenantDomain {
+  id: string;
+  tenant_id: string;
+  host: string;
+  connected: boolean;
+  tags: string[];
+  created_at: string;
+}
+
 export interface Member {
   id: string;
   tenant_id: string;
@@ -88,6 +104,7 @@ export interface Resource {
   file_name: string | null;
   file_size: number | null;
   payload: JsonObject;
+  tags: string[];
   allow_download: boolean;
   require_nda: boolean;
   nda_text: string;
@@ -278,6 +295,8 @@ export interface FullState {
   resources: Resource[];
   params: ParamNode[];
   tags: { id: string; name: string; color: string }[];
+  workspaces: WorkspaceSummary[];
+  domains: TenantDomain[];
   utmPresets: {
     id: string;
     tenant_id?: string;

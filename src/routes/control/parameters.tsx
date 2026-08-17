@@ -27,6 +27,8 @@ import {
 } from "@/lib/docbay/api";
 import type { FullState, ParamNode } from "@/lib/docbay/types";
 import { cn } from "@/lib/utils";
+import { ColorDots } from "@/components/control/tag-picker";
+import { DEFAULT_TAG_COLOR } from "@/lib/docbay/tags";
 
 export const Route = createFileRoute("/control/parameters")({
   component: ParametersPage,
@@ -108,6 +110,7 @@ function ParametersPage() {
                   key={t.id}
                   className="inline-flex items-center gap-1.5 rounded-full border border-border bg-bg px-3 py-1.5 text-xs"
                 >
+                  <span className="h-2 w-2 rounded-full" style={{ background: t.color }} />
                   {t.name}
                   <button
                     type="button"
@@ -466,6 +469,7 @@ function TagModal({
   onDone: (s: FullState) => Promise<void>;
 }) {
   const [name, setName] = useState("");
+  const [color, setColor] = useState<string>(DEFAULT_TAG_COLOR);
   const [busy, setBusy] = useState(false);
 
   async function submit() {
@@ -475,7 +479,7 @@ function TagModal({
     }
     setBusy(true);
     try {
-      const s = await createTag({ data: { name: name.trim() } });
+      const s = await createTag({ data: { name: name.trim(), color } });
       await onDone(s as FullState);
       toast.success("Tag angelegt");
     } catch {
@@ -515,6 +519,10 @@ function TagModal({
             }
           }}
         />
+        <div className="mt-3">
+          <Label>Farbe</Label>
+          <ColorDots value={color} onChange={setColor} />
+        </div>
       </div>
     </FullScreenModal>
   );

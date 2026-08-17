@@ -15,9 +15,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { FullScreenModal } from "@/components/ui/fullscreen-modal";
 import { GeneratePanel } from "@/components/hashport/generate-panel";
 import { useControlData, useSetControlData } from "@/lib/docbay/use-control";
-import { createResource, deleteResource, updateResource } from "@/lib/docbay/api";
+import { createResource, deleteResource, updateResource, createTag } from "@/lib/docbay/api";
 import { slugify } from "@/lib/utils";
 import type { FullState, Resource, JsonObject } from "@/lib/docbay/types";
+import { TagChip, TagPicker } from "@/components/control/tag-picker";
+import { tagColor } from "@/lib/docbay/tags";
 import {
   contactInitials,
   emptyContact,
@@ -111,6 +113,13 @@ export function CardsWorkspace({ kind }: { kind: "event" | "contact" }) {
                     {extra && (
                       <p className="mt-1 truncate text-xs text-fg-muted">{extra}</p>
                     )}
+                    {(r.tags?.length ?? 0) > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        {r.tags.map((n) => (
+                          <TagChip key={n} name={n} color={tagColor(n, state.tags)} on />
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </button>
                 <div className="flex shrink-0 gap-2">
@@ -201,6 +210,8 @@ function CardForm({
       : emptyContact(),
   );
   const [busy, setBusy] = useState(false);
+  const [tags, setTags] = useState<string[]>(existing?.tags ?? []);
+  const catalog = useControlData().tags;
   const ext = kind === "event" ? ".ics" : ".vcf";
 
   function syncSlug(name: string) {
@@ -231,6 +242,7 @@ function CardForm({
           kind === "event" ? event.location || "" : contact.company || "",
         payload,
         file_name: slug || `${slugify(name)}${ext}`,
+        tags,
       };
       const s = existing
         ? await updateResource({ data: { id: existing.id, ...body } })
@@ -315,6 +327,17 @@ function CardForm({
         <p className="mt-1 text-xs text-fg-subtle">
           Öffentlicher Pfad: /{slug || `name${ext}`}
         </p>
+      </div>
+      <div>
+        <Label>Tags</Label>
+        <TagPicker
+          catalog={catalog}
+          value={tags}
+          onChange={setTags}
+          onCreate={async (name, color) => {
+            await createTag({ data: { name, color, tenant_id: tenantId } });
+          }}
+        />
       </div>
     </FullScreenModal>
   );

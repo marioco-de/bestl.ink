@@ -6,10 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Input, Textarea, Label } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { FullScreenModal } from "@/components/ui/fullscreen-modal";
-import { generateLink, bulkGenerateLinks, createParamNode } from "@/lib/docbay/api";
+import { generateLink, bulkGenerateLinks, createParamNode, createTag } from "@/lib/docbay/api";
 import type { FullState, ParamNode, Resource } from "@/lib/docbay/types";
-import { cn } from "@/lib/utils";
 import { cardDownloadPath } from "@/lib/docbay/cards";
+import { TagPicker } from "@/components/control/tag-picker";
 
 function collectButtons(
   nodes: ParamNode[],
@@ -142,30 +142,17 @@ export function GeneratePanel({
           </div>
           <div>
             <Label>Tags</Label>
-            <div className="flex flex-wrap gap-2">
-              {state.tags.map((t) => {
-                const on = selectedTags.includes(t.name);
-                return (
-                  <button
-                    key={t.id}
-                    type="button"
-                    onClick={() =>
-                      setSelectedTags((p) =>
-                        on ? p.filter((x) => x !== t.name) : [...p, t.name],
-                      )
-                    }
-                    className={cn(
-                      "rounded-full border px-3 py-1.5 text-xs",
-                      on
-                        ? "border-primary/50 bg-primary/15 text-primary"
-                        : "border-border text-fg-muted",
-                    )}
-                  >
-                    {t.name}
-                  </button>
-                );
-              })}
-            </div>
+            <TagPicker
+              catalog={state.tags}
+              value={selectedTags}
+              onChange={setSelectedTags}
+              onCreate={async (name, color) => {
+                const s = (await createTag({
+                  data: { name, color, tenant_id: state.tenant.id },
+                })) as FullState;
+                onUpdated(s);
+              }}
+            />
           </div>
           <div>
             <Label>UTM-Preset</Label>

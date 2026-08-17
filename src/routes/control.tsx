@@ -42,6 +42,7 @@ import { Button } from "@/components/ui/button";
 import { CommandPalette } from "@/components/control/command-palette";
 import { ShortcutsHelp } from "@/components/control/shortcuts-help";
 import { CreateLinkModal } from "@/components/control/create-link-modal";
+import { WorkspaceSwitcher } from "@/components/control/workspace-switcher";
 import { useTheme } from "@/lib/theme";
 
 type ControlSearch = { tenant?: string };
@@ -93,7 +94,7 @@ const settingsNav: {
   hue: string;
 }[] = [
   { to: "/control/customers", label: "Kunden", icon: Users, superOnly: true, hue: "violet" },
-  { to: "/control/domain", label: "Domain", icon: Globe2, hue: "lime" },
+  { to: "/control/domain", label: "Domains", icon: Globe2, hue: "lime" },
   { to: "/control/email", label: "E-Mail", icon: Mail, hue: "amber" },
   { to: "/control/integrations", label: "Integrationen", icon: Webhook, hue: "azure" },
   { to: "/control/audit", label: "Audit", icon: ScrollText, hue: "violet" },
@@ -263,8 +264,11 @@ function ControlShell() {
             <p className="font-display text-sm font-semibold tracking-tight">
               bestl.ink
             </p>
-            <p className="truncate text-[11px] text-fg-subtle">{data.tenant.name}</p>
+            <p className="truncate text-[11px] text-fg-subtle">{data.tenant.public_host}</p>
           </div>
+        </div>
+        <div className="px-3 pb-1">
+          <WorkspaceSwitcher data={data} />
         </div>
         <div className="px-3 pb-3">
           <Button
@@ -428,6 +432,9 @@ function ControlShell() {
               <button type="button" className="flex h-11 w-11 items-center justify-center" onClick={() => setDrawer(false)}>
                 <X className="h-5 w-5" />
               </button>
+            </div>
+            <div className="border-b border-border px-3 py-2">
+              <WorkspaceSwitcher data={data} compact />
             </div>
             <nav className="flex flex-col gap-0.5 p-3">
               {primaryNav.map((item) => {

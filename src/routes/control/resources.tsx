@@ -16,10 +16,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FullScreenModal } from "@/components/ui/fullscreen-modal";
 import { GeneratePanel } from "@/components/hashport/generate-panel";
 import { useControlData, useSetControlData } from "@/lib/docbay/use-control";
-import { createResource, deleteResource, uploadBegin, uploadChunk } from "@/lib/docbay/api";
+import { createResource, deleteResource, updateResource, uploadBegin, uploadChunk, createTag } from "@/lib/docbay/api";
 import { formatBytes, slugify } from "@/lib/utils";
 import { MAX_UPLOAD_BYTES, MAX_UPLOAD_LABEL } from "@/lib/docbay/upload";
 import type { FullState, Resource } from "@/lib/docbay/types";
+import { TagChip, TagPicker } from "@/components/control/tag-picker";
+import { tagColor } from "@/lib/docbay/tags";
 
 export const Route = createFileRoute("/control/resources")({
   validateSearch: (s: Record<string, unknown>) => ({
@@ -130,6 +132,30 @@ export function ResourcesWorkspace({
                       {r.description}
                     </p>
                   )}
+                  {(r.tags?.length ?? 0) > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {r.tags.map((n) => (
+                        <TagChip key={n} name={n} color={tagColor(n, state.tags)} on />
+                      ))}
+                    </div>
+                  )}
+                  <div className="mt-2">
+                    <TagPicker
+                      catalog={state.tags}
+                      value={r.tags ?? []}
+                      onChange={(tags) => {
+                        void updateResource({
+                          data: { id: r.id, tags, tenant_id: state.tenant.id },
+                        }).then((s) => refresh(s as FullState));
+                      }}
+                      onCreate={async (name, color) => {
+                        const s = (await createTag({
+                          data: { name, color, tenant_id: state.tenant.id },
+                        })) as FullState;
+                        await refresh(s);
+                      }}
+                    />
+                  </div>
                   {r.type === "document" && (
                     <p className="mt-1 text-xs text-fg-subtle">
                       {r.file_name || "Datei"} · {formatBytes(r.file_size)}
@@ -191,12 +217,14 @@ function ResourceForm({
   onCancel: () => void;
   onCreated: (s: FullState) => void;
 }) {
+  const catalog = useControlData().tags;
   const [type, setType] = useState<"document" | "page">(defaultType);
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
   const [slugTouched, setSlugTouched] = useState(false);
   const [description, setDescription] = useState("");
   const [pageUrl, setPageUrl] = useState("");
+  const [tags, setTags] = useState<string[]>([]);
   const [file, setFile] = useState<{
     raw: File;
     name: string;
@@ -307,6 +335,7 @@ function ResourceForm({
           mime_type: type === "document" ? file!.mime : undefined,
           file_name: type === "document" ? file!.name : undefined,
           file_size: type === "document" ? file!.size : undefined,
+          tags,
           tenant_id: tenantId,
         },
       });
@@ -388,6 +417,17 @@ function ResourceForm({
         <Textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
+        />
+      </div>
+      <div>
+        <Label>Tags</Label>
+        <TagPicker
+          catalog={catalog}
+          value={tags}
+          onChange={setTags}
+          onCreate={async (name, color) => {
+            await createTag({ data: { name, color, tenant_id: tenantId } });
+          }}
         />
       </div>
       {type === "document" ? (

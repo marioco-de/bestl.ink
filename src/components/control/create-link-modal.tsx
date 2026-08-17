@@ -17,6 +17,8 @@ import { genToken } from "@/lib/docbay/id";
 import { cn } from "@/lib/utils";
 import type { FullState } from "@/lib/docbay/types";
 import { QrDrawer } from "./qr-drawer";
+import { TagPicker } from "./tag-picker";
+import { createTag } from "@/lib/docbay/api";
 
 type Extra = "campaign" | "device" | "lock" | "ttl" | null;
 
@@ -49,10 +51,10 @@ function Editor({
   onSaved: (s: FullState) => void;
 }) {
   const host = data.tenant.public_host || "bestl.ink";
+  const { setData } = useControl();
   const [destination, setDestination] = useState(seed);
   const [slug, setSlug] = useState(() => genToken(5));
   const [note, setNote] = useState("");
-  const [tagInput, setTagInput] = useState("");
   const [tags, setTags] = useState<string[]>([]);
   const [password, setPassword] = useState("");
   const [expiresHours, setExpiresHours] = useState("");
@@ -88,13 +90,6 @@ function Editor({
   }, [onClose]);
 
   const shortUrl = `https://${host}/${slug || "link"}`;
-
-  function addTag(raw: string) {
-    const t = raw.trim();
-    if (!t || tags.includes(t)) return;
-    setTags((prev) => [...prev, t]);
-    setTagInput("");
-  }
 
   async function save() {
     const dest = destination.trim();
@@ -213,46 +208,17 @@ function Editor({
 
               <section className="space-y-2">
                 <p className="text-xs font-medium text-fg-muted">Nur fürs Team</p>
-                <div className="flex min-h-9 flex-wrap items-center gap-1.5 rounded-md border border-border bg-bg px-2 py-1">
-                  {tags.map((t) => (
-                    <span
-                      key={t}
-                      className="inline-flex items-center gap-1 rounded-sm bg-bg-subtle px-1.5 py-0.5 text-[11px]"
-                    >
-                      {t}
-                      <button type="button" onClick={() => setTags(tags.filter((x) => x !== t))}>
-                        <X className="h-3 w-3" />
-                      </button>
-                    </span>
-                  ))}
-                  <input
-                    className="min-w-24 flex-1 bg-transparent py-1 text-sm outline-none"
-                    placeholder="Stichwort…"
-                    value={tagInput}
-                    onChange={(e) => setTagInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === ",") {
-                        e.preventDefault();
-                        addTag(tagInput);
-                      }
-                    }}
-                    onBlur={() => addTag(tagInput)}
-                  />
-                </div>
-                {data.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-1">
-                    {data.tags.map((t) => (
-                      <button
-                        key={t.id}
-                        type="button"
-                        className="rounded-sm border border-border px-1.5 py-0.5 text-[11px] text-fg-muted hover:bg-bg-subtle"
-                        onClick={() => addTag(t.name)}
-                      >
-                        {t.name}
-                      </button>
-                    ))}
-                  </div>
-                )}
+                <TagPicker
+                  catalog={data.tags}
+                  value={tags}
+                  onChange={setTags}
+                  onCreate={async (name, color) => {
+                    const next = (await createTag({
+                      data: { name, color, tenant_id: data.tenant.id },
+                    })) as FullState;
+                    setData(next);
+                  }}
+                />
                 <Textarea
                   value={note}
                   onChange={(e) => setNote(e.target.value)}

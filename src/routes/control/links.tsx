@@ -14,6 +14,8 @@ import { ShortsWorkspace } from "./shorts";
 import { ResourcesWorkspace } from "./resources";
 import { CardsWorkspace } from "./-cards";
 import { cardDownloadPath } from "@/lib/docbay/cards";
+import { TagChip } from "@/components/control/tag-picker";
+import { tagColor } from "@/lib/docbay/tags";
 
 type Tab = "urls" | "docs" | "pages" | "events" | "contacts" | "shared";
 
@@ -26,6 +28,7 @@ export const Route = createFileRoute("/control/links")({
     ) as Tab;
     return {
       tab,
+      ...(typeof s.tenant === "string" && s.tenant ? { tenant: s.tenant } : {}),
       ...(typeof s.create === "string" ? { create: s.create } : {}),
       ...(typeof s.generate === "string" ? { generate: s.generate } : {}),
     };
@@ -53,7 +56,12 @@ function LinksHub() {
   function setTab(next: Tab) {
     void navigate({
       to: "/control/links",
-      search: { tab: next },
+      search: {
+        tab: next,
+        ...(typeof (search as { tenant?: string }).tenant === "string"
+          ? { tenant: (search as { tenant?: string }).tenant }
+          : {}),
+      } as never,
     });
   }
 
@@ -197,6 +205,13 @@ function SharedPanel() {
                   Klicks
                   {l.last_clicked_at ? ` · ${formatDateDe(l.last_clicked_at)}` : ""}
                 </p>
+                {(l.tags?.length ?? 0) > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {l.tags.map((n) => (
+                      <TagChip key={n} name={n} color={tagColor(n, data.tags)} on />
+                    ))}
+                  </div>
+                )}
               </div>
               <div className="flex gap-1.5">
                 <Button
