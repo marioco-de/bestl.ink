@@ -32,7 +32,7 @@ import { betterAuth } from "better-auth";
 import { bearer, genericOAuth } from "better-auth/plugins";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
 import { getCookie } from "@tanstack/react-start/server";
-import { randomBytes } from "node:crypto";
+import { randomBytes, createHash } from "node:crypto";
 import { Pool } from "pg";
 import { ensureDbReady, getPglite } from "../db";
 import { emailAndPasswordEnabled } from "./email-password";
@@ -122,7 +122,7 @@ const baseURL = {
     "*.vercel.app",
   ],
   protocol: "auto" as const,
-  fallback: explicitBaseURL || "http://localhost:8080",
+  fallback: explicitBaseURL || "https://www.bestl.ink",
 };
 
 // Origins Better Auth accepts on credentialed POSTs (sign-up/sign-in, etc.).
@@ -189,7 +189,11 @@ export const auth = betterAuth({
   baseURL,
   // Deployed apps inject BETTER_AUTH_SECRET. Preview: process-stable secret on
   // globalThis so HMR doesn't invalidate PGLite-backed sessions (see above).
-  secret: env("BETTER_AUTH_SECRET") ?? previewAuthSecret(),
+  secret:
+    env("BETTER_AUTH_SECRET") ??
+    (databaseUrl
+      ? createHash("sha256").update(`bestl.ink:${databaseUrl}`).digest("hex")
+      : previewAuthSecret()),
   database,
 
   // CSRF / origin check for credentialed auth POSTs (email sign-up/sign-in, …).
