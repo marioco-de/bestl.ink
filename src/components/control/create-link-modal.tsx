@@ -1,5 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import {
+  Building2,
+  Check,
+  ChevronDown,
   Clock,
   ImageIcon,
   KeyRound,
@@ -13,7 +17,9 @@ import { Button } from "@/components/ui/button";
 import { Input, Textarea, Label } from "@/components/ui/input";
 import { useControl } from "@/lib/docbay/control-store";
 import { createShort } from "@/lib/docbay/shorts-api";
+import { getState } from "@/lib/docbay/api";
 import { genToken } from "@/lib/docbay/id";
+import { PLATFORM_LINK_HOST } from "@/lib/docbay/brand";
 import { cn } from "@/lib/utils";
 import type { FullState } from "@/lib/docbay/types";
 import { QrDrawer } from "./qr-drawer";
@@ -21,6 +27,20 @@ import { TagPicker } from "./tag-picker";
 import { createTag } from "@/lib/docbay/api";
 
 type Extra = "campaign" | "device" | "lock" | "ttl" | null;
+
+function collectHosts(data: FullState): string[] {
+  const set = new Set<string>();
+  if (data.tenant.public_host) set.add(data.tenant.public_host);
+  if (data.tenant.custom_domain) set.add(data.tenant.custom_domain);
+  for (const d of data.domains ?? []) {
+    if (d.host) set.add(d.host.toLowerCase());
+  }
+  if (data.tenant.subdomain) {
+    set.add(`${data.tenant.subdomain}.${PLATFORM_LINK_HOST}`);
+  }
+  set.add(PLATFORM_LINK_HOST);
+  return [...set];
+}
 
 export function CreateLinkModal() {
   const { data, setData, createOpen, createSeed, closeCreate } = useControl();
@@ -50,8 +70,10 @@ function Editor({
   onClose: () => void;
   onSaved: (s: FullState) => void;
 }) {
-  const host = data.tenant.public_host || "bestl.ink";
   const { setData } = useControl();
+  const navigate = useNavigate();
+  const hosts = useMemo(() => collectHosts(data), [data]);
+  const [host, setHost] = useState(data.tenant.public_host || hosts[0] || PLATFORM_LINK_HOST);
   const [destination, setDestination] = useState(seed);
   const [slug, setSlug] = useState(() => genToken(5));
   const [note, setNote] = useState("");
@@ -68,6 +90,26 @@ function Editor({
   const [shareImage, setShareImage] = useState("");
   const [extra, setExtra] = useState<Extra>(null);
   const [busy, setBusy] = useState(false);
+  const [hostOpen, setHostOpen] = useState(false);
+  const [wsOpen, setWsOpen] = useState(false);
+  const [wsBusy, setWsBusy] = useState(false);
+
+  const workspaces = data.workspaces.length
+    ? data.workspaces
+    : [
+        {
+          id: data.tenant.id,
+          name: data.tenant.name,
+          subdomain: data.tenant.subdomain,
+          role: data.member.role,
+        },
+      ];
+
+  useEffect(() => {
+    if (!hosts.includes(host)) {
+      setHost(data.tenant.public_host || hosts[0] || PLATFORM_LINK_HOST);
+    }
+  }, [hosts, data.tenant.public_host, host]);
 
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -75,6 +117,11 @@ function Editor({
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.preventDefault();
+        if (hostOpen || wsOpen) {
+          setHostOpen(false);
+          setWsOpen(false);
+          return;
+        }
         onClose();
       }
       if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
@@ -87,9 +134,30 @@ function Editor({
       document.body.style.overflow = prev;
       window.removeEventListener("keydown", onKey);
     };
-  }, [onClose]);
+  }, [onClose, hostOpen, wsOpen]);
 
   const shortUrl = `https://${host}/${slug || "link"}`;
+
+  async function pickWorkspace(id: string) {
+    if (id === data.tenant.id) {
+      setWsOpen(false);
+      return;
+    }
+    setWsBusy(true);
+    try {
+      const next = (await getState({ data: { tenant_id: id } })) as FullState;
+      setData(next);
+      setTags((cur) => cur.filter((name) => next.tags.some((t) => t.name === name)));
+      void navigate({
+        search: (prev: Record<string, unknown>) => ({ ...prev, tenant: id }),
+      } as never);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Workspace nicht geladen");
+    } finally {
+      setWsBusy(false);
+      setWsOpen(false);
+    }
+  }
 
   async function save() {
     const dest = destination.trim();
@@ -120,7 +188,7 @@ function Editor({
           tenant_id: data.tenant.id,
         },
       });
-      toast.success("Kurzlink liegt bereit");
+      toast.success(`Kurzlink liegt bereit · ${host}/${slug}`);
       onSaved(next as FullState);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Fehler");
@@ -192,10 +260,54 @@ function Editor({
                     <Shuffle className="h-3 w-3" /> würfeln
                   </button>
                 </div>
-                <div className="flex overflow-hidden rounded-md border border-border bg-bg">
-                  <span className="flex max-w-[48%] shrink-0 items-center truncate border-r border-border bg-bg-subtle px-2.5 text-[11px] text-fg-muted">
-                    {host}/
-                  </span>
+                <div className="flex rounded-md border border-border bg-bg">
+                  <div className="relative max-w-[58%] shrink-0 border-r border-border">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setHostOpen((v) => !v);
+                        setWsOpen(false);
+                      }}
+                      className="flex h-full min-h-9 w-full items-center gap-1 bg-bg-subtle px-2.5 text-left text-[11px] text-fg-muted hover:text-fg"
+                      aria-haspopup="listbox"
+                      aria-expanded={hostOpen}
+                    >
+                      <span className="min-w-0 truncate">{host}/</span>
+                      <ChevronDown className="h-3 w-3 shrink-0 opacity-70" />
+                    </button>
+                    {hostOpen && (
+                      <>
+                        <button
+                          type="button"
+                          className="fixed inset-0 z-10"
+                          aria-label="Schließen"
+                          onClick={() => setHostOpen(false)}
+                        />
+                        <ul
+                          role="listbox"
+                          className="absolute left-0 top-full z-20 mt-1 min-w-[14rem] overflow-hidden rounded-md border border-border bg-bg-elevated py-1 shadow-lg"
+                        >
+                          {hosts.map((h) => (
+                            <li key={h}>
+                              <button
+                                type="button"
+                                role="option"
+                                aria-selected={h === host}
+                                className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs hover:bg-bg-subtle"
+                                onClick={() => {
+                                  setHost(h);
+                                  setHostOpen(false);
+                                }}
+                              >
+                                <span className="min-w-0 flex-1 truncate font-mono">{h}</span>
+                                {h === host && <Check className="h-3 w-3 shrink-0 text-primary" />}
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      </>
+                    )}
+                  </div>
                   <input
                     className="min-w-0 flex-1 bg-transparent px-2.5 py-2 font-mono text-sm outline-none"
                     value={slug}
@@ -295,6 +407,59 @@ function Editor({
 
           <footer className="flex shrink-0 flex-col gap-2 border-t border-border px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] @min-[28rem]/modal:flex-row @min-[28rem]/modal:items-center @min-[28rem]/modal:justify-between">
             <div className="flex flex-wrap gap-1">
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setWsOpen((v) => !v);
+                    setHostOpen(false);
+                  }}
+                  disabled={wsBusy}
+                  className={cn(
+                    "inline-flex h-8 max-w-[11rem] items-center gap-1 rounded-md border px-2 text-[11px] transition-colors",
+                    wsOpen
+                      ? "border-fg bg-fg text-bg"
+                      : "border-border text-fg-muted hover:bg-bg-subtle hover:text-fg",
+                  )}
+                  aria-haspopup="listbox"
+                  aria-expanded={wsOpen}
+                >
+                  <Building2 className="h-3.5 w-3.5 shrink-0" />
+                  <span className="truncate">{wsBusy ? "…" : data.tenant.name}</span>
+                  <ChevronDown className="h-3 w-3 shrink-0 opacity-70" />
+                </button>
+                {wsOpen && (
+                  <>
+                    <button
+                      type="button"
+                      className="fixed inset-0 z-10"
+                      aria-label="Schließen"
+                      onClick={() => setWsOpen(false)}
+                    />
+                    <ul
+                      role="listbox"
+                      className="absolute bottom-full left-0 z-20 mb-1 min-w-[14rem] overflow-hidden rounded-md border border-border bg-bg-elevated py-1 shadow-lg"
+                    >
+                      {workspaces.map((w) => (
+                        <li key={w.id}>
+                          <button
+                            type="button"
+                            role="option"
+                            aria-selected={w.id === data.tenant.id}
+                            className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs hover:bg-bg-subtle"
+                            onClick={() => void pickWorkspace(w.id)}
+                          >
+                            <span className="min-w-0 flex-1 truncate">{w.name}</span>
+                            {w.id === data.tenant.id && (
+                              <Check className="h-3 w-3 shrink-0 text-primary" />
+                            )}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+              </div>
               {extras.map((c) => {
                 const Icon = c.icon;
                 const active = extra === c.id;
