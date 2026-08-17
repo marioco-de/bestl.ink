@@ -34,6 +34,7 @@ import {
   parseContactPayload,
   parseEventPayload,
 } from "@/lib/docbay/cards";
+import { BrandedFrame } from "@/components/public/branded-frame";
 
 type Search = {
   access?: string;
@@ -90,7 +91,8 @@ export const Route = createFileRoute("/$")({
           short.access === "granted" &&
           short.destination &&
           !short.cloak &&
-          !short.og
+          !short.og &&
+          !short.branded
         ) {
           throw redirect({ href: short.destination, statusCode: 302 });
         }
@@ -119,10 +121,11 @@ function ResourceGatePage() {
 }
 
 function ShortHit({
-  data,
+  data: initial,
 }: {
   data: Awaited<ReturnType<typeof resolveShort>>;
 }) {
+  const [data, setData] = useState(initial);
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -144,27 +147,17 @@ function ShortHit({
         setBusy(false);
         return;
       }
-      if (next.access === "granted" && next.destination && !next.cloak) {
+      if (next.access === "granted" && next.destination && !next.cloak && !next.branded) {
         window.location.replace(next.destination);
         return;
       }
-      if (next.access === "granted" && next.cloak && next.destination) {
-        window.location.replace(
-          `${location.pathname}?cloak=1#${encodeURIComponent(next.destination)}`,
-        );
-      }
+      setData(next);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Fehler");
     } finally {
       setBusy(false);
     }
   }
-
-  useEffect(() => {
-    if (data.access === "granted" && data.destination && !data.cloak && !data.og) {
-      window.location.replace(data.destination);
-    }
-  }, [data]);
 
   if (data.access === "password") {
     return (
@@ -201,13 +194,12 @@ function ShortHit({
     );
   }
 
-  if (data.cloak && data.destination) {
+  if (data.access === "granted" && data.destination && (data.cloak || data.branded)) {
     return (
-      <iframe
-        title={data.short.title || "link"}
-        src={data.destination}
-        className="h-dvh w-full border-0"
-        sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+      <BrandedFrame
+        url={data.destination}
+        title={data.short.title || data.short.slug}
+        showFlag={Boolean(data.branded)}
       />
     );
   }

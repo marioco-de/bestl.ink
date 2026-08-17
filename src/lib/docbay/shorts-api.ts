@@ -17,6 +17,7 @@ import {
   verifySecret,
 } from "./shorts.server";
 import type { ShortLink } from "./types";
+import { featuresFromRows, defaultFeatures } from "./features";
 
 type ShortInput = {
   destination: string;
@@ -312,6 +313,10 @@ export const resolveShort = createServerFn({ method: "POST" })
       referrer: data.referrer,
       country,
     });
+    const featRows = (await (await getSql())`
+      select feature_key, enabled from db_features where tenant_id = ${short.tenant_id}
+    `) as { feature_key: string; enabled: boolean }[];
+    const features = featuresFromRows(featRows, defaultFeatures());
     return {
       kind: "short" as const,
       access: "granted" as const,
@@ -319,6 +324,7 @@ export const resolveShort = createServerFn({ method: "POST" })
       destination: dest,
       cloak: short.cloak,
       og: isOgBot(ua),
+      branded: !features.unbranded_redirect,
       company: found.brand_company,
       brand_color: found.brand_color,
     };

@@ -83,6 +83,7 @@ const PRO: FeatureKey[] = [
   "smtp_email",
   "emailit_custom",
   "public_api",
+  "unbranded_redirect",
 ];
 
 /** Seed catalog — applied once when no plans exist. */

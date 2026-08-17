@@ -34,6 +34,7 @@ export const FEATURE_KEYS = [
   "targeting",
   "og_previews",
   "public_api",
+  "unbranded_redirect",
 ] as const;
 
 export type FeatureKey = (typeof FEATURE_KEYS)[number];

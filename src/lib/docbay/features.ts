@@ -24,6 +24,7 @@ export const FEATURE_LABELS: Record<FeatureKey, string> = {
   targeting: "Device- & Geo-Routing",
   og_previews: "OG / Link-Previews",
   public_api: "Public REST API",
+  unbranded_redirect: "Redirect ohne bestl.ink-Fahne",
 };
 
 /** Defaults for a new paying tenant */
@@ -49,6 +50,7 @@ export function defaultFeatures(): FeatureMap {
   m.targeting = true;
   m.og_previews = true;
   m.public_api = true;
+  m.unbranded_redirect = false;
   // email providers off until super enables / tenant configures
   m.emailit_platform = false;
   m.emailit_custom = true;
@@ -60,6 +62,7 @@ export function defaultFeatures(): FeatureMap {
 export function demoFeatures(): FeatureMap {
   const m = defaultFeatures();
   for (const k of FEATURE_KEYS) m[k] = true;
+  m.unbranded_redirect = false;
   return m;
 }
 
