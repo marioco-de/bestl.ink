@@ -1,0 +1,30 @@
+# deps & caches
+node_modules/
+.tanstack/
+.node_modules.lock
+
+# env & local secrets
+.env
+.env.*
+!.env.example
+
+# runtime / deploy
+.vercel/
+data/
+public/uploads/*
+!public/uploads/.gitkeep
+
+# sandbox / agent internals
+.grok/
+.project_id
+artifacts/
+attachments/
+screenshots/
+AGENTS.md
+AGENTS.project.md
+
+# logs & OS
+*.log
+.DS_Store
+.idea/
+.vscode/
