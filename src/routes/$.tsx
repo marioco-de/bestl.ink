@@ -8,6 +8,7 @@ import {
   trackView,
 } from "@/lib/docbay/api";
 import { resolveShort } from "@/lib/docbay/shorts-api";
+import { PLATFORM_LINK_HOST } from "@/lib/docbay/brand";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea, Label } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -40,8 +41,6 @@ type Search = {
   utm_medium?: string;
   utm_campaign?: string;
 };
-
-import { PLATFORM_LINK_HOST } from "@/lib/docbay/brand";
 
 async function requestHost(): Promise<string> {
   if (typeof window !== "undefined") return window.location.host;
