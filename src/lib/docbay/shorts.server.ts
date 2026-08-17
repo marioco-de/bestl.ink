@@ -240,6 +240,32 @@ export async function findShortBySlug(
   };
 }
 
+export async function findTenantBrandByHost(
+  host?: string,
+): Promise<{ company: string; name: string } | null> {
+  const h = (host || "").toLowerCase().replace(/:\d+$/, "");
+  if (!h) return null;
+  const sql = await getSql();
+  const rows = await sql`
+    select t.name, t.brand_company
+    from db_tenants t
+    where lower(t.custom_domain) = ${h}
+       or lower(t.domain) = ${h}
+       or lower(t.subdomain || '.bestl.ink') = ${h}
+       or exists (
+         select 1 from db_tenant_domains d
+         where d.tenant_id = t.id and lower(d.host) = ${h}
+       )
+    limit 1
+  `;
+  if (rows.length === 0) return null;
+  const r = rows[0] as { name?: string; brand_company?: string };
+  return {
+    name: String(r.name ?? ""),
+    company: String(r.brand_company || r.name || ""),
+  };
+}
+
 export async function recordShortVisit(input: {
   short: ShortLink;
   ua: string;

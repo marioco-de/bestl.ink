@@ -16,7 +16,9 @@ import {
   createApiKey,
   verifySecret,
   destinationAllowsIframe,
+  findTenantBrandByHost,
 } from "./shorts.server";
+import { requestHostHeader } from "./request-host.server";
 import type { ShortLink } from "./types";
 import { featuresFromRows, defaultFeatures } from "./features";
 
@@ -333,5 +335,13 @@ export const resolveShort = createServerFn({ method: "POST" })
       company: found.brand_company,
       brand_color: found.brand_color,
     };
+  });
+
+export const lookupMiss = createServerFn({ method: "POST" })
+  .inputValidator((d: { host?: string } | undefined) => d ?? {})
+  .handler(async ({ data }) => {
+    const host = (data.host || requestHostHeader()).toLowerCase().replace(/:\d+$/, "");
+    const brand = await findTenantBrandByHost(host);
+    return { host, company: brand?.company || "" };
   });
 

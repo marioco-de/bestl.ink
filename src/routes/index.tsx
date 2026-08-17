@@ -26,6 +26,7 @@ import {
   Scale,
   Search,
 } from "lucide-react";
+import { NotFoundSplash } from "@/components/public/not-found-splash";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
@@ -35,11 +36,14 @@ export const Route = createFileRoute("/")({
       return await getPublicHome();
     } catch {
       return {
+        mode: "home" as const,
         product: "bestl.ink",
         tagline: "Share less. Know more.",
         slogan: "Der Link sagt alles. Der Inhalt bleibt euer.",
         platformHost: "bestl.ink",
         googleNative: false,
+        host: "bestl.ink",
+        company: "",
       };
     }
   },
@@ -151,6 +155,9 @@ const FEATURES = [
 
 function HomePage() {
   const data = Route.useLoaderData();
+  if (data.mode === "miss") {
+    return <NotFoundSplash host={data.host} company={data.company} />;
+  }
 
   return (
     <div className="min-h-dvh overflow-x-hidden bg-bg">

@@ -24,6 +24,9 @@ import {
 import { sendTenantEmail, renderTemplate } from "./email.server";
 import { MAX_UPLOAD_BYTES, MAX_UPLOAD_LABEL } from "./upload";
 import { getGoogleClientId, getGoogleClientSecret } from "./secrets.server";
+import { requestHostHeader } from "./request-host.server";
+import { findTenantBrandByHost } from "./shorts.server";
+import { isMarketingHost } from "./brand";
 
 async function audit(
   tenantId: string | null,
@@ -104,12 +107,29 @@ export const getPublicHome = createServerFn({ method: "GET" }).handler(async () 
     console.error("[home] seed", err);
   }
   const google = Boolean(getGoogleClientId() && getGoogleClientSecret());
+  const host = requestHostHeader();
+  if (!isMarketingHost(host)) {
+    const brand = await findTenantBrandByHost(host);
+    return {
+      mode: "miss" as const,
+      product: "bestl.ink",
+      tagline: "Share less. Know more.",
+      slogan: "Der Link sagt alles. Der Inhalt bleibt euer.",
+      platformHost: PLATFORM_LINK_HOST,
+      googleNative: google,
+      host,
+      company: brand?.company || "",
+    };
+  }
   return {
+    mode: "home" as const,
     product: "bestl.ink",
     tagline: "Share less. Know more.",
     slogan: "Der Link sagt alles. Der Inhalt bleibt euer.",
     platformHost: PLATFORM_LINK_HOST,
     googleNative: google,
+    host,
+    company: "",
   };
 });
 

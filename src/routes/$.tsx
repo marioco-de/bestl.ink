@@ -7,8 +7,8 @@ import {
   postChat,
   trackView,
 } from "@/lib/docbay/api";
-import { resolveShort } from "@/lib/docbay/shorts-api";
-import { PLATFORM_LINK_HOST } from "@/lib/docbay/brand";
+import { resolveShort, lookupMiss } from "@/lib/docbay/shorts-api";
+import { NotFoundSplash, type MissReason } from "@/components/public/not-found-splash";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea, Label } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -43,11 +43,6 @@ type Search = {
   utm_campaign?: string;
 };
 
-async function requestHost(): Promise<string> {
-  if (typeof window !== "undefined") return window.location.host;
-  return PLATFORM_LINK_HOST;
-}
-
 export const Route = createFileRoute("/$")({
   validateSearch: (s: Record<string, unknown>): Search => ({
     access: typeof s.access === "string" ? s.access : undefined,
@@ -58,10 +53,28 @@ export const Route = createFileRoute("/$")({
   loaderDeps: ({ search }) => ({ access: search.access }),
   loader: async ({ params, deps }) => {
     const slug = (params._splat || "").replace(/\/$/, "");
-    if (!slug || slug.startsWith("control") || slug.startsWith("super") || slug.startsWith("api") || slug.startsWith("login") || slug.startsWith("signup")) {
-      throw new Error("NOT_FOUND");
+    const missCtx = await lookupMiss({
+      data: {
+        host: typeof window !== "undefined" ? window.location.host : undefined,
+      },
+    });
+    const host = missCtx.host;
+    if (
+      !slug ||
+      slug.startsWith("control") ||
+      slug.startsWith("super") ||
+      slug.startsWith("api") ||
+      slug.startsWith("login") ||
+      slug.startsWith("signup")
+    ) {
+      return {
+        kind: "miss" as const,
+        reason: "missing" as MissReason,
+        slug,
+        host,
+        company: missCtx.company,
+      };
     }
-    const host = await requestHost();
     const ua =
       typeof navigator !== "undefined"
         ? navigator.userAgent
@@ -99,20 +112,41 @@ export const Route = createFileRoute("/$")({
         return short;
       } catch (err) {
         if (isRedirect(err)) throw err;
-        throw new Error("NOT_FOUND");
+        const msg = err instanceof Error ? err.message : "NOT_FOUND";
+        const reason: MissReason =
+          msg === "EXPIRED"
+            ? "expired"
+            : msg === "DISABLED"
+              ? "disabled"
+              : msg === "LIMIT"
+                ? "limit"
+                : "missing";
+        return {
+          kind: "miss" as const,
+          reason,
+          slug,
+          host,
+          company: missCtx.company,
+        };
       }
     }
   },
   component: ResourceGatePage,
-  errorComponent: () => (
-    <div className="flex min-h-dvh items-center justify-center bg-bg px-4">
-      <p className="font-display text-xl font-semibold">Nicht gefunden</p>
-    </div>
-  ),
+  errorComponent: () => <NotFoundSplash host="bestl.ink" reason="missing" />,
 });
 
 function ResourceGatePage() {
   const initial = Route.useLoaderData();
+  if (initial && typeof initial === "object" && "kind" in initial && initial.kind === "miss") {
+    return (
+      <NotFoundSplash
+        host={initial.host}
+        slug={initial.slug}
+        company={initial.company}
+        reason={initial.reason}
+      />
+    );
+  }
   if (initial && typeof initial === "object" && "kind" in initial && initial.kind === "short") {
     return <ShortHit data={initial} />;
   }
