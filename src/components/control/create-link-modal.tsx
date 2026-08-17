@@ -149,7 +149,7 @@ function Editor({
         aria-label="Schließen"
         onClick={onClose}
       />
-      <div className="relative flex h-full w-full items-center justify-center p-0 @min-[40rem]/stage:p-6">
+      <div className="relative flex h-full w-full items-center justify-center p-0 @min-[40rem]/stage:p-6 @min-[40rem]/stage:pr-14">
         <div className="relative flex h-full w-full max-w-none @min-[40rem]/stage:h-auto @min-[40rem]/stage:max-h-[min(88dvh,720px)] @min-[40rem]/stage:max-w-[34rem]">
         <div
           role="dialog"

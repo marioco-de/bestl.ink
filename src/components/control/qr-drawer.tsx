@@ -70,12 +70,7 @@ export function QrDrawer({ url, slug }: { url: string; slug: string }) {
         onMouseEnter={() => setOpen(true)}
         onMouseLeave={() => setOpen(false)}
       >
-        <div
-          className={cn(
-            "pointer-events-auto flex items-stretch transition-[transform] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)]",
-            open ? "translate-x-0" : "-translate-x-8",
-          )}
-        >
+        <div className="pointer-events-auto -ml-px flex items-stretch">
           <Flag vertical open={open} onClick={() => setOpen((v) => !v)} />
           <div
             className={cn(
@@ -130,7 +125,10 @@ function Flag({
       className={cn(
         "flex items-center justify-center gap-1.5 border border-border bg-bg-elevated text-[10px] font-medium tracking-wide text-fg-muted shadow-sm hover:text-fg",
         vertical
-          ? "w-8 flex-col self-center rounded-l-md border-r-0 py-4"
+          ? cn(
+              "w-8 flex-col self-center border-l-0 py-4",
+              open ? "rounded-none" : "rounded-r-md",
+            )
           : "h-8 rounded-t-md border-b-0 px-3",
       )}
       aria-expanded={open}
