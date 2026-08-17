@@ -45,6 +45,7 @@ import {
   PREVIEW_CLIENT_SECRET,
 } from "./preview";
 import { getGoogleClientId, getGoogleClientSecret } from "@/lib/docbay/secrets.server";
+import { resolveDatabaseUrl } from "@/lib/database-url";
 
 // Kick (and share) PGLite bootstrap as soon as the auth server module loads.
 void ensureDbReady();
@@ -138,7 +139,7 @@ const googleClientId = env("GOOGLE_CLIENT_ID") || getGoogleClientId();
 const googleClientSecret = env("GOOGLE_CLIENT_SECRET") || getGoogleClientSecret();
 export const nativeGoogleEnabled = Boolean(googleClientId && googleClientSecret);
 
-const databaseUrl = env("DATABASE_URL");
+const databaseUrl = resolveDatabaseUrl();
 
 // Static broker OAuth endpoints (skip OIDC discovery on every sign-in / callback).
 // Discovery would cost an extra network hop to the broker before the popup can
