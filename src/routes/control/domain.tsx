@@ -52,7 +52,6 @@ function DomainPage() {
     }
   }
 
-  const platformHost = `${(subdomain || "firma").toLowerCase().replace(/[^a-z0-9-]/g, "")}.${PLATFORM_LINK_HOST}`;
   const cnameTarget = CNAME_TARGET;
   const publicHost = data.tenant.public_host;
 
@@ -69,8 +68,8 @@ function DomainPage() {
       <div>
         <h1 className="font-display text-2xl font-semibold">Domain</h1>
         <p className="mt-1 text-sm text-fg-muted">
-          Jeder Workspace hat eine eigene {PLATFORM_LINK_HOST}-Subdomain und optional eine
-          eigene Custom Domain (CNAME).
+          Öffentliche Kurzlinks laufen über {PLATFORM_LINK_HOST}/kürzel. Eine eigene
+          Domain (CNAME) kannst du optional darunter legen.
         </p>
       </div>
 
@@ -82,8 +81,11 @@ function DomainPage() {
         </CardHeader>
         <CardContent className="space-y-3 text-sm">
           <div className="rounded-md border border-border bg-bg p-3">
-            <p className="text-xs uppercase text-fg-subtle">Platform-Subdomain</p>
-            <p className="mt-1 font-mono text-primary">https://{platformHost}</p>
+            <p className="text-xs uppercase text-fg-subtle">Platform-Links</p>
+            <p className="mt-1 font-mono text-primary">https://{PLATFORM_LINK_HOST}/…</p>
+            <p className="mt-1 text-xs text-fg-subtle">
+              Workspace-Kürzel: {subdomain || "—"}.{PLATFORM_LINK_HOST} (Reservierung)
+            </p>
           </div>
           {customDomain && (
             <div className="rounded-md border border-border bg-bg p-3">

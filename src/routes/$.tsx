@@ -41,10 +41,11 @@ type Search = {
   utm_campaign?: string;
 };
 
+import { PLATFORM_LINK_HOST } from "@/lib/docbay/brand";
+
 async function requestHost(): Promise<string> {
   if (typeof window !== "undefined") return window.location.host;
-  const { getRequestHost } = await import("@tanstack/react-start/server");
-  return getRequestHost({ xForwardedHost: true }) || "";
+  return PLATFORM_LINK_HOST;
 }
 
 export const Route = createFileRoute("/$")({

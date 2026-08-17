@@ -21,7 +21,8 @@ import { ensurePlatformSeeded, PLATFORM_LINK_HOST } from "./seed.server";
 
 function publicHost(subdomain: string, custom: string, customConnected: boolean): string {
   if (customConnected && custom) return custom;
-  if (subdomain) return `${subdomain}.${PLATFORM_LINK_HOST}`;
+  // Apex works on the live Vercel deploy. Workspace subdomains need a
+  // project-owned wildcard (*.bestl.ink), which this host cannot set.
   return PLATFORM_LINK_HOST;
 }
 

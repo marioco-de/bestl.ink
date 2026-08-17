@@ -165,7 +165,7 @@ export async function createTenantForUser(opts: {
       id, name, slug, subdomain, domain, custom_domain, brand_company, brand_color
     ) values (
       ${tenantId}, ${opts.company}, ${sub}, ${sub},
-      ${`${sub}.${PLATFORM_LINK_HOST}`}, ${""},
+      ${PLATFORM_LINK_HOST}, ${""},
       ${opts.company}, ${"#1a5f4a"}
     )
   `;

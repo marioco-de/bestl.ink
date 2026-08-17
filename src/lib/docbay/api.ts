@@ -215,9 +215,7 @@ export const updateTenant = createServerFn({ method: "POST" })
     const customConnected =
       data.custom_domain_connected ?? t.custom_domain_connected;
     const primaryHost =
-      customConnected && custom
-        ? custom
-        : `${subdomain}.${PLATFORM_LINK_HOST}`;
+      customConnected && custom ? custom : PLATFORM_LINK_HOST;
 
     await sql`
       update db_tenants set
