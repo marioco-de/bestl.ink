@@ -123,30 +123,41 @@ export async function signInGoogle(
     await signIn("grok-google", { callbackURL, errorCallbackURL });
     return;
   }
+  const { data, error } = await authClient.signIn.social({
+    provider: "google",
+    callbackURL,
+    errorCallbackURL,
+    disableRedirect: true,
+  });
+  if (error) {
+    throw new Error(error.message ?? "Google-Login fehlgeschlagen");
+  }
+  const url = data && typeof data === "object" && "url" in data ? String(data.url ?? "") : "";
+  if (!url) {
+    throw new Error("Google hat keine Weiterleitung geliefert. Bitte Seite neu laden.");
+  }
+  goToAuthUrl(url);
+}
+
+function goToAuthUrl(url: string): void {
+  const framed = (() => {
+    try {
+      return typeof window !== "undefined" && window.self !== window.top;
+    } catch {
+      return true;
+    }
+  })();
+  if (framed) {
+    const popup = window.open(url, "bestl-google", "popup,width=500,height=650");
+    if (!popup) {
+      throw new Error("Pop-up blockiert — bitte erlauben und nochmal klicken.");
+    }
+    return;
+  }
   try {
-    const { data, error } = await authClient.signIn.social({
-      provider: "google",
-      callbackURL,
-      errorCallbackURL,
-    });
-    if (error) {
-      throw new Error(
-        error.message === "Provider not found" || error.code === "PROVIDER_NOT_FOUND"
-          ? "Google ist für diese Domain noch nicht hinterlegt. Bitte per E-Mail einloggen."
-          : (error.message ?? "Google-Login fehlgeschlagen"),
-      );
-    }
-    if (data?.url) {
-      window.location.href = data.url;
-      return;
-    }
-    throw new Error("Google-Login fehlgeschlagen");
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : "";
-    if (msg.includes("hinterlegt") || msg.includes("fehlgeschlagen")) throw err;
-    throw new Error(
-      "Google ist für diese Domain noch nicht hinterlegt. Bitte per E-Mail einloggen.",
-    );
+    window.top!.location.assign(url);
+  } catch {
+    window.location.assign(url);
   }
 }
 

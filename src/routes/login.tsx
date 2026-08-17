@@ -82,19 +82,19 @@ function LoginPage() {
 
   async function onGoogle() {
     setBusy(true);
+    toast.message("Weiterleitung zu Google…");
     try {
       await signInGoogle({
         callbackURL: "/control/links",
         errorCallbackURL: "/login",
       });
     } catch (err) {
+      setBusy(false);
       toast.error(
         err instanceof Error
           ? err.message
           : "Google-Login fehlgeschlagen. Pop-ups erlauben oder per E-Mail einloggen.",
       );
-    } finally {
-      setBusy(false);
     }
   }
 
