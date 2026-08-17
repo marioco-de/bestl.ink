@@ -200,6 +200,7 @@ function ShortHit({
         url={data.destination}
         title={data.short.title || data.short.slug}
         showFlag={Boolean(data.branded)}
+        frameable={Boolean(data.frameable)}
       />
     );
   }

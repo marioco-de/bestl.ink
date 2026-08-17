@@ -15,6 +15,7 @@ import {
   countryFromHeaders,
   createApiKey,
   verifySecret,
+  destinationAllowsIframe,
 } from "./shorts.server";
 import type { ShortLink } from "./types";
 import { featuresFromRows, defaultFeatures } from "./features";
@@ -317,6 +318,9 @@ export const resolveShort = createServerFn({ method: "POST" })
       select feature_key, enabled from db_features where tenant_id = ${short.tenant_id}
     `) as { feature_key: string; enabled: boolean }[];
     const features = featuresFromRows(featRows, defaultFeatures());
+    const branded = !features.unbranded_redirect;
+    const frameable =
+      branded || short.cloak ? await destinationAllowsIframe(dest) : false;
     return {
       kind: "short" as const,
       access: "granted" as const,
@@ -324,7 +328,8 @@ export const resolveShort = createServerFn({ method: "POST" })
       destination: dest,
       cloak: short.cloak,
       og: isOgBot(ua),
-      branded: !features.unbranded_redirect,
+      branded,
+      frameable,
       company: found.brand_company,
       brand_color: found.brand_color,
     };

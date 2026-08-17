@@ -35,6 +35,13 @@ export function storageContentUrl(key: string): string {
 }
 
 function uploadsRoot(): string {
+  const fromEnv =
+    typeof process !== "undefined" ? process.env.UPLOAD_DIR?.trim() : "";
+  if (fromEnv) return fromEnv;
+  const onLambda =
+    typeof process !== "undefined" &&
+    Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+  if (onLambda) return path.join("/tmp", "bestl-uploads");
   return path.join(process.cwd(), "data", "uploads");
 }
 
@@ -51,6 +58,32 @@ function assertSafeKey(key: string): string {
 
 function absPath(key: string): string {
   return path.join(uploadsRoot(), assertSafeKey(key));
+}
+
+async function putBlob(key: string, buf: Buffer, mime: string): Promise<void> {
+  const sql = await getSql();
+  await sql`
+    insert into db_blobs (key, mime, body, byte_size)
+    values (${key}, ${mime || "application/octet-stream"}, ${buf.toString("base64")}, ${buf.length})
+    on conflict (key) do update set
+      mime = excluded.mime,
+      body = excluded.body,
+      byte_size = excluded.byte_size
+  `;
+}
+
+async function getBlob(
+  key: string,
+): Promise<{ buf: Buffer; mime: string } | null> {
+  const sql = await getSql();
+  const row = (
+    await sql`select mime, body from db_blobs where key = ${assertSafeKey(key)} limit 1`
+  )[0] as { mime?: string; body?: string } | undefined;
+  if (!row?.body) return null;
+  return {
+    buf: Buffer.from(row.body, "base64"),
+    mime: row.mime || "application/octet-stream",
+  };
 }
 
 async function writeStreamToFile(
@@ -195,6 +228,15 @@ export async function commitUpload(
   const from = absPath(`tmp/${assertSafeKey(uploadId)}`);
   const key = `${assertSafeKey(tenantId)}/${assertSafeKey(resourceId)}`;
   const to = absPath(key);
+  let mime = "application/octet-stream";
+  try {
+    const meta = JSON.parse(await readFile(`${from}.json`, "utf8")) as {
+      mime_type?: string;
+    };
+    if (meta.mime_type) mime = meta.mime_type;
+  } catch {
+    /* ignore */
+  }
   await mkdir(path.dirname(to), { recursive: true });
   try {
     await rename(from, to);
@@ -202,11 +244,24 @@ export async function commitUpload(
   } catch {
     throw new Error("Upload nicht gefunden oder abgelaufen – Datei erneut wählen");
   }
+  try {
+    const buf = await readFile(to);
+    await putBlob(key, buf, mime);
+  } catch (err) {
+    console.error("[storage] persist blob", err);
+    throw new Error("Datei konnte nicht gespeichert werden – bitte erneut versuchen");
+  }
   return key;
 }
 
 export async function deleteStoredFile(key: string): Promise<void> {
   await unlink(absPath(key)).catch(() => undefined);
+  try {
+    const sql = await getSql();
+    await sql`delete from db_blobs where key = ${assertSafeKey(key)}`;
+  } catch {
+    /* table may not exist yet */
+  }
 }
 
 async function userFromRequest(request: Request): Promise<{ id: string } | null> {
@@ -312,15 +367,24 @@ export async function handleFileRequest(
   if (isStoredContentUrl(res.content_url)) {
     const key = storageKeyFromUrl(res.content_url!);
     const filePath = absPath(key);
-    let st: Awaited<ReturnType<typeof stat>>;
+    let body: Buffer | null = null;
     try {
-      st = await stat(filePath);
+      const st = await stat(filePath);
+      headers.set("Content-Length", String(st.size));
+      const stream = Readable.toWeb(createReadStream(filePath));
+      return new Response(stream as unknown as ReadableStream, { status: 200, headers });
     } catch {
-      return new Response("Datei fehlt", { status: 404 });
+      const blob = await getBlob(key);
+      if (blob) {
+        body = blob.buf;
+        if (!res.mime_type) headers.set("Content-Type", blob.mime);
+      }
     }
-    headers.set("Content-Length", String(st.size));
-    const stream = Readable.toWeb(createReadStream(filePath));
-    return new Response(stream as unknown as ReadableStream, { status: 200, headers });
+    if (body) {
+      headers.set("Content-Length", String(body.length));
+      return new Response(new Uint8Array(body), { status: 200, headers });
+    }
+    return new Response("Datei fehlt", { status: 404 });
   }
 
   if (res.content_base64) {

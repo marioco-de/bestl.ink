@@ -346,3 +346,37 @@ export async function createShortForTenant(
   return mapShortRow(row);
 }
 
+/** True only when the destination explicitly allows being framed. */
+export async function destinationAllowsIframe(url: string): Promise<boolean> {
+  try {
+    const ctrl = AbortSignal.timeout(1600);
+    let res = await fetch(url, {
+      method: "HEAD",
+      redirect: "follow",
+      signal: ctrl,
+      headers: { "User-Agent": "bestl.ink/1.0" },
+    });
+    if (res.status === 405 || res.status === 501 || res.status === 403) {
+      res = await fetch(url, {
+        method: "GET",
+        redirect: "follow",
+        signal: AbortSignal.timeout(1600),
+        headers: { "User-Agent": "bestl.ink/1.0", Range: "bytes=0-64" },
+      });
+    }
+    const xfo = (res.headers.get("x-frame-options") || "").toLowerCase();
+    if (xfo.includes("deny") || xfo.includes("sameorigin")) return false;
+    const csp = (res.headers.get("content-security-policy") || "").toLowerCase();
+    const m = csp.match(/frame-ancestors\s+([^;]+)/);
+    if (m) {
+      const v = m[1].trim();
+      if (!v || v === "'none'" || v === "none") return false;
+      if (v.includes("*")) return true;
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
