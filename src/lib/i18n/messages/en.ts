@@ -45,6 +45,7 @@ export const en: Messages = {
     email: "Email",
     integrations: "Integrations",
     audit: "Audit",
+    beta: "Beta",
     urls: "URLs",
     docs: "Documents",
     pages: "Pages",

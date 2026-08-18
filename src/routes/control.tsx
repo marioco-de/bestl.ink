@@ -101,12 +101,13 @@ const settingsNav: {
   icon: typeof Globe2;
   superOnly?: boolean;
   hue: string;
+  beta?: boolean;
 }[] = [
   { to: "/control/workspace", labelKey: "nav.workspace", icon: Building2, hue: "teal" },
   { to: "/control/customers", labelKey: "nav.customers", icon: Users, superOnly: true, hue: "violet" },
   { to: "/control/domain", labelKey: "nav.domains", icon: Globe2, hue: "lime" },
-  { to: "/control/email", labelKey: "nav.email", icon: Mail, hue: "amber" },
-  { to: "/control/integrations", labelKey: "nav.integrations", icon: Webhook, hue: "azure" },
+  { to: "/control/email", labelKey: "nav.email", icon: Mail, hue: "amber", beta: true },
+  { to: "/control/integrations", labelKey: "nav.integrations", icon: Webhook, hue: "azure", beta: true },
   { to: "/control/audit", labelKey: "nav.audit", icon: ScrollText, hue: "violet" },
 ];
 
@@ -371,7 +372,8 @@ function ControlShell() {
                   )}
                 >
                   <Icon className="h-4 w-4 shrink-0" />
-                  {t(item.labelKey)}
+                  <span className="min-w-0 flex-1 truncate">{t(item.labelKey)}</span>
+                  {item.beta && <BetaBadge />}
                 </Link>
               );
             })}
@@ -532,7 +534,8 @@ function ControlShell() {
                       className="flex min-h-11 items-center gap-2.5 rounded-md px-3 py-3 text-sm text-fg-muted"
                     >
                       <Icon className="h-4 w-4" />
-                      {t(item.labelKey)}
+                      <span className="min-w-0 flex-1 truncate">{t(item.labelKey)}</span>
+                      {item.beta && <BetaBadge />}
                     </Link>
                   );
                 })}
@@ -627,5 +630,14 @@ function LinksNav({
         </div>
       </div>
     </div>
+  );
+}
+
+function BetaBadge() {
+  const t = useT();
+  return (
+    <span className="shrink-0 rounded-sm bg-fg/8 px-1 py-px text-[9px] font-semibold uppercase tracking-[0.08em] text-fg-subtle ring-1 ring-fg/12">
+      {t("nav.beta")}
+    </span>
   );
 }

@@ -43,6 +43,7 @@ export const de = {
     email: "E-Mail",
     integrations: "Integrationen",
     audit: "Audit",
+    beta: "Beta",
     urls: "URLs",
     docs: "Dokumente",
     pages: "Seiten",
