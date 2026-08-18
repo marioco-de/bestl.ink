@@ -115,7 +115,7 @@ function DomainPage() {
   useEffect(() => {
     const key = `${data.tenant.id}:${data.domains.map((d) => d.id).join(",")}`;
     if (scanned.current === key) return;
-    const pending = data.domains.filter((d) => !d.connected && !d.dns_ok);
+    const pending = data.domains.filter((d) => !d.dns_ok);
     if (pending.length === 0) {
       scanned.current = key;
       return;
@@ -386,7 +386,6 @@ function DomainPage() {
                 >
                   <Copy className="h-3 w-3" /> {t("domain.cname")}
                 </button>
-                <span className="mt-0.5 block font-sans text-fg-muted">{t("domain.cnameHint")}</span>
               </p>
               <TagPicker
                 catalog={data.tags}

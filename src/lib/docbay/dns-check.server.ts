@@ -1,4 +1,5 @@
 import { promises as dns } from "node:dns";
+import { Resolver } from "node:dns";
 import { CNAME_TARGET, PLATFORM_LINK_HOST } from "./brand";
 
 function norm(host: string): string {
@@ -21,6 +22,34 @@ function accepted(name: string): boolean {
   return false;
 }
 
+async function cnamesOf(host: string): Promise<string[]> {
+  const a = await dns.resolveCname(host).catch(() => [] as string[]);
+  if (a.length) return a;
+  try {
+    const r = new Resolver();
+    r.setServers(["1.1.1.1", "8.8.8.8"]);
+    return await new Promise<string[]>((resolve) => {
+      r.resolveCname(host, (err, list) => resolve(err || !list ? [] : list));
+    });
+  } catch {
+    return [];
+  }
+}
+
+async function aOf(host: string): Promise<string[]> {
+  const a = await dns.resolve4(host).catch(() => [] as string[]);
+  if (a.length) return a;
+  try {
+    const r = new Resolver();
+    r.setServers(["1.1.1.1", "8.8.8.8"]);
+    return await new Promise<string[]>((resolve) => {
+      r.resolve4(host, (err, list) => resolve(err || !list ? [] : list));
+    });
+  } catch {
+    return [];
+  }
+}
+
 export async function probeDomainDns(
   host: string,
 ): Promise<{ ok: boolean; detail: string }> {
@@ -28,22 +57,22 @@ export async function probeDomainDns(
   if (!h.includes(".")) return { ok: false, detail: "Ungültiger Host" };
 
   try {
-    let cnames = await dns.resolveCname(h).catch(() => [] as string[]);
-    let hop = cnames[0] ? norm(cnames[0]) : "";
-    for (let i = 0; i < 4 && hop; i++) {
+    const first = (await cnamesOf(h))[0];
+    let hop = first ? norm(first) : "";
+    for (let i = 0; i < 5 && hop; i++) {
       if (accepted(hop)) {
         return { ok: true, detail: `CNAME → ${hop}` };
       }
-      const next = await dns.resolveCname(hop).catch(() => [] as string[]);
+      const next = await cnamesOf(hop);
       hop = next[0] ? norm(next[0]) : "";
     }
 
-    const [ours, theirs] = await Promise.all([
-      dns.resolve4(CNAME_TARGET).catch(() =>
-        dns.resolve4(`www.${PLATFORM_LINK_HOST}`).catch(() => [] as string[]),
-      ),
-      dns.resolve4(h).catch(() => [] as string[]),
-    ]);
+    const ours = [
+      ...(await aOf(CNAME_TARGET)),
+      ...(await aOf(PLATFORM_LINK_HOST)),
+      ...(await aOf(`www.${PLATFORM_LINK_HOST}`)),
+    ];
+    const theirs = await aOf(h);
     const overlap = theirs.find((ip) => ours.includes(ip));
     if (overlap) return { ok: true, detail: `A → ${overlap}` };
   } catch {
@@ -54,7 +83,7 @@ export async function probeDomainDns(
     const res = await fetch(`https://${h}/`, {
       method: "GET",
       redirect: "follow",
-      signal: AbortSignal.timeout(2800),
+      signal: AbortSignal.timeout(3500),
       headers: { "user-agent": "bestl.ink-dns-check" },
     });
     const text = await res.text();

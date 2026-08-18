@@ -143,7 +143,6 @@ export function GeneratePanel({
           <div>
             <Label>Tags</Label>
             <TagPicker
-              iconOnly
               catalog={state.tags}
               value={selectedTags}
               onChange={setSelectedTags}

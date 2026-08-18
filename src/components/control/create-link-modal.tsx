@@ -317,7 +317,6 @@ function Editor({
               <section className="space-y-2">
                 <p className="text-xs font-medium text-fg-muted">{t("short.teamOnly")}</p>
                 <TagPicker
-                  iconOnly
                   catalog={data.tags}
                   value={tags}
                   onChange={setTags}
