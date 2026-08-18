@@ -15,6 +15,11 @@ export function useSetControlData() {
   return ctx?.setData;
 }
 
+export function useSwitchWorkspace() {
+  const ctx = useOptionalControl();
+  return ctx?.switchWorkspace;
+}
+
 export function useOpenCreate() {
   const ctx = useOptionalControl();
   return ctx?.openCreate ?? (() => undefined);

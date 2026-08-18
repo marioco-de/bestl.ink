@@ -4,7 +4,7 @@ import { Building2, Check, ChevronDown, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
-import { createWorkspace, getState } from "@/lib/docbay/api";
+import { createWorkspace } from "@/lib/docbay/api";
 import { useControl } from "@/lib/docbay/control-store";
 import type { FullState } from "@/lib/docbay/types";
 import { cn } from "@/lib/utils";
@@ -17,7 +17,7 @@ export function WorkspaceSwitcher({
   compact?: boolean;
 }) {
   const navigate = useNavigate();
-  const { setData } = useControl();
+  const { setData, switchWorkspace, prefetchWorkspace } = useControl();
   const [open, setOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [company, setCompany] = useState("");
@@ -27,18 +27,13 @@ export function WorkspaceSwitcher({
     ? data.workspaces
     : [{ id: data.tenant.id, name: data.tenant.name, subdomain: data.tenant.subdomain, role: data.member.role }];
 
-  async function go(id: string) {
+  function go(id: string) {
     setOpen(false);
     if (id === data.tenant.id) return;
-    try {
-      const next = (await getState({ data: { tenant_id: id } })) as FullState;
-      setData(next);
-      void navigate({
-        search: (prev: Record<string, unknown>) => ({ ...prev, tenant: id }),
-      } as never);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Workspace nicht geladen");
-    }
+    switchWorkspace(id);
+    void navigate({
+      search: (prev: Record<string, unknown>) => ({ ...prev, tenant: id }),
+    } as never);
   }
 
   async function create() {
@@ -102,6 +97,7 @@ export function WorkspaceSwitcher({
                   <button
                     type="button"
                     className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs hover:bg-bg-subtle"
+                    onMouseEnter={() => prefetchWorkspace(w.id)}
                     onClick={() => go(w.id)}
                   >
                     <span className="min-w-0 flex-1 truncate">{w.name}</span>

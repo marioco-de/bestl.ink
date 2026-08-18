@@ -17,7 +17,6 @@ import { Button } from "@/components/ui/button";
 import { Input, Textarea, Label } from "@/components/ui/input";
 import { useControl } from "@/lib/docbay/control-store";
 import { createShort } from "@/lib/docbay/shorts-api";
-import { getState } from "@/lib/docbay/api";
 import { genToken } from "@/lib/docbay/id";
 import { PLATFORM_LINK_HOST } from "@/lib/docbay/brand";
 import { cn } from "@/lib/utils";
@@ -77,7 +76,7 @@ function Editor({
   onClose: () => void;
   onSaved: (s: FullState) => void;
 }) {
-  const { setData } = useControl();
+  const { setData, switchWorkspace, prefetchWorkspace } = useControl();
   const navigate = useNavigate();
   const hosts = useMemo(() => collectHosts(data), [data]);
   const [host, setHost] = useState(hosts[0] || PLATFORM_LINK_HOST);
@@ -99,7 +98,6 @@ function Editor({
   const [busy, setBusy] = useState(false);
   const [hostOpen, setHostOpen] = useState(false);
   const [wsOpen, setWsOpen] = useState(false);
-  const [wsBusy, setWsBusy] = useState(false);
 
   const workspaces = data.workspaces.length
     ? data.workspaces
@@ -145,25 +143,17 @@ function Editor({
 
   const shortUrl = `https://${host}/${slug || "link"}`;
 
-  async function pickWorkspace(id: string) {
+  function pickWorkspace(id: string) {
     if (id === data.tenant.id) {
       setWsOpen(false);
       return;
     }
-    setWsBusy(true);
-    try {
-      const next = (await getState({ data: { tenant_id: id } })) as FullState;
-      setData(next);
-      setTags((cur) => cur.filter((name) => next.tags.some((t) => t.name === name)));
-      void navigate({
-        search: (prev: Record<string, unknown>) => ({ ...prev, tenant: id }),
-      } as never);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Workspace nicht geladen");
-    } finally {
-      setWsBusy(false);
-      setWsOpen(false);
-    }
+    switchWorkspace(id);
+    setTags([]);
+    setWsOpen(false);
+    void navigate({
+      search: (prev: Record<string, unknown>) => ({ ...prev, tenant: id }),
+    } as never);
   }
 
   async function save() {
@@ -421,7 +411,6 @@ function Editor({
                     setWsOpen((v) => !v);
                     setHostOpen(false);
                   }}
-                  disabled={wsBusy}
                   className={cn(
                     "inline-flex h-8 max-w-[11rem] items-center gap-1 rounded-md border px-2 text-[11px] transition-colors",
                     wsOpen
@@ -432,7 +421,7 @@ function Editor({
                   aria-expanded={wsOpen}
                 >
                   <Building2 className="h-3.5 w-3.5 shrink-0" />
-                  <span className="truncate">{wsBusy ? "…" : data.tenant.name}</span>
+                  <span className="truncate">{data.tenant.name}</span>
                   <ChevronDown className="h-3 w-3 shrink-0 opacity-70" />
                 </button>
                 {wsOpen && (
@@ -454,7 +443,8 @@ function Editor({
                             role="option"
                             aria-selected={w.id === data.tenant.id}
                             className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs hover:bg-bg-subtle"
-                            onClick={() => void pickWorkspace(w.id)}
+                            onMouseEnter={() => prefetchWorkspace(w.id)}
+                            onClick={() => pickWorkspace(w.id)}
                           >
                             <span className="min-w-0 flex-1 truncate">{w.name}</span>
                             {w.id === data.tenant.id && (
