@@ -375,7 +375,7 @@ function DomainPage() {
                 </div>
               </div>
               <p className="font-mono text-[11px] text-fg-subtle">
-                {d.host.split(".")[0] || "www"} → {CNAME_TARGET}
+                CNAME {d.host.split(".")[0] || "www"} → {CNAME_TARGET}
                 <button
                   type="button"
                   className="ml-2 inline-flex items-center gap-1 text-primary"
@@ -386,6 +386,7 @@ function DomainPage() {
                 >
                   <Copy className="h-3 w-3" /> {t("domain.cname")}
                 </button>
+                <span className="mt-0.5 block font-sans text-fg-muted">{t("domain.cnameHint")}</span>
               </p>
               <TagPicker
                 catalog={data.tags}

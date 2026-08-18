@@ -148,6 +148,7 @@ export const de = {
     standard: "Standard",
     reorder: "Reihenfolge ändern",
     cname: "CNAME",
+    cnameHint: "Nur CNAME auf dns.bestl.ink — kein Redirect.",
     dnsOk: "DNS sitzt. Jetzt aktivieren.",
     dnsWait: "DNS noch ausstehend",
     nowActive: "Domain aktiv",

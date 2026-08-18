@@ -150,6 +150,7 @@ export const en: Messages = {
     standard: "Default",
     reorder: "Change order",
     cname: "CNAME",
+    cnameHint: "CNAME to dns.bestl.ink only — no HTTP redirect.",
     dnsOk: "DNS is set. Activate it now.",
     dnsWait: "DNS still pending",
     nowActive: "Domain active",

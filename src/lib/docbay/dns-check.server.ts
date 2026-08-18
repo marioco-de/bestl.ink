@@ -16,6 +16,7 @@ function accepted(name: string): boolean {
   const n = norm(name);
   if (ACCEPT.has(n)) return true;
   if (n.endsWith(".vercel-dns.com")) return true;
+  if (/\.vercel-dns-\d+\.com$/.test(n)) return true;
   if (n.endsWith(`.${PLATFORM_LINK_HOST}`)) return true;
   return false;
 }
@@ -28,16 +29,13 @@ export async function probeDomainDns(
 
   try {
     let cnames = await dns.resolveCname(h).catch(() => [] as string[]);
-    const first = cnames[0] ? norm(cnames[0]) : "";
-    if (first && accepted(first)) {
-      return { ok: true, detail: `CNAME → ${first}` };
-    }
-    if (first) {
-      const hop = await dns.resolveCname(first).catch(() => [] as string[]);
-      const second = hop[0] ? norm(hop[0]) : "";
-      if (second && accepted(second)) {
-        return { ok: true, detail: `CNAME → ${first} → ${second}` };
+    let hop = first;
+    for (let i = 0; i < 4 && hop; i++) {
+      if (accepted(hop)) {
+        return { ok: true, detail: `CNAME → ${hop}` };
       }
+      const next = await dns.resolveCname(hop).catch(() => [] as string[]);
+      hop = next[0] ? norm(next[0]) : "";
     }
 
     const [ours, theirs] = await Promise.all([
