@@ -429,7 +429,7 @@ function GroupFrame({
           ...cellStyle(g.x, g.y, g.w, g.h, 0),
           borderColor: g.color,
           ["--hue"]: g.color,
-        }}
+        } as CSSProperties}
         onContextMenu={(e) => {
           e.preventDefault();
           e.stopPropagation();
