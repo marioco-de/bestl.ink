@@ -120,7 +120,7 @@ export const getPublicHome = createServerFn({ method: "GET" }).handler(async () 
     const brand = await findTenantBrandByHost(host);
     return {
       mode: "miss" as const,
-      product: "bestl.ink",
+      product: "BESTL.INK",
       tagline: "Share less. Know more.",
       slogan: "Der Link sagt alles. Der Inhalt bleibt euer.",
       platformHost: PLATFORM_LINK_HOST,
@@ -131,7 +131,7 @@ export const getPublicHome = createServerFn({ method: "GET" }).handler(async () 
   }
   return {
     mode: "home" as const,
-    product: "bestl.ink",
+    product: "BESTL.INK",
     tagline: "Share less. Know more.",
     slogan: "Der Link sagt alles. Der Inhalt bleibt euer.",
     platformHost: PLATFORM_LINK_HOST,

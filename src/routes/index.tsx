@@ -37,7 +37,7 @@ export const Route = createFileRoute("/")({
     } catch {
       return {
         mode: "home" as const,
-        product: "bestl.ink",
+        product: "BESTL.INK",
         tagline: "Share less. Know more.",
         slogan: "Der Link sagt alles. Der Inhalt bleibt euer.",
         platformHost: "bestl.ink",
@@ -420,7 +420,7 @@ function HomePage() {
 
       <footer className="border-t border-border/60 py-6">
         <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-2 px-4 text-xs text-fg-subtle sm:flex-row sm:items-center sm:px-6">
-          <p className="font-display font-medium text-fg-muted">bestl.ink</p>
+          <p className="font-display font-medium text-fg-muted">BESTL.INK</p>
           <p>Share less. Know more. · {data.platformHost}</p>
         </div>
       </footer>

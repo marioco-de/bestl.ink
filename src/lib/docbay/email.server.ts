@@ -19,7 +19,7 @@ export async function sendTenantEmail(
     return { ok: false, error: "Kein E-Mail-Provider konfiguriert" };
   }
 
-  const fromName = input.fromName || settings.from_name || "bestl.ink";
+  const fromName = input.fromName || settings.from_name || "BESTL.INK";
   const fromEmail = input.fromEmail || settings.from_email || "noreply@bestl.ink";
   const from = `${fromName} <${fromEmail}>`;
 
@@ -89,7 +89,7 @@ export async function sendPlatformAuthEmail(input: {
 }): Promise<{ ok: boolean; error?: string }> {
   return sendEmailit(
     getPlatformEmailitKey(),
-    "bestl.ink <noreply@bestl.ink>",
+    "BESTL.INK <noreply@bestl.ink>",
     { to: input.to, subject: input.subject, html: input.html },
   );
 }

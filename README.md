@@ -1,4 +1,4 @@
-# bestl.ink
+# BESTL.INK
 
 Gated content sharing: short links, documents, proxy pages, calendar events (`.ics`) and contacts (`.vcf`).
 

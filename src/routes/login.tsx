@@ -16,7 +16,7 @@ export const Route = createFileRoute("/login")({
     try {
       return await getPublicHome();
     } catch {
-      return { googleNative: false, product: "bestl.ink", platformHost: "bestl.ink" };
+      return { googleNative: false, product: "BESTL.INK", platformHost: "bestl.ink" };
     }
   },
   component: LoginPage,
@@ -105,7 +105,7 @@ function LoginPage() {
           <div className="metal mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-md">
             <Shield className="h-6 w-6" />
           </div>
-          <h1 className="font-display text-2xl font-semibold tracking-tight">bestl.ink</h1>
+          <h1 className="font-display text-2xl font-semibold tracking-tight">BESTL.INK</h1>
           <p className="mt-1 text-sm text-fg-muted">
             Gated Docs · Attribution · Tracking
           </p>

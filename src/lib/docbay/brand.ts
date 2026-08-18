@@ -1,5 +1,5 @@
 /** Public product identity — safe to import from client and server. */
-export const BRAND_NAME = "bestl.ink";
+export const BRAND_NAME = "BESTL.INK";
 export const PLATFORM_LINK_HOST = "bestl.ink";
 export const CNAME_TARGET = `dns.${PLATFORM_LINK_HOST}`;
 export const BRAND_MARK = "bl";

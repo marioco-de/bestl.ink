@@ -1,8 +1,8 @@
 export const de = {
   meta: {
-    title: "bestl.ink – Der Link sagt alles",
+    title: "BESTL.INK – Der Link sagt alles",
     description:
-      "bestl.ink: Kurzlinks, gated Documents und Attribution. Inhalte, die nicht offen im Netz liegen.",
+      "BESTL.INK: Kurzlinks, gated Documents und Attribution. Inhalte, die nicht offen im Netz liegen.",
   },
   brand: {
     tagline: "Share less. Know more.",

@@ -51,7 +51,7 @@ function EmailPage() {
             {(
               [
                 ["none", "Aus"],
-                ["emailit_platform", "bestl.ink Emailit"],
+                ["emailit_platform", "BESTL.INK Emailit"],
                 ["emailit_custom", "Eigene Emailit-API"],
                 ["smtp", "SMTP / IMAP Login"],
               ] as const

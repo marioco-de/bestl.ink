@@ -2,7 +2,7 @@ import type { FeatureKey, FeatureMap } from "./types";
 import { FEATURE_KEYS } from "./types";
 
 export const FEATURE_LABELS: Record<FeatureKey, string> = {
-  emailit_platform: "Platform Emailit (bestl.ink-Key)",
+  emailit_platform: "Platform Emailit (BESTL.INK-Key)",
   emailit_custom: "Eigene Emailit API",
   smtp_email: "SMTP / IMAP-Zugangsdaten",
   chat: "Chat im Dokument",
@@ -24,7 +24,7 @@ export const FEATURE_LABELS: Record<FeatureKey, string> = {
   targeting: "Device- & Geo-Routing",
   og_previews: "OG / Link-Previews",
   public_api: "Public REST API",
-  unbranded_redirect: "Redirect ohne bestl.ink-Fahne",
+  unbranded_redirect: "Redirect ohne BESTL.INK-Fahne",
 };
 
 /** Defaults for a new paying tenant */

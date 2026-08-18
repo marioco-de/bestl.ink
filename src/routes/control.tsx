@@ -11,6 +11,7 @@ import type { FullState } from "@/lib/docbay/types";
 import { ControlProvider, useControl } from "@/lib/docbay/control-store";
 import {
   LayoutDashboard,
+  Gauge,
   GitBranch,
   Link2,
   Globe2,
@@ -71,13 +72,14 @@ export const Route = createFileRoute("/control")({
 });
 
 const primaryNav: {
-  to: "/control" | "/control/links" | "/control/parameters" | "/control/requests";
+  to: "/control" | "/control/stats" | "/control/links" | "/control/parameters" | "/control/requests";
   labelKey: string;
   icon: typeof LayoutDashboard;
   exact?: boolean;
   hue: string;
 }[] = [
-  { to: "/control", labelKey: "nav.overview", icon: LayoutDashboard, exact: true, hue: "teal" },
+  { to: "/control", labelKey: "nav.dashboard", icon: LayoutDashboard, exact: true, hue: "teal" },
+  { to: "/control/stats", labelKey: "nav.overview", icon: Gauge, hue: "lime" },
   { to: "/control/links", labelKey: "nav.links", icon: Link2, hue: "azure" },
   { to: "/control/parameters", labelKey: "nav.parameters", icon: GitBranch, hue: "amber" },
   { to: "/control/requests", labelKey: "nav.requests", icon: Inbox, hue: "ruby" },
@@ -266,7 +268,7 @@ function ControlShell() {
           </div>
           <div className="min-w-0">
             <p className="font-display text-sm font-semibold tracking-tight">
-              bestl.ink
+              BESTL.INK
             </p>
             <p className="truncate text-[11px] text-fg-subtle">{data.tenant.public_host}</p>
           </div>
@@ -450,7 +452,7 @@ function ControlShell() {
           />
           <div className="absolute inset-y-0 left-0 flex w-[min(18rem,88vw)] flex-col bg-bg-elevated">
             <div className="flex items-center justify-between border-b border-border px-4 py-4">
-              <p className="font-display font-semibold">bestl.ink</p>
+              <p className="font-display font-semibold">BESTL.INK</p>
               <button type="button" className="flex h-11 w-11 items-center justify-center" onClick={() => setDrawer(false)}>
                 <X className="h-5 w-5" />
               </button>

@@ -59,7 +59,7 @@ function SignupPage() {
     <div className="flex min-h-dvh items-center justify-center bg-bg px-4 py-10">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>bestl.ink Workspace erstellen</CardTitle>
+          <CardTitle>BESTL.INK Workspace erstellen</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={onSubmit} className="space-y-3">

@@ -278,7 +278,7 @@ export async function loadFullState(
     const platformTenants = await listPlatformTenants();
     const emptyTenant: Tenant = {
       id: "platform",
-      name: "bestl.ink Platform",
+      name: "BESTL.INK Platform",
       slug: "platform",
       subdomain: "admin",
       domain: `admin.${PLATFORM_LINK_HOST}`,
@@ -289,7 +289,7 @@ export async function loadFullState(
       demo_reset_at: null,
       brand_logo_url: null,
       brand_color: "#1a5f4a",
-      brand_company: "bestl.ink",
+      brand_company: "BESTL.INK",
       created_at: new Date().toISOString(),
       public_host: `admin.${PLATFORM_LINK_HOST}`,
       plan_id: null,

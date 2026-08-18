@@ -19,11 +19,11 @@ export const Route = createRootRoute({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "bestl.ink – Der Link sagt alles" },
+      { title: "BESTL.INK – Der Link sagt alles" },
       {
         name: "description",
         content:
-          "bestl.ink: Kurzlinks, gated Documents und Attribution. Inhalte, die nicht offen im Netz liegen.",
+          "BESTL.INK: Kurzlinks, gated Documents und Attribution. Inhalte, die nicht offen im Netz liegen.",
       },
     ],
     links: [

@@ -2,9 +2,9 @@ import type { Messages } from "./de";
 
 export const en: Messages = {
   meta: {
-    title: "bestl.ink – The link says it all",
+    title: "BESTL.INK – The link says it all",
     description:
-      "bestl.ink: short links, gated documents and attribution. Content that does not sit open on the web.",
+      "BESTL.INK: short links, gated documents and attribution. Content that does not sit open on the web.",
   },
   brand: {
     tagline: "Share less. Know more.",

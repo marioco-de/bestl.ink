@@ -234,8 +234,8 @@ export const auth = betterAuth({
               const { sendPlatformAuthEmail } = await import("@/lib/docbay/email.server");
               const sent = await sendPlatformAuthEmail({
                 to: user.email,
-                subject: "Passwort zurücksetzen · bestl.ink",
-                html: `<p>Du möchtest dein Passwort bei bestl.ink ändern.</p><p><a href="${url}">Neues Passwort festlegen</a></p><p>Der Link ist nur kurze Zeit gültig. Wenn du das nicht warst, ignoriere diese Mail.</p>`,
+                subject: "Passwort zurücksetzen · BESTL.INK",
+                html: `<p>Du möchtest dein Passwort bei BESTL.INK ändern.</p><p><a href="${url}">Neues Passwort festlegen</a></p><p>Der Link ist nur kurze Zeit gültig. Wenn du das nicht warst, ignoriere diese Mail.</p>`,
               });
               if (!sent.ok) console.error("[auth] reset mail:", sent.error);
             } catch (err) {
