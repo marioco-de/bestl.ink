@@ -247,6 +247,22 @@ export function ensurePlatformVercelDomains(): Promise<void> {
       await ensureVercelDomain(CNAME_TARGET);
       await ensureVercelDomain(PLATFORM_LINK_HOST);
       await ensureVercelDomain(`www.${PLATFORM_LINK_HOST}`);
+      try {
+        const { getSql } = await import("@/lib/db");
+        const sql = await getSql();
+        const rows = await sql`
+          select host from db_tenant_domains
+          union
+          select custom_domain as host from db_tenants
+          where custom_domain is not null and custom_domain <> ''
+        `;
+        for (const r of rows as { host?: string }[]) {
+          const host = String(r.host || "").toLowerCase();
+          if (host.includes(".")) await ensureVercelDomain(host);
+        }
+      } catch {
+        /* db not ready */
+      }
     })().catch(() => undefined);
   }
   return platformOnce;
