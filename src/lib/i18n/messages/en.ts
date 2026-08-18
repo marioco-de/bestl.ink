@@ -283,5 +283,8 @@ export const en: Messages = {
     settings: "Button",
     pickLink: "Pick a link",
     lastClick: "Last",
+    noTeam: "No team",
+    members: "Team",
+    addMember: "Member",
   },
 };

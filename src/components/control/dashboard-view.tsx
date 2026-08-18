@@ -15,11 +15,14 @@ import { Button } from "@/components/ui/button";
 import { HueButton } from "@/components/ui/hue-button";
 import { useControl } from "@/lib/docbay/control-store";
 import {
+  addDashTeamMember,
   addDashTeamSection,
   createDashTeam,
   deleteDashGroup,
   deleteDashWidget,
+  getDash,
   moveDashSection,
+  removeDashTeamMember,
   saveDashGroup,
   saveDashSettings,
   saveDashWidget,
@@ -77,9 +80,19 @@ export function DashboardView() {
     return m;
   }, [data.shorts]);
 
-  const above = dash.sections.filter((s) => s.zone === "above");
-  const personal = dash.sections.filter((s) => s.zone === "personal");
-  const below = dash.sections.filter((s) => s.zone === "below");
+  const above = dash.sections.filter((s) => s.kind === "team" && s.zone === "above");
+  const personal = dash.sections.filter((s) => s.kind === "personal");
+  const below = dash.sections.filter((s) => s.kind === "team" && s.zone === "below");
+  const ordered =
+    dash.user_buttons === "above"
+      ? [...personal, ...above, ...below]
+      : dash.user_buttons === "below"
+        ? [...above, ...below, ...personal]
+        : [...above, ...personal, ...below];
+  const team = dash.teams.find((t) => t.id === dash.active_team_id) || dash.teams[0];
+  const visibleTeams = admin
+    ? dash.teams
+    : dash.teams.filter((t) => t.member_ids.includes(data.member.user_id));
 
   async function move(sec: DashSection, zone: "above" | "below") {
     const clash = dash.sections.some((s) => s.kind === "team" && s.zone === zone && s.id !== sec.id);
@@ -99,54 +112,73 @@ export function DashboardView() {
           <h1 className="font-display text-2xl font-semibold">{t("dash.title")}</h1>
           <p className="mt-1 text-sm text-fg-muted">{t("dash.hint")}</p>
         </div>
-        {admin && (
-          <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2">
+          {visibleTeams.length > 0 && (
             <select
               className="h-9 rounded-md border border-border bg-bg-elevated px-2 text-sm"
-              value={dash.user_buttons}
-              onChange={(e) =>
-                void run(() =>
-                  saveDashSettings({
-                    data: {
-                      tenant_id: data.tenant.id,
-                      user_buttons: e.target.value as DashState["user_buttons"],
-                    },
-                  }),
-                )
-              }
-            >
-              <option value="off">{t("dash.userOff")}</option>
-              <option value="anywhere">{t("dash.userAny")}</option>
-              <option value="above">{t("dash.userAbove")}</option>
-              <option value="below">{t("dash.userBelow")}</option>
-            </select>
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() => {
-                const name = window.prompt(t("dash.teamName"), "Team");
-                if (name)
-                  void run(() =>
-                    createDashTeam({ data: { name, tenant_id: data.tenant.id } }),
-                  );
+              value={team?.id || ""}
+              onChange={(e) => {
+                const id = e.target.value;
+                if (!id) return;
+                void run(() => getDash({ data: { tenant_id: data.tenant.id, team_id: id } }));
               }}
             >
-              <Plus className="h-3.5 w-3.5" /> {t("dash.newTeam")}
-            </Button>
-          </div>
-        )}
+              {visibleTeams.map((tm) => (
+                <option key={tm.id} value={tm.id}>
+                  {tm.name}
+                </option>
+              ))}
+            </select>
+          )}
+          {admin && (
+            <>
+              <select
+                className="h-9 rounded-md border border-border bg-bg-elevated px-2 text-sm"
+                value={dash.user_buttons}
+                onChange={(e) =>
+                  void run(() =>
+                    saveDashSettings({
+                      data: {
+                        tenant_id: data.tenant.id,
+                        user_buttons: e.target.value as DashState["user_buttons"],
+                      },
+                    }),
+                  )
+                }
+              >
+                <option value="off">{t("dash.userOff")}</option>
+                <option value="anywhere">{t("dash.userAny")}</option>
+                <option value="above">{t("dash.userAbove")}</option>
+                <option value="below">{t("dash.userBelow")}</option>
+              </select>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => {
+                  const name = window.prompt(t("dash.teamName"), "Team");
+                  if (name)
+                    void run(() =>
+                      createDashTeam({ data: { name, tenant_id: data.tenant.id } }),
+                    );
+                }}
+              >
+                <Plus className="h-3.5 w-3.5" /> {t("dash.newTeam")}
+              </Button>
+            </>
+          )}
+        </div>
       </div>
 
-      {admin && dash.active_team_id && (
-        <div className="flex flex-wrap gap-2">
-          {!above.length && (
+      {admin && team && (
+        <div className="flex flex-wrap items-center gap-2">
+          {above.length + below.length < 2 && !above.length && (
             <Button
               size="sm"
               variant="secondary"
               onClick={() =>
                 void run(() =>
                   addDashTeamSection({
-                    data: { team_id: dash.active_team_id!, zone: "above", tenant_id: data.tenant.id },
+                    data: { team_id: team.id, zone: "above", tenant_id: data.tenant.id },
                   }),
                 )
               }
@@ -154,14 +186,14 @@ export function DashboardView() {
               {t("dash.addAbove")}
             </Button>
           )}
-          {!below.length && (
+          {above.length + below.length < 2 && !below.length && (
             <Button
               size="sm"
               variant="secondary"
               onClick={() =>
                 void run(() =>
                   addDashTeamSection({
-                    data: { team_id: dash.active_team_id!, zone: "below", tenant_id: data.tenant.id },
+                    data: { team_id: team.id, zone: "below", tenant_id: data.tenant.id },
                   }),
                 )
               }
@@ -169,10 +201,56 @@ export function DashboardView() {
               {t("dash.addBelow")}
             </Button>
           )}
+          <div className="flex flex-wrap items-center gap-1 text-xs text-fg-muted">
+            <span>{t("dash.members")}:</span>
+            {team.member_ids.map((uid) => {
+              const m = data.members.find((x) => x.user_id === uid);
+              return (
+                <button
+                  key={uid}
+                  type="button"
+                  className="rounded-full border border-border bg-bg-elevated px-2 py-0.5 hover:border-danger hover:text-danger"
+                  title={t("common.delete")}
+                  onClick={() =>
+                    void run(() =>
+                      removeDashTeamMember({
+                        data: { team_id: team.id, user_id: uid, tenant_id: data.tenant.id },
+                      }),
+                    )
+                  }
+                >
+                  {m?.name || m?.email || uid.slice(0, 6)}
+                </button>
+              );
+            })}
+            <select
+              className="h-7 rounded-md border border-border bg-bg-elevated px-1"
+              defaultValue=""
+              onChange={(e) => {
+                const uid = e.target.value;
+                e.currentTarget.value = "";
+                if (!uid) return;
+                void run(() =>
+                  addDashTeamMember({
+                    data: { team_id: team.id, user_id: uid, tenant_id: data.tenant.id },
+                  }),
+                );
+              }}
+            >
+              <option value="">{t("dash.addMember")}</option>
+              {data.members
+                .filter((m) => !team.member_ids.includes(m.user_id))
+                .map((m) => (
+                  <option key={m.user_id} value={m.user_id}>
+                    {m.name || m.email || m.user_id}
+                  </option>
+                ))}
+            </select>
+          </div>
         </div>
       )}
 
-      {[...above, ...personal, ...below].map((sec) => (
+      {ordered.map((sec) => (
         <SectionBoard
           key={sec.id}
           sec={sec}
@@ -329,9 +407,7 @@ function SectionBoard({
   const groups = dash.groups.filter((g) => g.section_id === sec.id);
   const hue = sec.kind === "team" ? "teal" : "azure";
   const canAdd =
-    sec.kind === "personal"
-      ? dash.user_buttons !== "off"
-      : admin || dash.user_buttons === "anywhere";
+    sec.kind === "team" ? admin : admin || dash.user_buttons !== "off";
 
   const rows = Math.max(
     4,

@@ -62,8 +62,9 @@ export const addDashTeamSection = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { mem, state } = await dashOf(context.userId, data.tenant_id, data.team_id);
     if (mem.member.role === "member") throw new Error("Keine Berechtigung");
-    const existing = state.sections.filter((s) => s.kind === "team" && s.zone === data.zone);
-    if (existing.length) throw new Error("Diese Team-Sektion existiert schon");
+    const existing = state.sections.filter((s) => s.kind === "team");
+    if (existing.length >= 2) throw new Error("Maximal zwei Team-Sektionen");
+    if (existing.some((s) => s.zone === data.zone)) throw new Error("Diese Team-Sektion existiert schon");
     const sql = await getSql();
     await sql`
       insert into db_dash_sections (id, tenant_id, team_id, kind, zone, title, sort_order)
@@ -87,7 +88,10 @@ export const moveDashSection = createServerFn({ method: "POST" })
       await sql`update db_dash_groups set section_id = ${other.id} where section_id = ${sec.id}`;
       await sql`delete from db_dash_sections where id = ${sec.id}`;
     } else {
-      await sql`update db_dash_sections set zone = ${data.zone} where id = ${sec.id}`;
+      const max = state.sections
+        .filter((s) => s.kind === "team" && s.zone === data.zone)
+        .reduce((n, s) => Math.max(n, s.sort_order), data.zone === "above" ? 0 : 2);
+      await sql`update db_dash_sections set zone = ${data.zone}, sort_order = ${max + 1} where id = ${sec.id}`;
     }
     return loadDashState(mem.tenant.id, context.userId, sec.team_id, mem.tenant.dash_user_buttons);
   });
@@ -206,6 +210,32 @@ export const pinShortDash = createServerFn({ method: "POST" })
       image: data.image,
     });
     return loadDashState(mem.tenant.id, context.userId, undefined, mem.tenant.dash_user_buttons);
+  });
+
+export const addDashTeamMember = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .inputValidator((d: { tenant_id?: string; team_id: string; user_id: string }) => d)
+  .handler(async ({ context, data }) => {
+    const { mem } = await dashOf(context.userId, data.tenant_id, data.team_id);
+    if (mem.member.role === "member") throw new Error("Keine Berechtigung");
+    const sql = await getSql();
+    await sql`
+      insert into db_team_members (id, team_id, user_id, role)
+      values (${uid("tmem")}, ${data.team_id}, ${data.user_id}, ${"member"})
+      on conflict (team_id, user_id) do nothing
+    `;
+    return loadDashState(mem.tenant.id, context.userId, data.team_id, mem.tenant.dash_user_buttons);
+  });
+
+export const removeDashTeamMember = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .inputValidator((d: { tenant_id?: string; team_id: string; user_id: string }) => d)
+  .handler(async ({ context, data }) => {
+    const { mem } = await dashOf(context.userId, data.tenant_id, data.team_id);
+    if (mem.member.role === "member") throw new Error("Keine Berechtigung");
+    const sql = await getSql();
+    await sql`delete from db_team_members where team_id = ${data.team_id} and user_id = ${data.user_id}`;
+    return loadDashState(mem.tenant.id, context.userId, data.team_id, mem.tenant.dash_user_buttons);
   });
 
 export type { DashState };

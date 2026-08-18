@@ -60,24 +60,8 @@ function mapWidget(r: Record<string, unknown>): DashWidget {
   };
 }
 
-export async function ensureDashSeed(tenantId: string, userId: string): Promise<string> {
+export async function ensureDashSeed(tenantId: string, userId: string): Promise<void> {
   const sql = await getSql();
-  let team = (await sql`select id from db_teams where tenant_id = ${tenantId} order by created_at limit 1`)[0] as
-    | { id?: string }
-    | undefined;
-  if (!team?.id) {
-    const id = uid("team");
-    await sql`insert into db_teams (id, tenant_id, name) values (${id}, ${tenantId}, ${"Team"})`;
-    team = { id };
-  }
-  const teamId = String(team.id);
-  const mem = await sql`select id from db_team_members where team_id = ${teamId} and user_id = ${userId} limit 1`;
-  if (!mem.length) {
-    await sql`
-      insert into db_team_members (id, team_id, user_id, role)
-      values (${uid("tmem")}, ${teamId}, ${userId}, ${"member"})
-    `;
-  }
   const personal = await sql`
     select id from db_dash_sections
     where tenant_id = ${tenantId} and kind = 'personal' and user_id = ${userId}
@@ -89,7 +73,6 @@ export async function ensureDashSeed(tenantId: string, userId: string): Promise<
       values (${uid("dsec")}, ${tenantId}, ${userId}, ${"personal"}, ${"personal"}, ${""}, ${1})
     `;
   }
-  return teamId;
 }
 
 export async function loadDashState(
@@ -100,27 +83,34 @@ export async function loadDashState(
 ): Promise<DashState> {
   const sql = await getSql();
   try {
-    const active = await ensureDashSeed(tenantId, userId);
-    const useTeam = teamId || active;
+    await ensureDashSeed(tenantId, userId);
+    const teamRows = await sql`select * from db_teams where tenant_id = ${tenantId} order by name`;
+    const teamsList = teamRows as { id: string; tenant_id: string; name: string }[];
+    const useTeam = teamId || teamsList[0]?.id || null;
 
-    const [teamRows, memberRows, sectionRows, groupRows, widgetRows] = await Promise.all([
-      sql`select * from db_teams where tenant_id = ${tenantId} order by name`,
+    const [memberRows, sectionRows, groupRows, widgetRows] = await Promise.all([
       sql`
         select m.team_id, m.user_id from db_team_members m
         join db_teams t on t.id = m.team_id
         where t.tenant_id = ${tenantId}
       `,
-      sql`
-        select * from db_dash_sections
-        where tenant_id = ${tenantId}
-          and (
-            (kind = 'personal' and user_id = ${userId})
-            or (kind = 'team' and team_id = ${useTeam})
-          )
-        order by
-          case zone when 'above' then 0 when 'personal' then 1 else 2 end,
-          sort_order
-      `,
+      useTeam
+        ? sql`
+            select * from db_dash_sections
+            where tenant_id = ${tenantId}
+              and (
+                (kind = 'personal' and user_id = ${userId})
+                or (kind = 'team' and team_id = ${useTeam})
+              )
+            order by
+              case zone when 'above' then 0 when 'personal' then 1 else 2 end,
+              sort_order
+          `
+        : sql`
+            select * from db_dash_sections
+            where tenant_id = ${tenantId} and kind = 'personal' and user_id = ${userId}
+            order by sort_order
+          `,
       sql`select g.* from db_dash_groups g
           join db_dash_sections s on s.id = g.section_id
           where s.tenant_id = ${tenantId}`,
@@ -141,7 +131,7 @@ export async function loadDashState(
 
     return {
       user_buttons: userButtons,
-      teams: (teamRows as Record<string, unknown>[]).map((r) => ({
+      teams: teamsList.map((r) => ({
         id: String(r.id),
         tenant_id: String(r.tenant_id),
         name: String(r.name),

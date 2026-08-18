@@ -282,6 +282,9 @@ export const de = {
     settings: "Button",
     pickLink: "Link wählen",
     lastClick: "Zuletzt",
+    noTeam: "Kein Team",
+    members: "Team",
+    addMember: "Mitglied",
   },
 };
 
