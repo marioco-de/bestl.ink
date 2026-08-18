@@ -164,7 +164,7 @@ export async function listWorkspacesForUser(userId: string): Promise<WorkspaceSu
 export async function listTenantDomains(tenantId: string): Promise<TenantDomain[]> {
   const sql = await getSql();
   const rows = await sql`
-    select id, tenant_id, host, connected, tags, sort_order, created_at
+    select id, tenant_id, host, connected, dns_ok, tags, sort_order, created_at
     from db_tenant_domains
     where tenant_id = ${tenantId}
     order by sort_order asc, created_at asc
@@ -176,6 +176,7 @@ export async function listTenantDomains(tenantId: string): Promise<TenantDomain[
       tenant_id: String(row.tenant_id),
       host: String(row.host),
       connected: Boolean(row.connected),
+      dns_ok: Boolean(row.dns_ok),
       tags: parseJsonArray(row.tags),
       sort_order: Number(row.sort_order ?? 0),
       created_at: new Date(row.created_at as string).toISOString(),

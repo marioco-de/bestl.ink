@@ -45,20 +45,10 @@ function DomainPage() {
     setGlobal?.(next);
   }
 
-  function patchDomain(domain: TenantDomain, extra?: Partial<FullState["tenant"]>) {
+  function patchDomain(domain: TenantDomain) {
     if (!setGlobal) return;
     const domains = data.domains.map((d) => (d.id === domain.id ? domain : d));
-    const tenant = extra
-      ? { ...data.tenant, ...extra }
-      : domain.connected
-        ? {
-            ...data.tenant,
-            custom_domain: domain.host,
-            custom_domain_connected: true,
-            public_host: domain.host,
-          }
-        : data.tenant;
-    setGlobal({ ...data, domains, tenant });
+    setGlobal({ ...data, domains });
   }
 
   async function checkDns(id: string, silent = false) {
@@ -69,11 +59,8 @@ function DomainPage() {
       });
       patchDomain(res.domain);
       if (!silent) {
-        toast[res.ok ? "success" : "message"](
-          res.ok ? `${res.domain.host} ist aktiv` : res.detail || "DNS noch ausstehend",
-        );
-      } else if (res.ok) {
-        toast.success(`${res.domain.host} ist aktiv`);
+        if (res.ok) toast.success("DNS sitzt. Jetzt aktivieren.");
+        else toast.message(res.detail || "DNS noch ausstehend");
       }
     } catch (err) {
       if (!silent) toast.error(err instanceof Error ? err.message : "Prüfung fehlgeschlagen");
@@ -82,10 +69,25 @@ function DomainPage() {
     }
   }
 
+  async function activate(id: string) {
+    setBusy(true);
+    try {
+      const s = (await updateTenantDomain({
+        data: { id, connected: true, tenant_id: data.tenant.id },
+      })) as FullState;
+      patch(s);
+      toast.success("Domain aktiv");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Fehler");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   useEffect(() => {
     const key = `${data.tenant.id}:${data.domains.map((d) => d.id).join(",")}`;
     if (scanned.current === key) return;
-    const pending = data.domains.filter((d) => !d.connected);
+    const pending = data.domains.filter((d) => !d.connected && !d.dns_ok);
     if (pending.length === 0) {
       scanned.current = key;
       return;
@@ -223,6 +225,8 @@ function DomainPage() {
                     <Badge variant="success">
                       <CheckCircle2 className="mr-1 h-3 w-3" /> Aktiv
                     </Badge>
+                  ) : d.dns_ok ? (
+                    <Badge variant="secondary">DNS bereit</Badge>
                   ) : (
                     <Badge variant="warning">
                       {checking === d.id ? "Prüfe DNS…" : "DNS ausstehend"}
@@ -241,6 +245,15 @@ function DomainPage() {
                       }}
                     >
                       Trennen
+                    </Button>
+                  ) : d.dns_ok ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={busy}
+                      onClick={() => void activate(d.id)}
+                    >
+                      Aktivieren
                     </Button>
                   ) : (
                     <Button

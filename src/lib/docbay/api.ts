@@ -419,26 +419,14 @@ export const verifyTenantDomain = createServerFn({ method: "POST" })
     const host = String(row.host);
     const probe = await probeDomainDns(host);
     await sql`
-      update db_tenant_domains set connected = ${probe.ok} where id = ${data.id}
+      update db_tenant_domains set dns_ok = ${probe.ok} where id = ${data.id}
     `;
-    if (probe.ok) {
-      await sql`
-        update db_tenants set
-          custom_domain = ${host},
-          custom_domain_connected = true
-        where id = ${mem.tenant.id}
-      `;
-    } else if (mem.tenant.custom_domain === host) {
-      await sql`
-        update db_tenants set custom_domain_connected = false
-        where id = ${mem.tenant.id}
-      `;
-    }
     const domain: TenantDomain = {
       id: String(row.id),
       tenant_id: String(row.tenant_id),
       host,
-      connected: probe.ok,
+      connected: Boolean(row.connected),
+      dns_ok: probe.ok,
       tags: parseJsonArray(row.tags),
       sort_order: Number(row.sort_order ?? 0),
       created_at: new Date(row.created_at as string).toISOString(),
