@@ -281,7 +281,7 @@ function ControlShell() {
             onClick={() => openCreate()}
           >
             <span className="flex items-center gap-1.5">
-              <Plus className="h-3.5 w-3.5" /> {t("short.options")}
+              <Plus className="h-3.5 w-3.5" /> {t("short.newLink")}
             </span>
             <kbd className="rounded border border-primary-fg/20 px-1 font-mono text-[10px] opacity-70">
               C
@@ -430,7 +430,7 @@ function ControlShell() {
           </div>
           <Button type="button" size="sm" className="h-10" onClick={() => openCreate()}>
             <Plus className="h-3.5 w-3.5" />
-            <span className="hidden @min-[24rem]/app:inline">{t("short.options")}</span>
+            <span className="hidden @min-[24rem]/app:inline">{t("short.newLink")}</span>
           </Button>
         </header>
         <QuickShorten />
