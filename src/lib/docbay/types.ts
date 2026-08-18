@@ -64,6 +64,7 @@ export interface Tenant {
   plan_id: string | null;
   suspended: boolean;
   notes: string;
+  dash_user_buttons: "off" | "anywhere" | "above" | "below";
 }
 
 export interface WorkspaceSummary {
@@ -285,6 +286,63 @@ export interface SuperUserRow {
   workspaces: { tenant_id: string; tenant_name: string; role: MemberRole }[];
 }
 
+export interface DashTeam {
+  id: string;
+  tenant_id: string;
+  name: string;
+  member_ids: string[];
+}
+
+export interface DashSection {
+  id: string;
+  tenant_id: string;
+  team_id: string | null;
+  user_id: string | null;
+  kind: "team" | "personal";
+  zone: "above" | "below" | "personal";
+  title: string;
+  sort_order: number;
+}
+
+export interface DashGroup {
+  id: string;
+  section_id: string;
+  title: string;
+  color: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+export interface DashWidget {
+  id: string;
+  section_id: string;
+  group_id: string | null;
+  short_id: string | null;
+  resource_id: string | null;
+  label: string;
+  display: "text" | "icon" | "preview";
+  icon: string;
+  image_url: string | null;
+  show_clicks: boolean;
+  show_last_click: boolean;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  created_by: string | null;
+}
+
+export interface DashState {
+  user_buttons: Tenant["dash_user_buttons"];
+  teams: DashTeam[];
+  active_team_id: string | null;
+  sections: DashSection[];
+  groups: DashGroup[];
+  widgets: DashWidget[];
+}
+
 export interface SuperAdminPayload {
   plans: import("./plans").Plan[];
   tenants: SuperTenantRow[];
@@ -332,6 +390,7 @@ export interface FullState {
   members: Member[];
   shorts: ShortLink[];
   apiKeys: ApiKeyRow[];
+  dash: DashState;
   demoResetsInMs: number | null;
   isSuperAdmin: boolean;
   platformTenants?: SuperTenantRow[];

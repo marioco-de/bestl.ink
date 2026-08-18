@@ -21,6 +21,7 @@ import { featuresFromRows, defaultFeatures } from "./features";
 import { parseJsonArray, parseJsonObj } from "./id";
 import { ensurePlatformSeeded, PLATFORM_LINK_HOST } from "./seed.server";
 import { mapShortRow } from "./shorts.server";
+import { emptyDash, loadDashState } from "./dashboard.server";
 
 function publicHost(subdomain: string, custom: string, customConnected: boolean): string {
   if (customConnected && custom) return custom;
@@ -54,6 +55,11 @@ export function mapTenant(r: Record<string, unknown>): Tenant {
     plan_id: r.plan_id ? String(r.plan_id) : null,
     suspended: Boolean(r.suspended),
     notes: String(r.notes ?? ""),
+    dash_user_buttons: (
+      ["off", "anywhere", "above", "below"].includes(String(r.dash_user_buttons))
+        ? String(r.dash_user_buttons)
+        : "anywhere"
+    ) as Tenant["dash_user_buttons"],
   };
 }
 
@@ -289,6 +295,7 @@ export async function loadFullState(
       plan_id: null,
       suspended: false,
       notes: "",
+      dash_user_buttons: "anywhere",
     };
     return {
       tenant: emptyTenant,
@@ -328,6 +335,7 @@ export async function loadFullState(
       members: [],
       shorts: [],
       apiKeys: [],
+      dash: emptyDash(),
       demoResetsInMs: null,
       isSuperAdmin: true,
       platformTenants,
@@ -372,6 +380,7 @@ export async function loadFullState(
       members: [],
       shorts: [],
       apiKeys: [],
+      dash: emptyDash(),
       demoResetsInMs: null,
       isSuperAdmin: true,
       platformTenants: await listPlatformTenants(),
@@ -477,6 +486,8 @@ export async function loadFullState(
     `,
     superAdmin ? listPlatformTenants() : Promise.resolve(undefined),
   ]);
+
+  const dash = await loadDashState(tid, userId, undefined, tenant.dash_user_buttons);
 
   const features = featuresFromRows(
     featRows as { feature_key: string; enabled: boolean }[],
@@ -659,6 +670,7 @@ export async function loadFullState(
     members,
     shorts,
     apiKeys,
+    dash,
     demoResetsInMs: null,
     isSuperAdmin: superAdmin,
     platformTenants,

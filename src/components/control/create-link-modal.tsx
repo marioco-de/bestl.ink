@@ -25,6 +25,7 @@ import type { FullState } from "@/lib/docbay/types";
 import { QrDrawer } from "./qr-drawer";
 import { TagPicker } from "./tag-picker";
 import { createTag } from "@/lib/docbay/api";
+import { pinShortDash } from "@/lib/docbay/dashboard-api";
 import { upsertShort } from "@/lib/docbay/state-patch";
 import { useT } from "@/lib/i18n";
 
@@ -81,6 +82,8 @@ function Editor({
   const [busy, setBusy] = useState(false);
   const [hostOpen, setHostOpen] = useState(false);
   const [wsOpen, setWsOpen] = useState(false);
+  const [pinDash, setPinDash] = useState(false);
+  const [dashDisplay, setDashDisplay] = useState<"text" | "icon" | "preview">("text");
 
   const workspaces = data.workspaces.length
     ? data.workspaces
@@ -169,7 +172,20 @@ function Editor({
         },
       });
       toast.success(t("short.ready", { path: `${host}/${created.short.slug}` }));
-      onSaved(upsertShort(data, created.short));
+      let next = upsertShort(data, created.short);
+      if (pinDash) {
+        const dash = await pinShortDash({
+          data: {
+            tenant_id: data.tenant.id,
+            short_id: created.short.id,
+            label: note || shareTitle || created.short.slug,
+            display: dashDisplay,
+            image: shareImage || null,
+          },
+        });
+        next = { ...next, dash };
+      }
+      onSaved(next);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : t("common.error"));
     } finally {
@@ -198,7 +214,7 @@ function Editor({
           role="dialog"
           aria-modal="true"
           aria-label={t("short.createTitle")}
-          className="@container/modal relative flex h-full min-w-0 w-full flex-col overflow-hidden bg-bg-elevated shadow-2xl @min-[40rem]/stage:h-auto @min-[40rem]/stage:max-h-[min(88dvh,720px)] @min-[40rem]/stage:rounded-xl @min-[40rem]/stage:border @min-[40rem]/stage:border-border"
+          className="@container/modal relative z-20 flex h-full min-w-0 w-full flex-col overflow-hidden bg-bg-elevated shadow-2xl @min-[40rem]/stage:h-auto @min-[40rem]/stage:max-h-[min(88dvh,720px)] @min-[40rem]/stage:rounded-xl @min-[40rem]/stage:border @min-[40rem]/stage:border-border"
         >
           <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
             <div>

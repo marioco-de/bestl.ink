@@ -252,7 +252,7 @@ function DomainPage() {
               )}
             >
               {i === 0 && (
-                <span className="absolute bottom-0 right-3 z-10 flex h-5 translate-y-1/2 items-center rounded-sm border border-border bg-bg-elevated px-1.5 text-[10px] font-medium tracking-wide text-fg-muted">
+                <span className="absolute left-1/2 top-0 z-10 flex h-5 -translate-x-1/2 -translate-y-1/2 items-center rounded-sm bg-primary px-1.5 text-[10px] font-medium tracking-wide text-white">
                   {t("domain.standard")}
                 </span>
               )}

@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { TAG_COLORS, tagColor } from "@/lib/docbay/tags";
+import { tagColor, DEFAULT_TAG_COLOR } from "@/lib/docbay/tags";
+import { ColorPicker } from "./color-picker";
 
 export function TagChip({
   name,
@@ -53,23 +54,7 @@ export function ColorDots({
   value: string;
   onChange: (hex: string) => void;
 }) {
-  return (
-    <div className="flex flex-wrap gap-1.5">
-      {TAG_COLORS.map((c) => (
-        <button
-          key={c.id}
-          type="button"
-          aria-label={c.label}
-          onClick={() => onChange(c.hex)}
-          className={cn(
-            "h-6 w-6 rounded-full border-2",
-            value === c.hex ? "border-fg" : "border-transparent",
-          )}
-          style={{ background: c.hex }}
-        />
-      ))}
-    </div>
-  );
+  return <ColorPicker value={value} onChange={onChange} />;
 }
 
 export function TagPicker({
@@ -84,7 +69,7 @@ export function TagPicker({
   onCreate?: (name: string, color: string) => Promise<void> | void;
 }) {
   const [draft, setDraft] = useState("");
-  const [color, setColor] = useState<string>(TAG_COLORS[1].hex);
+  const [color, setColor] = useState<string>(DEFAULT_TAG_COLOR);
   const [busy, setBusy] = useState(false);
 
   function toggle(name: string) {

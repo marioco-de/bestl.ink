@@ -64,22 +64,22 @@ export function QrDrawer({ url, slug }: { url: string; slug: string }) {
 
   return (
     <>
-      {/* Desktop: hangs off the modal's right edge */}
+      {/* Desktop: sidebox sits under the modal; flag is fixed to its right edge. Hover slides both out. */}
       <div
-        className="pointer-events-none absolute top-1/2 left-full z-20 hidden -translate-y-1/2 @min-[40rem]/stage:block"
+        className="pointer-events-none absolute top-1/2 right-0 z-10 hidden -translate-y-1/2 @min-[40rem]/stage:block"
         onMouseEnter={() => setOpen(true)}
         onMouseLeave={() => setOpen(false)}
       >
-        <div className="pointer-events-auto -ml-px flex items-stretch">
-          <Flag vertical open={open} onClick={() => setOpen((v) => !v)} />
-          <div
-            className={cn(
-              "overflow-hidden transition-[max-width] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)]",
-              open ? "max-w-[18rem]" : "max-w-0",
-            )}
-          >
+        <div
+          className={cn(
+            "flex items-stretch transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
+            open ? "translate-x-full" : "translate-x-8",
+          )}
+        >
+          <div className={cn("pointer-events-auto", !open && "pointer-events-none")}>
             {panel}
           </div>
+          <Flag vertical open={open} onClick={() => setOpen((v) => !v)} />
         </div>
       </div>
 
@@ -126,8 +126,8 @@ function Flag({
         "flex items-center justify-center gap-1.5 border border-border bg-bg-elevated text-[10px] font-medium tracking-wide text-fg-muted shadow-sm hover:text-fg",
         vertical
           ? cn(
-              "w-8 flex-col self-center border-l-0 py-4",
-              open ? "rounded-none" : "rounded-r-md",
+              "pointer-events-auto w-8 flex-col self-stretch border-l-0 py-4",
+              "rounded-r-md",
             )
           : "h-8 rounded-t-md border-b-0 px-3",
       )}
@@ -170,7 +170,7 @@ function Panel({
   name: string;
 }) {
   return (
-    <aside className="flex w-[18rem] max-w-full flex-col gap-3 border border-border bg-bg-elevated p-3 shadow-xl @min-[40rem]/stage:rounded-r-md">
+    <aside className="flex w-[18rem] max-w-full flex-col gap-3 border border-r-0 border-border bg-bg-elevated p-3 shadow-xl @min-[40rem]/stage:rounded-none">
       <div>
         <p className="text-xs font-medium">QR zum Mitnehmen</p>
         <p className="text-[11px] text-fg-subtle">
