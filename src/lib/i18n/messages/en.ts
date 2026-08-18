@@ -212,6 +212,11 @@ export const en: Messages = {
     event: "Event",
     contact: "Contact",
     new: "{kind}",
+    preview: "Preview",
+    ogTitle: "Social preview",
+    ogHint: "How this link would look on Facebook, LinkedIn or Slack.",
+    ogFallback: "Your link",
+    ogFallbackText: "Title and text show up here once you fill them in.",
   },
   thread: {
     priority: "Priority",

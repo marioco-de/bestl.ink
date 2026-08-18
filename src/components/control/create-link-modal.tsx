@@ -17,24 +17,28 @@ import { Button } from "@/components/ui/button";
 import { Input, Textarea, Label } from "@/components/ui/input";
 import { useControl } from "@/lib/docbay/control-store";
 import { CreateKindBar } from "./create-kind-bar";
-import { ResourceForm } from "@/routes/control/resources";
-import { CardForm } from "@/routes/control/-cards";
 import type { CreateKind } from "@/lib/docbay/create-kind";
 import { createShort } from "@/lib/docbay/shorts-api";
 import { genToken } from "@/lib/docbay/id";
 import { PLATFORM_LINK_HOST } from "@/lib/docbay/brand";
 import { orderedHosts, defaultHost, withHttp } from "@/lib/docbay/hosts";
-import { cn } from "@/lib/utils";
+import { cn, slugify } from "@/lib/utils";
 import type { FullState } from "@/lib/docbay/types";
-import { QrDrawer } from "./qr-drawer";
-import { FullScreenModal } from "@/components/ui/fullscreen-modal";
+import { LinkEditorShell, DashPinBlock } from "./link-editor-shell";
 import { TagPicker } from "./tag-picker";
-import { createTag, createResource, generateLink, createParamNode } from "@/lib/docbay/api";
-import { slugify } from "@/lib/utils";
+import { createTag, createResource, generateLink, createParamNode, uploadBegin, uploadChunk } from "@/lib/docbay/api";
 import { pinShortDash } from "@/lib/docbay/dashboard-api";
 import { upsertShort } from "@/lib/docbay/state-patch";
 import { useT } from "@/lib/i18n";
 import { Toggle } from "@/components/ui/toggle";
+import { EventFields, ContactFields } from "@/routes/control/-cards";
+import { emptyContact, emptyEvent } from "@/lib/docbay/cards";
+import { suggestCardSlug, cardKindPath } from "@/lib/docbay/public-url";
+import { DocActionPicker } from "./doc-action-picker";
+import { actionsPayload, withChatMode, withRequireRequest, type ChatMode, type DocAction } from "@/lib/docbay/doc-actions";
+import { MAX_UPLOAD_BYTES, MAX_UPLOAD_LABEL } from "@/lib/docbay/upload";
+import { Upload } from "lucide-react";
+import { FullScreenModal } from "@/components/ui/fullscreen-modal";
 
 type Extra = "campaign" | "device" | "lock" | "ttl" | null;
 
@@ -73,38 +77,9 @@ export function CreateLinkModal() {
       </FullScreenModal>
     );
   }
-  if (createKind === "document") {
-    return (
-      <ResourceForm
-        tenantId={data.tenant.id}
-        defaultType={createKind}
-        toolbar={<CreateKindBar value={createKind} onChange={setCreateKind} />}
-        onCancel={closeCreate}
-        onCreated={(s) => {
-          setData(s);
-          closeCreate();
-        }}
-      />
-    );
-  }
-  if (createKind === "event" || createKind === "contact") {
-    return (
-      <CardForm
-        kind={createKind}
-        tenantId={data.tenant.id}
-        existing={null}
-        toolbar={<CreateKindBar value={createKind} onChange={setCreateKind} />}
-        onClose={closeCreate}
-        onSaved={(s) => {
-          setData(s);
-          closeCreate();
-        }}
-      />
-    );
-  }
   return (
     <Editor
-      key={createSeed}
+      key={`${createKind}-${createSeed}`}
       data={data}
       seed={createSeed}
       kind={createKind}
@@ -159,6 +134,14 @@ function Editor({
   const [wsOpen, setWsOpen] = useState(false);
   const [pinDash, setPinDash] = useState(false);
   const [dashDisplay, setDashDisplay] = useState<"text" | "icon" | "preview">("text");
+  const [docTitle, setDocTitle] = useState("");
+  const [docFile, setDocFile] = useState<File | null>(null);
+  const [docActions, setDocActions] = useState<DocAction[]>([]);
+  const [chatMode, setChatMode] = useState<ChatMode>("shared");
+  const [requireRequest, setRequireRequest] = useState(kind === "document");
+  const [event, setEvent] = useState(emptyEvent);
+  const [contact, setContact] = useState(emptyContact);
+  const [progress, setProgress] = useState<number | null>(null);
 
   const workspaces = data.workspaces.length
     ? data.workspaces
@@ -202,8 +185,6 @@ function Editor({
     };
   }, [onClose, hostOpen, wsOpen]);
 
-  const shortUrl = `https://${host}/${slug || "link"}`;
-
   function pickWorkspace(id: string) {
     if (id === data.tenant.id) {
       setWsOpen(false);
@@ -223,15 +204,177 @@ function Editor({
     if (next) setSlug(next);
   }, [destination, kind]);
 
-  async function save() {
-    const dest = withHttp(destination);
-    if (!dest) {
-      toast.error(t("short.destMissing"));
-      return;
+  useEffect(() => {
+    if (kind === "event") setSlug(suggestCardSlug("event", event.start));
+    if (kind === "contact") setSlug(suggestCardSlug("contact"));
+    setRequireRequest(kind === "document");
+  }, [kind]);
+
+  async function ensureButton(state: FullState) {
+    let buttonId = state.params.find((p) => p.kind === "button")?.id;
+    if (buttonId) return { state, buttonId };
+    state = (await createParamNode({
+      data: { name: "Direkt", kind: "button" },
+    })) as FullState;
+    buttonId = state.params.find((p) => p.kind === "button")?.id;
+    if (!buttonId) throw new Error("Kein Button");
+    return { state, buttonId };
+  }
+
+  async function uploadFile(f: File): Promise<string> {
+    const started = await uploadBegin({
+      data: {
+        file_name: f.name,
+        mime_type: f.type || "application/octet-stream",
+        file_size: f.size,
+        tenant_id: data.tenant.id,
+      },
+    });
+    const buf = new Uint8Array(await f.arrayBuffer());
+    const chunk = 512 * 1024;
+    const toB64 = (bytes: Uint8Array) => {
+      const step = 0x8000;
+      let binary = "";
+      for (let i = 0; i < bytes.length; i += step) {
+        binary += String.fromCharCode(...bytes.subarray(i, Math.min(i + step, bytes.length)));
+      }
+      return btoa(binary);
+    };
+    for (let offset = 0; offset < buf.length; offset += chunk) {
+      const slice = buf.subarray(offset, Math.min(offset + chunk, buf.length));
+      await uploadChunk({
+        data: { upload_id: started.upload_id, data: toB64(slice), tenant_id: data.tenant.id },
+      });
+      setProgress(Math.min(99, Math.round(((offset + slice.length) / buf.length) * 100)));
     }
-    const withProto = /^https?:\/\//i.test(dest) ? dest : `https://${dest}`;
+    setProgress(100);
+    return started.upload_id;
+  }
+
+  async function pinIfNeeded(state: FullState, publicUrl: string, label: string) {
+    if (!pinDash) return state;
+    try {
+      const created = await createShort({
+        data: {
+          destination: publicUrl,
+          title: label,
+          tenant_id: data.tenant.id,
+        },
+      });
+      let next = upsertShort(state, created.short);
+      const dash = await pinShortDash({
+        data: {
+          tenant_id: data.tenant.id,
+          short_id: created.short.id,
+          label,
+          display: dashDisplay,
+          image: shareImage || null,
+        },
+      });
+      return { ...next, dash };
+    } catch {
+      return state;
+    }
+  }
+
+  async function save() {
     setBusy(true);
     try {
+      if (kind === "document") {
+        if (!docFile) {
+          toast.error("Bitte Datei hochladen");
+          return;
+        }
+        if (docFile.size > MAX_UPLOAD_BYTES) {
+          toast.error(`Max. ${MAX_UPLOAD_LABEL}`);
+          return;
+        }
+        const title = docTitle.trim() || docFile.name.replace(/\.[^.]+$/, "");
+        const pageSlug = (slug || slugify(title) || genToken(5)).replace(/^\//, "");
+        const uploadId = await uploadFile(docFile);
+        const payload = withRequireRequest(
+          requireRequest,
+          withChatMode(chatMode, actionsPayload(docActions)),
+        );
+        let state = (await createResource({
+          data: {
+            type: "document",
+            title,
+            slug: pageSlug,
+            upload_id: uploadId,
+            mime_type: docFile.type,
+            file_name: docFile.name,
+            file_size: docFile.size,
+            tags,
+            payload,
+            tenant_id: data.tenant.id,
+          },
+        })) as FullState;
+        const resource = state.resources.find((r) => r.slug === pageSlug);
+        if (!resource) throw new Error("Dokument nicht angelegt");
+        const ready = await ensureButton(state);
+        state = ready.state;
+        const made = await generateLink({
+          data: {
+            resource_id: resource.id,
+            button_id: ready.buttonId,
+            note: note.trim(),
+            tags,
+          },
+        });
+        if (made.state) state = made.state as FullState;
+        const url = `https://${host}/${pageSlug}${requireRequest ? `?access=${made.token}` : ""}`;
+        state = await pinIfNeeded(state, url, title);
+        toast.success(t("short.ready", { path: `${host}/${pageSlug}` }));
+        onSaved(state, url);
+        return;
+      }
+
+      if (kind === "event" || kind === "contact") {
+        const name = (kind === "event" ? event.title : contact.name).trim();
+        if (!name) {
+          toast.error(kind === "event" ? "Titel fehlt" : "Name fehlt");
+          return;
+        }
+        const pageSlug = (
+          slug || suggestCardSlug(kind, kind === "event" ? event.start : undefined)
+        ).replace(/^\//, "");
+        const payload = kind === "event" ? { ...event, title: name } : { ...contact, name };
+        let state = (await createResource({
+          data: {
+            type: kind,
+            title: name,
+            slug: pageSlug,
+            description: kind === "event" ? event.location || "" : contact.company || "",
+            payload,
+            mime_type: kind === "event" ? "text/calendar" : "text/vcard",
+            allow_download: true,
+            tags,
+            tenant_id: data.tenant.id,
+          },
+        })) as FullState;
+        const resource = state.resources.find((r) => r.slug === pageSlug);
+        if (!resource) throw new Error("Nicht angelegt");
+        const ready = await ensureButton(state);
+        state = ready.state;
+        const made = await generateLink({
+          data: { resource_id: resource.id, button_id: ready.buttonId, note: note.trim(), tags },
+        });
+        if (made.state) state = made.state as FullState;
+        const prefix = cardKindPath(kind);
+        const url = `https://${host}/${prefix}/${pageSlug}`;
+        state = await pinIfNeeded(state, url, name);
+        toast.success(t("short.ready", { path: `${host}/${prefix}/${pageSlug}` }));
+        onSaved(state, url);
+        return;
+      }
+
+      const dest = withHttp(destination);
+      if (!dest) {
+        toast.error(t("short.destMissing"));
+        return;
+      }
+      const withProto = /^https?:\/\//i.test(dest) ? dest : `https://${dest}`;
       if (kind === "page") {
         const pageSlug = (slug || slugFromPageUrl(withProto) || genToken(5))
           .replace(/^\//, "")
@@ -323,317 +466,329 @@ function Editor({
     { id: "ttl", label: t("short.ttl"), icon: Clock, on: Boolean(expiresHours) },
   ];
 
+  const shortUrl =
+    kind === "event"
+      ? `https://${host}/ics/${slug || "termin"}`
+      : kind === "contact"
+        ? `https://${host}/vcf/${slug || "kontakt"}`
+        : `https://${host}/${slug || "link"}`;
+  const previewTitle = shareTitle || docTitle || event.title || contact.name || destination || slug;
+  const previewText = shareText || note || event.description || contact.company || "";
+  const kindTitle =
+    kind === "document"
+      ? t("create.doc")
+      : kind === "page"
+        ? t("create.page")
+        : kind === "event"
+          ? t("create.event")
+          : kind === "contact"
+            ? t("create.contact")
+            : t("create.url");
+
   return (
-    <div className="@container/stage fixed inset-0 z-50">
-      <button
-        type="button"
-        className="absolute inset-0 bg-fg/30 backdrop-blur-sm"
-        aria-label={t("common.close")}
-        onClick={onClose}
-      />
-      <div className="relative flex h-full w-full items-center justify-center p-0 @min-[40rem]/stage:p-6 @min-[40rem]/stage:pr-14">
-        <div className="relative flex h-full w-full max-w-none @min-[40rem]/stage:h-auto @min-[40rem]/stage:max-h-[min(88dvh,720px)] @min-[40rem]/stage:max-w-[34rem]">
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label={t("short.createTitle")}
-          className="@container/modal relative z-20 flex h-full min-w-0 w-full flex-col overflow-hidden bg-bg-elevated shadow-2xl @min-[40rem]/stage:h-auto @min-[40rem]/stage:max-h-[min(88dvh,720px)] @min-[40rem]/stage:rounded-xl @min-[40rem]/stage:border @min-[40rem]/stage:border-border"
-        >
-          <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
-            <div>
-              <h2 className="font-display text-base font-semibold tracking-tight">
-                {kind === "page" ? t("create.page") : t("short.createTitle")}
-              </h2>
-              <p className="text-[12px] text-fg-subtle">
-                {kind === "page" ? t("create.pageHint") : t("short.createHint")}
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex h-9 w-9 items-center justify-center rounded-md text-fg-muted hover:bg-bg-subtle hover:text-fg"
-              aria-label={t("common.close")}
-            >
-              <X className="h-5 w-5" />
-            </button>
-          </header>
-          <div className="px-4 pt-3">
-            <CreateKindBar value={kind} onChange={onKind} />
-          </div>
-
-          <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5">
-            <div className="space-y-6">
-              <section>
-                <p className="mb-1.5 text-xs font-medium">{t("short.destLabel")}</p>
-                <Input
-                  autoFocus
-                  value={destination}
-                  onChange={(e) => setDestination(e.target.value)}
-                  placeholder={t("short.destPlaceholder")}
-                />
-              </section>
-
-              <section>
-                <div className="mb-1.5 flex items-center justify-between">
-                  <p className="text-xs font-medium">{t("short.nameLabel")}</p>
-                  <button
-                    type="button"
-                    className="inline-flex h-7 items-center gap-1 text-[11px] text-fg-muted hover:text-fg"
-                    onClick={() => setSlug(genToken(5))}
-                  >
-                    <Shuffle className="h-3 w-3" /> {t("short.roll")}
-                  </button>
-                </div>
-                <div className="flex rounded-md border border-border bg-bg">
-                  <div className="relative max-w-[58%] shrink-0 border-r border-border">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setHostOpen((v) => !v);
-                        setWsOpen(false);
-                      }}
-                      className="flex h-full min-h-9 w-full items-center gap-1 bg-bg-subtle px-2.5 text-left text-[11px] text-fg-muted hover:text-fg"
-                      aria-haspopup="listbox"
-                      aria-expanded={hostOpen}
-                    >
-                      <span className="min-w-0 truncate">{host}/</span>
-                      <ChevronDown className="h-3 w-3 shrink-0 opacity-70" />
-                    </button>
-                    {hostOpen && (
-                      <>
+    <LinkEditorShell
+      title={kindTitle}
+      description={kind === "page" ? t("create.pageHint") : t("short.createHint")}
+      onClose={onClose}
+      toolbar={<CreateKindBar value={kind} onChange={onKind} />}
+      url={shortUrl}
+      slug={slug}
+      preview={{ title: previewTitle, text: previewText, image: shareImage, host }}
+      footer={
+        <>
+          <div className="flex flex-wrap gap-1">
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => {
+                  setWsOpen((v) => !v);
+                  setHostOpen(false);
+                }}
+                className={cn(
+                  "inline-flex h-8 max-w-[11rem] items-center gap-1 rounded-md border px-2 text-[11px] transition-colors",
+                  wsOpen
+                    ? "border-fg bg-fg text-bg"
+                    : "border-border text-fg-muted hover:bg-bg-subtle hover:text-fg",
+                )}
+              >
+                <Building2 className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate">{data.tenant.name}</span>
+                <ChevronDown className="h-3 w-3 shrink-0 opacity-70" />
+              </button>
+              {wsOpen && (
+                <>
+                  <button type="button" className="fixed inset-0 z-10" onClick={() => setWsOpen(false)} />
+                  <ul className="absolute bottom-full left-0 z-20 mb-1 min-w-[14rem] overflow-hidden rounded-md border border-border bg-bg-elevated py-1 shadow-lg">
+                    {workspaces.map((w) => (
+                      <li key={w.id}>
                         <button
                           type="button"
-                          className="fixed inset-0 z-10"
-                          aria-label={t("common.close")}
-                          onClick={() => setHostOpen(false)}
-                        />
-                        <ul
-                          role="listbox"
-                          className="absolute left-0 top-full z-20 mt-1 min-w-[14rem] overflow-hidden rounded-md border border-border bg-bg-elevated py-1 shadow-lg"
+                          className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs hover:bg-bg-subtle"
+                          onMouseEnter={() => prefetchWorkspace(w.id)}
+                          onClick={() => pickWorkspace(w.id)}
                         >
-                          {hosts.map((h) => (
-                            <li key={h}>
-                              <button
-                                type="button"
-                                role="option"
-                                aria-selected={h === host}
-                                className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs hover:bg-bg-subtle"
-                                onClick={() => {
-                                  setHost(h);
-                                  setHostOpen(false);
-                                }}
-                              >
-                                <span className="min-w-0 flex-1 truncate font-mono">{h}</span>
-                                {h === host && <Check className="h-3 w-3 shrink-0 text-primary" />}
-                              </button>
-                            </li>
-                          ))}
-                        </ul>
-                      </>
-                    )}
-                  </div>
-                  <input
-                    className="min-w-0 flex-1 bg-transparent px-2.5 py-2 font-mono text-sm outline-none"
-                    value={slug}
-                    onChange={(e) =>
-                      setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9._-]/g, ""))
-                    }
-                  />
-                </div>
-              </section>
-
-              <section className="space-y-2">
-                <p className="text-xs font-medium text-fg-muted">{t("short.teamOnly")}</p>
-                <TagPicker
-                  catalog={data.tags}
-                  value={tags}
-                  onChange={setTags}
-                  onCreate={async (name, color) => {
-                    const next = (await createTag({
-                      data: { name, color, tenant_id: data.tenant.id },
-                    })) as FullState;
-                    setData(next);
-                  }}
-                />
-                <Textarea
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                  placeholder={t("short.notePh")}
-                  className="min-h-[64px]"
-                />
-              </section>
-
-              <section>
-                <p className="mb-1.5 text-xs font-medium text-fg-muted">
-                  {t("short.shareWhen")}
-                </p>
-                <div className="overflow-hidden rounded-md border border-border bg-bg">
-                  <div className="flex aspect-[2/1] items-center justify-center bg-bg-subtle">
-                    {shareImage ? (
-                      <img src={shareImage} alt="" className="h-full w-full object-cover" />
-                    ) : (
-                      <ImageIcon className="h-6 w-6 text-fg-subtle" />
-                    )}
-                  </div>
-                  <div className="space-y-1 p-2.5">
-                    <input
-                      className="w-full bg-transparent text-sm font-medium outline-none"
-                      placeholder={t("short.shareTitlePh")}
-                      value={shareTitle}
-                      onChange={(e) => setShareTitle(e.target.value)}
-                    />
-                    <input
-                      className="w-full bg-transparent text-xs text-fg-muted outline-none"
-                      placeholder={t("short.shareTextPh")}
-                      value={shareText}
-                      onChange={(e) => setShareText(e.target.value)}
-                    />
-                    <input
-                      className="w-full bg-transparent text-[11px] text-fg-subtle outline-none"
-                      placeholder={t("short.shareImgPh")}
-                      value={shareImage}
-                      onChange={(e) => setShareImage(e.target.value)}
-                    />
-                  </div>
-                </div>
-              </section>
-
-              {extra && (
-                <div className="space-y-3 rounded-md border border-border bg-bg p-3">
-                  {extra === "campaign" && (
-                    <div className="grid gap-2 @min-[28rem]/modal:grid-cols-3">
-                      <Mini label={t("short.utmSource")} value={utmS} onChange={setUtmS} />
-                      <Mini label={t("short.utmMedium")} value={utmM} onChange={setUtmM} />
-                      <Mini label={t("short.utmName")} value={utmC} onChange={setUtmC} />
-                    </div>
-                  )}
-                  {extra === "device" && (
-                    <div className="grid gap-2">
-                      <Mini label={t("short.iosUrl")} value={ios} onChange={setIos} />
-                      <Mini label={t("short.androidUrl")} value={android} onChange={setAndroid} />
-                    </div>
-                  )}
-                  {extra === "lock" && (
-                    <Mini label={t("short.openPassword")} value={password} onChange={setPassword} />
-                  )}
-                  {extra === "ttl" && (
-                    <Mini
-                      label={t("short.hoursUntil")}
-                      value={expiresHours}
-                      onChange={setExpiresHours}
-                      type="number"
-                    />
-                  )}
-                </div>
+                          <span className="min-w-0 flex-1 truncate">{w.name}</span>
+                          {w.id === data.tenant.id && <Check className="h-3 w-3 shrink-0 text-primary" />}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </>
               )}
             </div>
-          </div>
-
-          <footer className="flex shrink-0 flex-col gap-2 border-t border-border px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] @min-[28rem]/modal:flex-row @min-[28rem]/modal:items-center @min-[28rem]/modal:justify-between">
-            <div className="flex flex-wrap gap-1">
-              <div className="relative">
+            {extras.map((c) => {
+              const Icon = c.icon;
+              const active = extra === c.id;
+              return (
                 <button
+                  key={c.id}
                   type="button"
-                  onClick={() => {
-                    setWsOpen((v) => !v);
-                    setHostOpen(false);
-                  }}
+                  onClick={() => setExtra(active ? null : c.id)}
                   className={cn(
-                    "inline-flex h-8 max-w-[11rem] items-center gap-1 rounded-md border px-2 text-[11px] transition-colors",
-                    wsOpen
+                    "group relative inline-flex h-8 w-8 items-center justify-center rounded-md border transition-colors",
+                    active || c.on
                       ? "border-fg bg-fg text-bg"
                       : "border-border text-fg-muted hover:bg-bg-subtle hover:text-fg",
                   )}
-                  aria-haspopup="listbox"
-                  aria-expanded={wsOpen}
+                  title={c.label}
                 >
-                  <Building2 className="h-3.5 w-3.5 shrink-0" />
-                  <span className="truncate">{data.tenant.name}</span>
-                  <ChevronDown className="h-3 w-3 shrink-0 opacity-70" />
+                  <Icon className="h-3.5 w-3.5" />
                 </button>
-                {wsOpen && (
-                  <>
-                    <button
-                      type="button"
-                      className="fixed inset-0 z-10"
-                      aria-label={t("common.close")}
-                      onClick={() => setWsOpen(false)}
-                    />
-                    <ul
-                      role="listbox"
-                      className="absolute bottom-full left-0 z-20 mb-1 min-w-[14rem] overflow-hidden rounded-md border border-border bg-bg-elevated py-1 shadow-lg"
-                    >
-                      {workspaces.map((w) => (
-                        <li key={w.id}>
-                          <button
-                            type="button"
-                            role="option"
-                            aria-selected={w.id === data.tenant.id}
-                            className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs hover:bg-bg-subtle"
-                            onMouseEnter={() => prefetchWorkspace(w.id)}
-                            onClick={() => pickWorkspace(w.id)}
-                          >
-                            <span className="min-w-0 flex-1 truncate">{w.name}</span>
-                            {w.id === data.tenant.id && (
-                              <Check className="h-3 w-3 shrink-0 text-primary" />
-                            )}
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  </>
-                )}
-              </div>
-              {extras.map((c) => {
-                const Icon = c.icon;
-                const active = extra === c.id;
-                return (
-                  <button
-                    key={c.id}
-                    type="button"
-                    onClick={() => setExtra(active ? null : c.id)}
-                    className={cn(
-                      "group relative inline-flex h-8 w-8 items-center justify-center rounded-md border transition-colors",
-                      active || c.on
-                        ? "border-fg bg-fg text-bg"
-                        : "border-border text-fg-muted hover:bg-bg-subtle hover:text-fg",
-                    )}
-                    title={c.label}
-                  >
-                    <Icon className="h-3.5 w-3.5" />
-                    <span className="pointer-events-none absolute bottom-full left-1/2 z-30 mb-1.5 -translate-x-1/2 whitespace-nowrap rounded-md bg-fg px-2 py-1 text-[10px] text-bg opacity-0 shadow-md transition-opacity group-hover:opacity-100">
-                      {c.label}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-            <div className="flex flex-col items-stretch gap-2 @min-[28rem]/modal:items-end">
-              <Toggle label={t("dash.pin")} checked={pinDash} onChange={setPinDash} />
-              {pinDash && (
-                <select
-                  className="h-8 rounded-md border border-border bg-bg px-2 text-[11px]"
-                  value={dashDisplay}
-                  onChange={(e) =>
-                    setDashDisplay(e.target.value as "text" | "icon" | "preview")
-                  }
-                >
-                  <option value="text">{t("dash.asText")}</option>
-                  <option value="icon">{t("dash.asIcon")}</option>
-                  <option value="preview">{t("dash.asPreview")}</option>
-                </select>
-              )}
-              <Button className="h-9" disabled={busy} onClick={() => void save()}>
-                {busy ? t("common.loading") : t("short.createBtn")}
-              </Button>
-            </div>
-          </footer>
-        </div>
+              );
+            })}
+          </div>
+          <Button className="h-9" disabled={busy} onClick={() => void save()}>
+            {busy ? t("common.loading") : t("short.createBtn")}
+          </Button>
+        </>
+      }
+    >
+      {(kind === "url" || kind === "page") && (
+        <section>
+          <p className="mb-1.5 text-xs font-medium">{t("short.destLabel")}</p>
+          <Input
+            autoFocus
+            value={destination}
+            onChange={(e) => setDestination(e.target.value)}
+            placeholder={t("short.destPlaceholder")}
+          />
+        </section>
+      )}
 
-        <QrDrawer url={shortUrl} slug={slug} />
+      {kind === "document" && (
+        <section className="space-y-3">
+          <div>
+            <p className="mb-1.5 text-xs font-medium">Datei</p>
+            <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-md border border-dashed border-border bg-bg px-4 py-8 text-center hover:border-border-strong">
+              <Upload className="h-6 w-6 text-fg-subtle" />
+              <span className="text-sm text-fg-muted">
+                {docFile ? docFile.name : `PDF, Bilder oder Office (max. ${MAX_UPLOAD_LABEL})`}
+              </span>
+              <input
+                type="file"
+                className="hidden"
+                accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.zip,.txt,application/pdf,image/*"
+                onChange={(e) => {
+                  const f = e.target.files?.[0] ?? null;
+                  setDocFile(f);
+                  if (f && !docTitle) setDocTitle(f.name.replace(/\.[^.]+$/, ""));
+                  if (f) setSlug(f.name.toLowerCase().replace(/\s+/g, "-"));
+                }}
+              />
+            </label>
+            {progress != null && (
+              <p className="mt-1 text-xs text-fg-subtle">Upload {progress}%</p>
+            )}
+          </div>
+          <div>
+            <p className="mb-1.5 text-xs font-medium">Titel</p>
+            <Input value={docTitle} onChange={(e) => setDocTitle(e.target.value)} />
+          </div>
+          <DocActionPicker value={docActions} onChange={setDocActions} />
+          <div>
+            <p className="mb-1.5 text-xs font-medium">{t("doc.chatMode")}</p>
+            <select
+              className="h-9 w-full rounded-md border border-border bg-bg px-2 text-sm"
+              value={chatMode}
+              onChange={(e) => setChatMode(e.target.value as ChatMode)}
+            >
+              <option value="off">{t("doc.chatOff")}</option>
+              <option value="shared">{t("doc.chatShared")}</option>
+              <option value="per_email">{t("doc.chatPerEmail")}</option>
+            </select>
+          </div>
+          <Toggle
+            label="Zugriff muss angefragt werden"
+            checked={requireRequest}
+            onChange={setRequireRequest}
+          />
+        </section>
+      )}
+
+      {kind === "event" && (
+        <EventFields
+          event={event}
+          setEvent={(next) => {
+            setEvent(next);
+            setSlug(suggestCardSlug("event", next.start));
+          }}
+        />
+      )}
+      {kind === "contact" && (
+        <ContactFields
+          contact={contact}
+          setContact={(next) => {
+            setContact(next);
+            if (next.name) setSlug(suggestCardSlug("contact"));
+          }}
+        />
+      )}
+
+      <section>
+        <div className="mb-1.5 flex items-center justify-between">
+          <p className="text-xs font-medium">{t("short.nameLabel")}</p>
+          <button
+            type="button"
+            className="inline-flex h-7 items-center gap-1 text-[11px] text-fg-muted hover:text-fg"
+            onClick={() =>
+              setSlug(
+                kind === "event"
+                  ? suggestCardSlug("event", event.start)
+                  : kind === "contact"
+                    ? suggestCardSlug("contact")
+                    : genToken(5),
+              )
+            }
+          >
+            <Shuffle className="h-3 w-3" /> {t("short.roll")}
+          </button>
         </div>
-      </div>
-    </div>
+        <div className="flex rounded-md border border-border bg-bg">
+          <div className="relative max-w-[58%] shrink-0 border-r border-border">
+            <button
+              type="button"
+              onClick={() => {
+                setHostOpen((v) => !v);
+                setWsOpen(false);
+              }}
+              className="flex h-full min-h-9 w-full items-center gap-1 bg-bg-subtle px-2.5 text-left text-[11px] text-fg-muted hover:text-fg"
+            >
+              <span className="min-w-0 truncate">
+                {host}/{kind === "event" ? "ics/" : kind === "contact" ? "vcf/" : ""}
+              </span>
+              <ChevronDown className="h-3 w-3 shrink-0 opacity-70" />
+            </button>
+            {hostOpen && (
+              <>
+                <button type="button" className="fixed inset-0 z-10" onClick={() => setHostOpen(false)} />
+                <ul className="absolute left-0 top-full z-20 mt-1 min-w-[14rem] overflow-hidden rounded-md border border-border bg-bg-elevated py-1 shadow-lg">
+                  {hosts.map((h) => (
+                    <li key={h}>
+                      <button
+                        type="button"
+                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs hover:bg-bg-subtle"
+                        onClick={() => {
+                          setHost(h);
+                          setHostOpen(false);
+                        }}
+                      >
+                        <span className="min-w-0 flex-1 truncate font-mono">{h}</span>
+                        {h === host && <Check className="h-3 w-3 shrink-0 text-primary" />}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </div>
+          <input
+            className="min-w-0 flex-1 bg-transparent px-2.5 py-2 font-mono text-sm outline-none"
+            value={slug}
+            onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9._-]/g, ""))}
+          />
+        </div>
+      </section>
+
+      <section className="space-y-2">
+        <p className="text-xs font-medium text-fg-muted">{t("short.teamOnly")}</p>
+        <TagPicker
+          catalog={data.tags}
+          value={tags}
+          onChange={setTags}
+          onCreate={async (name, color) => {
+            const next = (await createTag({
+              data: { name, color, tenant_id: data.tenant.id },
+            })) as FullState;
+            setData(next);
+          }}
+        />
+        <Textarea
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder={t("short.notePh")}
+          className="min-h-[64px]"
+        />
+      </section>
+
+      <section>
+        <p className="mb-1.5 text-xs font-medium text-fg-muted">{t("short.shareWhen")}</p>
+        <div className="overflow-hidden rounded-md border border-border bg-bg">
+          <div className="flex aspect-[2/1] items-center justify-center bg-bg-subtle">
+            {shareImage ? (
+              <img src={shareImage} alt="" className="h-full w-full object-cover" />
+            ) : (
+              <ImageIcon className="h-6 w-6 text-fg-subtle" />
+            )}
+          </div>
+          <div className="space-y-1 p-2.5">
+            <input
+              className="w-full bg-transparent text-sm font-medium outline-none"
+              placeholder={t("short.shareTitlePh")}
+              value={shareTitle}
+              onChange={(e) => setShareTitle(e.target.value)}
+            />
+            <input
+              className="w-full bg-transparent text-xs text-fg-muted outline-none"
+              placeholder={t("short.shareTextPh")}
+              value={shareText}
+              onChange={(e) => setShareText(e.target.value)}
+            />
+            <input
+              className="w-full bg-transparent text-[11px] text-fg-subtle outline-none"
+              placeholder={t("short.shareImgPh")}
+              value={shareImage}
+              onChange={(e) => setShareImage(e.target.value)}
+            />
+          </div>
+        </div>
+      </section>
+
+      {extra && (
+        <div className="space-y-3 rounded-md border border-border bg-bg p-3">
+          {extra === "campaign" && (
+            <div className="grid gap-2 @min-[28rem]/modal:grid-cols-3">
+              <Mini label={t("short.utmSource")} value={utmS} onChange={setUtmS} />
+              <Mini label={t("short.utmMedium")} value={utmM} onChange={setUtmM} />
+              <Mini label={t("short.utmName")} value={utmC} onChange={setUtmC} />
+            </div>
+          )}
+          {extra === "device" && (
+            <div className="grid gap-2">
+              <Mini label={t("short.iosUrl")} value={ios} onChange={setIos} />
+              <Mini label={t("short.androidUrl")} value={android} onChange={setAndroid} />
+            </div>
+          )}
+          {extra === "lock" && (
+            <Mini label={t("short.openPassword")} value={password} onChange={setPassword} />
+          )}
+          {extra === "ttl" && (
+            <Mini label={t("short.hoursUntil")} value={expiresHours} onChange={setExpiresHours} type="number" />
+          )}
+        </div>
+      )}
+
+      <DashPinBlock pin={pinDash} onPin={setPinDash} display={dashDisplay} onDisplay={setDashDisplay} />
+    </LinkEditorShell>
   );
 }
 

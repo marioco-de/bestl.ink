@@ -15,7 +15,8 @@ import { HueButton } from "@/components/ui/hue-button";
 import { Input, Textarea, Label } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { FullScreenModal } from "@/components/ui/fullscreen-modal";
+import { LinkEditorShell, DashPinBlock } from "@/components/control/link-editor-shell";
+import { defaultHost } from "@/lib/docbay/hosts";
 import { GeneratePanel } from "@/components/hashport/generate-panel";
 import { useControlData, useSetControlData, useOpenCreate } from "@/lib/docbay/use-control";
 import { createResource, deleteResource, updateResource, uploadBegin, uploadChunk, createTag } from "@/lib/docbay/api";
@@ -302,6 +303,10 @@ export function ResourceForm({
   toolbar?: ReactNode;
 }) {
   const catalog = useControlData().tags;
+  const data = useControlData();
+  const host = defaultHost(data);
+  const [pinDash, setPinDash] = useState(false);
+  const [dashDisplay, setDashDisplay] = useState<"text" | "icon" | "preview">("text");
   const t = useT();
   const editing = Boolean(initial);
   const [type, setType] = useState<"document" | "page">(initial?.type === "page" ? "page" : defaultType);
@@ -458,11 +463,14 @@ export function ResourceForm({
   }
 
   return (
-    <FullScreenModal
+    <LinkEditorShell
       title={editing ? t("common.edit") : "Inhalt hinzufügen"}
       description={editing ? initial?.title : "Dokument hochladen oder interne Seite hinter einer geschützten URL."}
       onClose={onCancel}
       toolbar={toolbar}
+      url={`https://${host}/${slug || "link"}`}
+      slug={slug}
+      preview={{ title, text: description, image: "", host }}
       footer={
         <>
           <Button type="button" variant="ghost" className="min-h-11" onClick={onCancel}>
@@ -615,6 +623,7 @@ export function ResourceForm({
           </div>
         </div>
       )}
-    </FullScreenModal>
+      <DashPinBlock pin={pinDash} onPin={setPinDash} display={dashDisplay} onDisplay={setDashDisplay} />
+    </LinkEditorShell>
   );
 }

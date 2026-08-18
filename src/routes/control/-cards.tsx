@@ -13,7 +13,8 @@ import { HueButton } from "@/components/ui/hue-button";
 import { Input, Textarea, Label } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { FullScreenModal } from "@/components/ui/fullscreen-modal";
+import { LinkEditorShell, DashPinBlock } from "@/components/control/link-editor-shell";
+import { defaultHost } from "@/lib/docbay/hosts";
 import { GeneratePanel } from "@/components/hashport/generate-panel";
 import { useControlData, useSetControlData } from "@/lib/docbay/use-control";
 import { createResource, deleteResource, updateResource, createTag } from "@/lib/docbay/api";
@@ -250,6 +251,10 @@ export function CardForm({
   const [busy, setBusy] = useState(false);
   const [tags, setTags] = useState<string[]>(existing?.tags ?? []);
   const catalog = useControlData().tags;
+  const data = useControlData();
+  const host = defaultHost(data);
+  const [pinDash, setPinDash] = useState(false);
+  const [dashDisplay, setDashDisplay] = useState<"text" | "icon" | "preview">("text");
   const ext = kind === "event" ? ".ics" : ".vcf";
 
   function syncSlug(name: string) {
@@ -306,7 +311,7 @@ export function CardForm({
   }
 
   return (
-    <FullScreenModal
+    <LinkEditorShell
       title={
         existing
           ? kind === "event"
@@ -323,6 +328,14 @@ export function CardForm({
       }
       onClose={onClose}
       toolbar={toolbar}
+      url={`https://${host}/${kind === "event" ? "ics" : "vcf"}/${slug || "link"}`}
+      slug={slug}
+      preview={{
+        title: kind === "event" ? event.title : contact.name,
+        text: kind === "event" ? event.description || "" : contact.company || "",
+        image: "",
+        host,
+      }}
       footer={
         <>
           <Button type="button" variant="ghost" className="min-h-11" onClick={onClose}>
@@ -382,7 +395,8 @@ export function CardForm({
           }}
         />
       </div>
-    </FullScreenModal>
+      <DashPinBlock pin={pinDash} onPin={setPinDash} display={dashDisplay} onDisplay={setDashDisplay} />
+    </LinkEditorShell>
   );
 }
 
@@ -426,7 +440,7 @@ function ContactPreview({ contact }: { contact: ContactPayload }) {
   );
 }
 
-function EventFields({
+export function EventFields({
   event,
   setEvent,
 }: {
@@ -640,7 +654,7 @@ function EventFields({
   );
 }
 
-function ContactFields({
+export function ContactFields({
   contact,
   setContact,
 }: {

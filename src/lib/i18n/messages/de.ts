@@ -210,6 +210,11 @@ export const de = {
     event: "Termin",
     contact: "Kontakt",
     new: "{kind}",
+    preview: "Vorschau",
+    ogTitle: "Social-Vorschau",
+    ogHint: "So sähe der Link bei Facebook, LinkedIn oder Slack aus.",
+    ogFallback: "Dein Link",
+    ogFallbackText: "Titel und Text erscheinen hier, sobald du sie ausfüllst.",
   },
   thread: {
     priority: "Priorität",
