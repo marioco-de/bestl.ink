@@ -187,6 +187,11 @@ export const de = {
     less: "Weniger",
     ndaLog: "NDA-Unterschriften",
     ndaNone: "Noch keine NDA-Unterschrift.",
+    lastVisit: "zuletzt besucht:",
+    edit: "Bearbeiten",
+    disable: "Deaktivieren",
+    enable: "Aktivieren",
+    delete: "Löschen",
   },
   eye: {
     live: "Wird gerade angesehen von {email} aus {country}",

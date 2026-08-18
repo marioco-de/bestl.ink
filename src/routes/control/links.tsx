@@ -19,6 +19,7 @@ import { tagColor } from "@/lib/docbay/tags";
 import { useT } from "@/lib/i18n";
 import { QuickShorten } from "@/components/control/quick-shorten";
 import { ActivityList, PresenceEye } from "@/components/control/presence-eye";
+import { RowMenu, VisitMeta } from "@/components/control/row-menu";
 import { useControl } from "@/lib/docbay/control-store";
 
 type Tab = "urls" | "docs" | "pages" | "events" | "contacts" | "shared";
@@ -251,12 +252,13 @@ function DocLinkRow({
           <p className="mt-0.5 truncate font-mono text-xs text-fg-muted">{url}</p>
         </div>
         <div className="flex shrink-0 items-center gap-3" onClick={(e) => e.stopPropagation()}>
-          <span className="hidden tabular text-xs text-fg-subtle @min-[40rem]/hub:inline">
-            {l.human_click_count}
-            {l.last_clicked_at ? ` · ${formatDateDe(l.last_clicked_at)}` : ""}
-            {ndas.length ? ` · ${ndas.length} NDA` : ""}
-          </span>
-          <div className="flex flex-wrap gap-1">
+          <VisitMeta
+            clicks={l.human_click_count}
+            at={l.last_clicked_at ? formatDateDe(l.last_clicked_at) : null}
+            lastLabel={t("links.lastVisit")}
+            extra={ndas.length ? ` · ${ndas.length} NDA` : null}
+          />
+          <div className="flex flex-wrap items-center gap-1">
             <Button
               size="sm"
               variant="secondary"
@@ -273,9 +275,11 @@ function DocLinkRow({
               </a>
             </Button>
             {!l.revoked && (
-              <Button size="sm" variant="ghost" onClick={() => void onRevoke()}>
-                <Ban className="h-3.5 w-3.5" />
-              </Button>
+              <RowMenu
+                items={[
+                  { label: t("links.revoke"), icon: Ban, danger: true, onClick: () => void onRevoke() },
+                ]}
+              />
             )}
           </div>
         </div>

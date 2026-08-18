@@ -19,14 +19,16 @@ import { FullScreenModal } from "@/components/ui/fullscreen-modal";
 import { GeneratePanel } from "@/components/hashport/generate-panel";
 import { useControlData, useSetControlData } from "@/lib/docbay/use-control";
 import { createResource, deleteResource, updateResource, uploadBegin, uploadChunk, createTag } from "@/lib/docbay/api";
-import { formatBytes, slugify, cn } from "@/lib/utils";
+import { formatBytes, slugify, cn, formatDateDe } from "@/lib/utils";
 import { MAX_UPLOAD_BYTES, MAX_UPLOAD_LABEL } from "@/lib/docbay/upload";
-import type { FullState, Resource } from "@/lib/docbay/types";
+import type { FullState, GeneratedLink, Resource } from "@/lib/docbay/types";
 import { TagChip, TagPicker } from "@/components/control/tag-picker";
 import { tagColor } from "@/lib/docbay/tags";
 import { DocActionPicker } from "@/components/control/doc-action-picker";
 import { actionsPayload, parseChatMode, parseDocActions, withChatMode, type ChatMode, type DocAction } from "@/lib/docbay/doc-actions";
 import { useT } from "@/lib/i18n";
+import { PresenceEye } from "@/components/control/presence-eye";
+import { RowMenu, VisitMeta } from "@/components/control/row-menu";
 
 export const Route = createFileRoute("/control/resources")({
   validateSearch: (s: Record<string, unknown>) => ({
@@ -122,6 +124,7 @@ export function ResourcesWorkspace({
             r={r}
             i={i}
             tags={state.tags}
+            links={state.links}
             onEdit={() => setFormFor(r)}
             onGenerate={() => setGenerateFor(r)}
             onDelete={async () => {
@@ -154,6 +157,7 @@ function ResourceRow({
   r,
   i,
   tags,
+  links,
   onEdit,
   onGenerate,
   onDelete,
@@ -161,11 +165,21 @@ function ResourceRow({
   r: Resource;
   i: number;
   tags: FullState["tags"];
+  links: GeneratedLink[];
   onEdit: () => void;
   onGenerate: () => void;
   onDelete: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  const t = useT();
+  const mine = links.filter((l) => l.resource_id === r.id && !l.revoked);
+  const clicks = mine.reduce((a, l) => a + l.human_click_count, 0);
+  let last: string | null = null;
+  let presence = null as (typeof mine)[number]["presence"];
+  for (const l of mine) {
+    if (l.last_clicked_at && (!last || l.last_clicked_at > last)) last = l.last_clicked_at;
+    if (l.presence && (!presence || l.presence.at > presence.at)) presence = l.presence;
+  }
   return (
     <div className={cn("px-3 py-2.5", i > 0 && "border-t border-border")}>
       <div
@@ -174,6 +188,7 @@ function ResourceRow({
       >
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-1.5">
+            <PresenceEye presence={presence} />
             {r.type === "document" ? (
               <FileText className="h-3.5 w-3.5 text-fg-muted" />
             ) : (
@@ -189,16 +204,28 @@ function ResourceRow({
             {r.type === "page" ? "/" : ""}
           </p>
         </div>
-        <div className="flex shrink-0 gap-1" onClick={(e) => e.stopPropagation()}>
-          <Button size="sm" variant="secondary" onClick={onEdit}>
-            <Pencil className="h-3.5 w-3.5" />
-          </Button>
-          <Button size="sm" onClick={onGenerate}>
-            <Link2 className="h-3.5 w-3.5" />
-          </Button>
-          <Button size="sm" variant="ghost" onClick={() => void onDelete()}>
-            <Trash2 className="h-3.5 w-3.5 text-danger" />
-          </Button>
+        <div className="flex shrink-0 items-center gap-3" onClick={(e) => e.stopPropagation()}>
+          <VisitMeta
+            clicks={clicks}
+            at={last ? formatDateDe(last) : null}
+            lastLabel={t("links.lastVisit")}
+          />
+          <div className="flex flex-wrap items-center gap-1">
+            <Button size="sm" onClick={onGenerate}>
+              <Link2 className="h-3.5 w-3.5" />
+            </Button>
+            <RowMenu
+              items={[
+                { label: t("links.edit"), icon: Pencil, onClick: onEdit },
+                {
+                  label: t("links.delete"),
+                  icon: Trash2,
+                  danger: true,
+                  onClick: () => void onDelete(),
+                },
+              ]}
+            />
+          </div>
         </div>
       </div>
       {open && (

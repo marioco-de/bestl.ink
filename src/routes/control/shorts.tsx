@@ -37,6 +37,7 @@ import { formatDateDe, cn } from "@/lib/utils";
 import { TagChip } from "@/components/control/tag-picker";
 import { tagColor } from "@/lib/docbay/tags";
 import { ActivityList, PresenceEye } from "@/components/control/presence-eye";
+import { RowMenu, VisitMeta } from "@/components/control/row-menu";
 
 export const Route = createFileRoute("/control/shorts")({
   validateSearch: (s: Record<string, unknown>) => ({
@@ -306,11 +307,12 @@ function ShortRow({
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-3" onClick={(e) => e.stopPropagation()}>
-          <span className="hidden tabular text-xs text-fg-subtle @min-[40rem]/hub:inline">
-            {s.human_click_count}
-            {s.last_clicked_at ? ` · ${formatDateDe(s.last_clicked_at)}` : ""}
-          </span>
-          <div className="flex flex-wrap gap-1">
+          <VisitMeta
+            clicks={s.human_click_count}
+            at={s.last_clicked_at ? formatDateDe(s.last_clicked_at) : null}
+            lastLabel={t("links.lastVisit")}
+          />
+          <div className="flex flex-wrap items-center gap-1">
             <Button
               size="sm"
               variant="secondary"
@@ -340,34 +342,31 @@ function ShortRow({
             <Button size="sm" variant="secondary" onClick={() => onStats(s)}>
               <BarChart3 className="h-3.5 w-3.5" />
             </Button>
-            <Button size="sm" variant="ghost" onClick={() => onEdit(s)}>
-              <Pencil className="h-3.5 w-3.5" />
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={async () => {
-                const next = await toggleShort({
-                  data: { id: s.id, disabled: !s.disabled, tenant_id: state.tenant.id },
-                });
-                await refresh(upsertShort(state, next.short));
-              }}
-            >
-              <Ban className="h-3.5 w-3.5" />
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={async () => {
-                if (!confirm("Kurzlink löschen?")) return;
-                const next = await deleteShort({
-                  data: { id: s.id, tenant_id: state.tenant.id },
-                });
-                await refresh(removeShort(state, next.id));
-              }}
-            >
-              <Trash2 className="h-3.5 w-3.5 text-danger" />
-            </Button>
+            <RowMenu
+              items={[
+                { label: t("links.edit"), icon: Pencil, onClick: () => onEdit(s) },
+                {
+                  label: s.disabled ? t("links.enable") : t("links.disable"),
+                  icon: Ban,
+                  onClick: () => {
+                    void toggleShort({
+                      data: { id: s.id, disabled: !s.disabled, tenant_id: state.tenant.id },
+                    }).then((next) => refresh(upsertShort(state, next.short)));
+                  },
+                },
+                {
+                  label: t("links.delete"),
+                  icon: Trash2,
+                  danger: true,
+                  onClick: () => {
+                    if (!confirm("Kurzlink löschen?")) return;
+                    void deleteShort({
+                      data: { id: s.id, tenant_id: state.tenant.id },
+                    }).then((next) => refresh(removeShort(state, next.id)));
+                  },
+                },
+              ]}
+            />
           </div>
         </div>
       </div>

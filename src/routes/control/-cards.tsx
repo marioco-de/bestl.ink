@@ -17,10 +17,13 @@ import { FullScreenModal } from "@/components/ui/fullscreen-modal";
 import { GeneratePanel } from "@/components/hashport/generate-panel";
 import { useControlData, useSetControlData } from "@/lib/docbay/use-control";
 import { createResource, deleteResource, updateResource, createTag } from "@/lib/docbay/api";
-import { slugify } from "@/lib/utils";
+import { slugify, formatDateDe } from "@/lib/utils";
 import type { FullState, Resource, JsonObject } from "@/lib/docbay/types";
 import { TagChip, TagPicker } from "@/components/control/tag-picker";
 import { tagColor } from "@/lib/docbay/tags";
+import { RowMenu, VisitMeta } from "@/components/control/row-menu";
+import { PresenceEye } from "@/components/control/presence-eye";
+import { useT } from "@/lib/i18n";
 import {
   contactInitials,
   emptyContact,
@@ -42,6 +45,7 @@ export function CardsWorkspace({ kind }: { kind: "event" | "contact" }) {
   const [state, setState] = useState<FullState>(data);
   const [editing, setEditing] = useState<Resource | null | "new">(null);
   const [generateFor, setGenerateFor] = useState<Resource | null>(null);
+  const t = useT();
 
   useEffect(() => setState(data), [data]);
 
@@ -107,6 +111,15 @@ export function CardsWorkspace({ kind }: { kind: "event" | "contact" }) {
                   )}
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
+                      <PresenceEye
+                        presence={
+                          state.links
+                            .filter((l) => l.resource_id === r.id && l.presence)
+                            .sort((a, b) =>
+                              (b.presence?.at || "").localeCompare(a.presence?.at || ""),
+                            )[0]?.presence || null
+                        }
+                      />
                       <p className="font-medium">{r.title}</p>
                       <Badge variant="secondary">{label}</Badge>
                     </div>
@@ -123,25 +136,43 @@ export function CardsWorkspace({ kind }: { kind: "event" | "contact" }) {
                     )}
                   </div>
                 </button>
-                <div className="flex shrink-0 gap-2">
-                  <Button size="sm" onClick={() => setGenerateFor(r)}>
-                    <Link2 className="h-4 w-4" /> Link generieren
-                  </Button>
-                  <Button size="sm" variant="ghost" onClick={() => setEditing(r)}>
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={async () => {
-                      if (!confirm(`${label} löschen?`)) return;
-                      const s = await deleteResource({ data: { id: r.id } });
-                      await refresh(s as FullState);
-                      toast.success("Gelöscht");
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4 text-danger" />
-                  </Button>
+                <div className="flex shrink-0 items-center gap-3">
+                  <VisitMeta
+                    clicks={state.links
+                      .filter((l) => l.resource_id === r.id && !l.revoked)
+                      .reduce((a, l) => a + l.human_click_count, 0)}
+                    at={(() => {
+                      const last = state.links
+                        .filter((l) => l.resource_id === r.id && l.last_clicked_at)
+                        .map((l) => l.last_clicked_at as string)
+                        .sort()
+                        .at(-1);
+                      return last ? formatDateDe(last) : null;
+                    })()}
+                    lastLabel={t("links.lastVisit")}
+                  />
+                  <div className="flex items-center gap-1">
+                    <Button size="sm" onClick={() => setGenerateFor(r)}>
+                      <Link2 className="h-4 w-4" />
+                    </Button>
+                    <RowMenu
+                      items={[
+                        { label: t("links.edit"), icon: Pencil, onClick: () => setEditing(r) },
+                        {
+                          label: t("links.delete"),
+                          icon: Trash2,
+                          danger: true,
+                          onClick: () => {
+                            if (!confirm(`${label} löschen?`)) return;
+                            void deleteResource({ data: { id: r.id } }).then((s) => {
+                              void refresh(s as FullState);
+                              toast.success("Gelöscht");
+                            });
+                          },
+                        },
+                      ]}
+                    />
+                  </div>
                 </div>
               </CardContent>
             </Card>

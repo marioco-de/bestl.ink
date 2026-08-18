@@ -189,6 +189,11 @@ export const en: Messages = {
     less: "Show less",
     ndaLog: "NDA signatures",
     ndaNone: "No NDA signed yet.",
+    lastVisit: "last visited:",
+    edit: "Edit",
+    disable: "Disable",
+    enable: "Enable",
+    delete: "Delete",
   },
   eye: {
     live: "Currently being viewed by {email} from {country}",
