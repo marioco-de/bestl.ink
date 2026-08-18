@@ -300,7 +300,15 @@ function SectionBoard({
   );
 
   return (
-    <section className="dash-section overflow-hidden rounded-xl p-3" style={hueStyle(hue)}>
+    <section
+      className={cn(
+        "overflow-hidden rounded-xl p-3",
+        sec.kind === "personal"
+          ? "border border-border bg-transparent"
+          : "dash-section",
+      )}
+      style={sec.kind === "personal" ? undefined : hueStyle(hue)}
+    >
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <p className="flex-1 text-sm font-medium">
           {sec.kind === "team" ? sec.title || t("dash.teamBlock") : t("dash.personal")}
@@ -416,11 +424,11 @@ function GroupFrame({
   return (
     <>
       <div
-        className="absolute rounded-xl border-2"
+        className="dash-group absolute rounded-xl border-2"
         style={{
           ...cellStyle(g.x, g.y, g.w, g.h, 0),
           borderColor: g.color,
-          background: `${g.color}14`,
+          ["--hue"]: g.color,
         }}
         onContextMenu={(e) => {
           e.preventDefault();

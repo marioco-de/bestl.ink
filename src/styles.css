@@ -193,6 +193,15 @@
     border: 1px solid color-mix(in oklab, var(--hue) 22%, var(--color-border));
   }
 
+  .dash-group {
+    --hue: var(--color-hue-teal);
+    background: linear-gradient(
+      180deg,
+      color-mix(in oklab, var(--hue) 10%, var(--color-bg-elevated)),
+      var(--color-bg-elevated)
+    );
+  }
+
   .nav-fold {
     display: grid;
     grid-template-rows: 0fr;
