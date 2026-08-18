@@ -1,4 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+"use client";
+
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Shield } from "lucide-react";
 import { BRAND_HOME } from "@/lib/docbay/brand";
 import { splashCopy } from "@/lib/i18n/splash";
@@ -38,24 +40,27 @@ export function BrandedFrame({
   const heldRef = useRef(false);
 
   useEffect(() => {
-    if (heldRef.current) return;
-    setLeft(DELAY);
-    const started = Date.now();
-    const tick = window.setInterval(() => {
+    if (held) return;
+    const id = window.setInterval(() => {
       if (heldRef.current) {
-        window.clearInterval(tick);
+        window.clearInterval(id);
         return;
       }
-      const remain = DELAY - Math.floor((Date.now() - started) / 1000);
-      if (remain <= 0) {
-        window.clearInterval(tick);
-        window.location.replace(url);
-        return;
-      }
-      setLeft(remain);
-    }, 80);
-    return () => window.clearInterval(tick);
-  }, [url]);
+      setLeft((n) => {
+        if (n <= 1) {
+          window.clearInterval(id);
+          return 0;
+        }
+        return n - 1;
+      });
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [held, url]);
+
+  useEffect(() => {
+    if (held || left > 0) return;
+    window.location.replace(url);
+  }, [left, held, url]);
 
   function go() {
     window.location.replace(url);
@@ -66,8 +71,11 @@ export function BrandedFrame({
     setHeld(true);
   }
 
-  const template = left <= 1 ? copy.redirectOne : copy.redirect.replace("{n}", String(left));
-  const [before, after] = template.split("{url}");
+  const template = held
+    ? copy.held
+    : left <= 1
+      ? copy.redirectOne
+      : copy.redirect.replace("{n}", String(Math.max(left, 1)));
 
   return (
     <div className="hop-wash relative flex min-h-dvh flex-col items-center justify-center px-6">
@@ -95,30 +103,9 @@ export function BrandedFrame({
       >
         {url}
       </a>
-      {!held && (
-        <>
-          <p
-            key={left}
-            className="hop-count mt-8 font-display text-7xl font-semibold tabular-nums sm:text-8xl"
-          >
-            {left}
-          </p>
-          <p className="mt-4 max-w-2xl text-center text-sm opacity-80">
-            {before}
-            <a
-              href={url}
-              onClick={(e) => {
-                e.preventDefault();
-                go();
-              }}
-              className="break-all font-medium underline underline-offset-2"
-            >
-              {url}
-            </a>
-            {after}
-          </p>
-        </>
-      )}
+      <p className="mt-5 max-w-2xl text-center text-sm opacity-80">
+        <LineWithUrl template={template} url={url} onGo={go} />
+      </p>
       <button
         type="button"
         onClick={() => (held ? go() : cancel())}
@@ -132,4 +119,36 @@ export function BrandedFrame({
       </button>
     </div>
   );
+}
+
+function LineWithUrl({
+  template,
+  url,
+  onGo,
+}: {
+  template: string;
+  url: string;
+  onGo: () => void;
+}) {
+  const parts = template.split("{url}");
+  const nodes: ReactNode[] = [];
+  parts.forEach((part, i) => {
+    nodes.push(part);
+    if (i < parts.length - 1) {
+      nodes.push(
+        <a
+          key={i}
+          href={url}
+          onClick={(e) => {
+            e.preventDefault();
+            onGo();
+          }}
+          className="break-all font-medium underline underline-offset-2"
+        >
+          {url}
+        </a>,
+      );
+    }
+  });
+  return nodes;
 }

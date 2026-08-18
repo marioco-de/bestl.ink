@@ -2,11 +2,12 @@ export type SplashCopy = {
   flag: string;
   redirect: string;
   redirectOne: string;
+  held: string;
   cancel: string;
   go: string;
 };
 
-const PACKS: Record<string, SplashCopy> = {
+const PACKS: Record<string, Omit<SplashCopy, "held">> = {
   de: {
     flag: "Gekürzt und gesichert mit BESTL.INK",
     redirect: "Sie werden in {n} Sekunden zu {url} weitergeleitet.",
@@ -296,8 +297,49 @@ export function detectSplashLocale(): string {
   return "en";
 }
 
+const HELD: Record<string, string> = {
+  de: "Sie werden zu {url} weitergeleitet.",
+  en: "You will be redirected to {url}.",
+  it: "Verrai reindirizzato a {url}.",
+  fr: "Vous serez redirigé vers {url}.",
+  es: "Serás redirigido a {url}.",
+  pt: "Será redirecionado para {url}.",
+  nl: "U wordt doorgestuurd naar {url}.",
+  pl: "Nastąpi przekierowanie do {url}.",
+  sv: "Du omdirigeras till {url}.",
+  da: "Du bliver omdirigeret til {url}.",
+  fi: "Sinut ohjataan kohteeseen {url}.",
+  no: "Du blir videresendt til {url}.",
+  cs: "Budete přesměrováni na {url}.",
+  sk: "Budete presmerovaní na {url}.",
+  sl: "Preusmerjeni boste na {url}.",
+  hu: "Átirányítjuk ide: {url}.",
+  ro: "Veți fi redirecționat către {url}.",
+  bg: "Ще бъдете пренасочени към {url}.",
+  el: "Θα ανακατευθυνθείτε στο {url}.",
+  hr: "Bit ćete preusmjereni na {url}.",
+  et: "Teid suunatakse aadressile {url}.",
+  lv: "Jūs tiksiet novirzīts uz {url}.",
+  lt: "Būsite nukreipti į {url}.",
+  ga: "Atreorófar thú chuig {url}.",
+  mt: "Se tiġi ridiretta lejn {url}.",
+  uk: "Вас буде перенаправлено на {url}.",
+  ru: "Вы будете перенаправлены на {url}.",
+  tr: "{url} adresine yönlendirileceksiniz.",
+  sq: "Do të ridrejtoheni te {url}.",
+  sr: "Bićete preusmereni na {url}.",
+  bs: "Bit ćete preusmjereni na {url}.",
+  mk: "Ќе бидете пренасочени кон {url}.",
+  is: "Þér verður beint á {url}.",
+  ca: "Se us redirigirà a {url}.",
+  cy: "Cewch eich ailgyfeirio i {url}.",
+  eu: "{url} helbidera birbideratuko zaitugu.",
+  lb: "Dir gitt op {url} virugeleet.",
+};
+
 export function splashCopy(locale = detectSplashLocale()): SplashCopy {
-  return PACKS[locale] || PACKS.en!;
+  const pack = PACKS[locale] || PACKS.en!;
+  return { ...pack, held: HELD[locale] || HELD.en! };
 }
 
 export function splashText(
