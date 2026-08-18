@@ -32,13 +32,20 @@ function Dashboard() {
     void listRecentActivityFeed({ data: { tenant_id: data.tenant.id } }).then(setFeed);
   }, [data.tenant.id]);
 
-  const stats = [
-    { label: "URLs", value: data.stats.shorts, icon: Link2, hue: "text-hue-azure" },
-    { label: "Dokumente", value: data.stats.resources, icon: FileStack, hue: "text-hue-violet" },
-    { label: "Geteilt", value: data.stats.links, icon: Link2, hue: "text-hue-teal" },
-    { label: "Klicks", value: data.stats.clicks, icon: MousePointerClick, hue: "text-hue-amber" },
-    { label: "Human", value: data.stats.human_clicks, icon: Users, hue: "text-hue-lime" },
-    { label: "Anfragen", value: data.stats.pending_requests, icon: Inbox, hue: "text-hue-ruby" },
+  const stats: {
+    label: string;
+    value: number;
+    icon: typeof Link2;
+    hue: string;
+    to: "/control/links" | "/control/requests";
+    tab?: "urls" | "docs" | "shared";
+  }[] = [
+    { label: "URLs", value: data.stats.shorts, icon: Link2, hue: "text-hue-azure", to: "/control/links", tab: "urls" },
+    { label: "Dokumente", value: data.stats.resources, icon: FileStack, hue: "text-hue-violet", to: "/control/links", tab: "docs" },
+    { label: "Geteilt", value: data.stats.links, icon: Link2, hue: "text-hue-teal", to: "/control/links", tab: "shared" },
+    { label: "Klicks", value: data.stats.clicks, icon: MousePointerClick, hue: "text-hue-amber", to: "/control/links", tab: "shared" },
+    { label: "Human", value: data.stats.human_clicks, icon: Users, hue: "text-hue-lime", to: "/control/links", tab: "shared" },
+    { label: "Anfragen", value: data.stats.pending_requests, icon: Inbox, hue: "text-hue-ruby", to: "/control/requests" },
   ];
 
   return (
@@ -103,15 +110,23 @@ function Dashboard() {
             {stats.map((s) => {
               const Icon = s.icon;
               return (
-                <Card key={s.label}>
-                  <CardContent className="p-4">
-                    <Icon className={cn("h-4 w-4", s.hue)} />
-                    <p className="mt-3 font-display text-2xl font-semibold tabular">
-                      {s.value}
-                    </p>
-                    <p className="text-xs text-fg-muted">{s.label}</p>
-                  </CardContent>
-                </Card>
+                <Link
+                  key={s.label}
+                  to={s.to}
+                  search={
+                    {
+                      ...(s.tab ? { tab: s.tab } : {}),
+                      ...(data.tenant.id !== "platform" ? { tenant: data.tenant.id } : {}),
+                    } as never
+                  }
+                  className="rounded-lg border border-border bg-bg-elevated p-4 text-left transition-colors hover:border-border-strong hover:bg-bg-subtle"
+                >
+                  <Icon className={cn("h-4 w-4", s.hue)} />
+                  <p className="mt-3 font-display text-2xl font-semibold tabular">
+                    {s.value}
+                  </p>
+                  <p className="text-xs text-fg-muted">{s.label}</p>
+                </Link>
               );
             })}
           </div>
