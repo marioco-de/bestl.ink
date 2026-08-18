@@ -7,7 +7,9 @@ export type VercelDomainResult = {
   detail: string;
 };
 
-function creds() {
+type Creds = { token: string; project: string; team: string };
+
+function envCreds(): Partial<Creds> {
   const token = (
     process.env.VERCEL_TOKEN ||
     process.env.VERCEL_ACCESS_TOKEN ||
@@ -22,16 +24,21 @@ function creds() {
   return { token, project, team };
 }
 
+let resolved: Creds | null = null;
+let resolveOnce: Promise<Creds | null> | null = null;
+
 export function vercelDomainsReady(): boolean {
-  const { token, project } = creds();
-  return Boolean(token && project);
+  const e = envCreds();
+  return Boolean(e.token && (e.project || true));
 }
 
 async function vercelFetch(
   path: string,
   init: RequestInit = {},
+  cred?: Partial<Creds>,
 ): Promise<{ status: number; json: Record<string, unknown> }> {
-  const { token, team } = creds();
+  const token = cred?.token || envCreds().token || "";
+  const team = cred?.team || envCreds().team || "";
   const url = new URL(`https://api.vercel.com${path}`);
   if (team) url.searchParams.set("teamId", team);
   const res = await fetch(url, {
@@ -57,6 +64,84 @@ function errText(json: Record<string, unknown>, fallback: string): string {
   return err?.message || err?.code || fallback;
 }
 
+function pickProject(
+  projects: Record<string, unknown>[],
+): Record<string, unknown> | undefined {
+  const byDomain = projects.find((p) => {
+    const aliases = [
+      ...((p.alias as string[]) || []),
+      ...((p.targets as { production?: { alias?: string[] } })?.production?.alias ||
+        []),
+    ]
+      .join(" ")
+      .toLowerCase();
+    const name = String(p.name || "").toLowerCase();
+    return (
+      aliases.includes(PLATFORM_LINK_HOST) ||
+      name === "bestl-ink" ||
+      name === "bestl.ink" ||
+      name.includes("bestl")
+    );
+  });
+  return byDomain || projects[0];
+}
+
+async function discoverCreds(): Promise<Creds | null> {
+  const e = envCreds();
+  if (!e.token) return null;
+  if (e.project) {
+    return { token: e.token, project: e.project, team: e.team || "" };
+  }
+
+  const user = await vercelFetch("/v2/user", {}, { token: e.token });
+  const defaultTeam =
+    e.team ||
+    String(
+      (user.json.user as { defaultTeamId?: string } | undefined)?.defaultTeamId ||
+        "",
+    );
+
+  const teams = await vercelFetch("/v2/teams", {}, { token: e.token, team: "" });
+  const teamList = ((teams.json.teams as { id?: string }[]) || []).map((t) =>
+    String(t.id || ""),
+  );
+  const teamIds = [defaultTeam, ...teamList, ""].filter(
+    (id, i, a) => a.indexOf(id) === i,
+  );
+
+  for (const team of teamIds) {
+    const list = await vercelFetch(
+      "/v9/projects?limit=100",
+      {},
+      { token: e.token, team },
+    );
+    const projects = (list.json.projects as Record<string, unknown>[]) || [];
+    const hit = pickProject(projects);
+    if (hit?.id) {
+      return { token: e.token, project: String(hit.id), team };
+    }
+  }
+  return e.token ? { token: e.token, project: "", team: defaultTeam } : null;
+}
+
+async function getCreds(): Promise<Creds | null> {
+  if (resolved?.project) return resolved;
+  if (!resolveOnce) {
+    resolveOnce = discoverCreds()
+      .then((c) => {
+        resolved = c;
+        return c;
+      })
+      .catch(() => null);
+  }
+  return resolveOnce;
+}
+
+export async function vercelDomainsConfigured(): Promise<boolean> {
+  const c = await getCreds();
+  return Boolean(c?.token && c.project);
+}
+
 export async function ensureVercelDomain(
   host: string,
 ): Promise<VercelDomainResult> {
@@ -64,23 +149,37 @@ export async function ensureVercelDomain(
   if (!h.includes(".")) {
     return { ok: false, configured: false, verified: false, detail: "Ungültiger Host" };
   }
-  if (!vercelDomainsReady()) {
+  const cred = await getCreds();
+  if (!cred?.token) {
     return {
       ok: false,
       configured: false,
       verified: false,
-      detail: "VERCEL_TOKEN / VERCEL_PROJECT_ID fehlen",
+      detail: "VERCEL_TOKEN fehlt",
     };
   }
-  const { project } = creds();
+  if (!cred.project) {
+    return {
+      ok: false,
+      configured: false,
+      verified: false,
+      detail: "Vercel-Projekt nicht gefunden — Token prüfen",
+    };
+  }
 
-  const existing = await vercelFetch(`/v9/projects/${project}/domains/${h}`);
+  const existing = await vercelFetch(
+    `/v9/projects/${cred.project}/domains/${h}`,
+    {},
+    cred,
+  );
   if (existing.status === 200) {
     const verified = Boolean(existing.json.verified);
     if (!verified) {
-      await vercelFetch(`/v9/projects/${project}/domains/${h}/verify`, {
-        method: "POST",
-      });
+      await vercelFetch(
+        `/v9/projects/${cred.project}/domains/${h}/verify`,
+        { method: "POST" },
+        cred,
+      );
     }
     return {
       ok: true,
@@ -90,16 +189,19 @@ export async function ensureVercelDomain(
     };
   }
 
-  const created = await vercelFetch(`/v10/projects/${project}/domains`, {
-    method: "POST",
-    body: JSON.stringify({ name: h }),
-  });
+  const created = await vercelFetch(
+    `/v10/projects/${cred.project}/domains`,
+    { method: "POST", body: JSON.stringify({ name: h }) },
+    cred,
+  );
   if (created.status === 200 || created.status === 201) {
     const verified = Boolean(created.json.verified);
     if (!verified) {
-      await vercelFetch(`/v9/projects/${project}/domains/${h}/verify`, {
-        method: "POST",
-      });
+      await vercelFetch(
+        `/v9/projects/${cred.project}/domains/${h}/verify`,
+        { method: "POST" },
+        cred,
+      );
     }
     return {
       ok: true,
@@ -125,12 +227,14 @@ export async function ensureVercelDomain(
 }
 
 export async function removeVercelDomain(host: string): Promise<void> {
-  if (!vercelDomainsReady()) return;
+  const cred = await getCreds();
+  if (!cred?.project) return;
   const h = host.trim().toLowerCase().replace(/\.$/, "");
-  const { project } = creds();
-  await vercelFetch(`/v9/projects/${project}/domains/${h}`, { method: "DELETE" }).catch(
-    () => undefined,
-  );
+  await vercelFetch(
+    `/v9/projects/${cred.project}/domains/${h}`,
+    { method: "DELETE" },
+    cred,
+  ).catch(() => undefined);
 }
 
 let platformOnce: Promise<void> | null = null;
@@ -138,7 +242,8 @@ let platformOnce: Promise<void> | null = null;
 export function ensurePlatformVercelDomains(): Promise<void> {
   if (!platformOnce) {
     platformOnce = (async () => {
-      if (!vercelDomainsReady()) return;
+      const cred = await getCreds();
+      if (!cred?.project) return;
       await ensureVercelDomain(CNAME_TARGET);
       await ensureVercelDomain(PLATFORM_LINK_HOST);
       await ensureVercelDomain(`www.${PLATFORM_LINK_HOST}`);

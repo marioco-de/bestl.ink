@@ -154,7 +154,7 @@ export const en: Messages = {
     nameHint: "Name",
     pick: "No workspace selected",
     vercelMissing:
-      "Customer domains need a one-time VERCEL_TOKEN on the Vercel project (Account → Tokens). After that, bestl.ink registers cname.bestl.ink and every domain itself.",
+      "Set only VERCEL_TOKEN (Vercel → Account → Tokens). The app finds project and team IDs itself.",
     vercelOk: "Registered on Vercel",
   },
   workspace: {

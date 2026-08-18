@@ -32,7 +32,7 @@ import {
   ensurePlatformVercelDomains,
   ensureVercelDomain,
   removeVercelDomain,
-  vercelDomainsReady,
+  vercelDomainsConfigured,
 } from "./vercel-domains.server";
 
 async function audit(
@@ -462,7 +462,7 @@ export const vercelDomainSetup = createServerFn({ method: "GET" })
   .handler(async () => {
     void ensurePlatformVercelDomains();
     return {
-      ready: vercelDomainsReady(),
+      ready: await vercelDomainsConfigured(),
       cname: CNAME_TARGET,
     };
   });

@@ -152,7 +152,7 @@ export const de = {
     nameHint: "Name",
     pick: "Kein Workspace gewählt",
     vercelMissing:
-      "Kundendomains brauchen einmalig VERCEL_TOKEN im Vercel-Projekt (Account → Tokens). Dann legt bestl.ink cname.bestl.ink und jede Domain selbst an.",
+      "Nur VERCEL_TOKEN setzen (Vercel → Account → Tokens). Projekt- und Team-ID findet die App selbst.",
     vercelOk: "Bei Vercel registriert",
   },
   workspace: {
