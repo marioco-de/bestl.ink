@@ -93,7 +93,7 @@ export const en: Messages = {
     campaignOn: "UTM on",
     device: "Device",
     deviceOn: "Routing",
-    lock: "Lock",
+    lock: "Password protection",
     lockOn: "protected",
     ttl: "Expiry date",
     ttlOn: "expires",

@@ -91,7 +91,7 @@ export const de = {
     campaignOn: "UTM aktiv",
     device: "Gerät",
     deviceOn: "Routing",
-    lock: "Schloss",
+    lock: "Passwortschutz",
     lockOn: "geschützt",
     ttl: "Ablaufdatum",
     ttlOn: "befristet",
