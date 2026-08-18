@@ -68,7 +68,7 @@ export const en: Messages = {
     shorten: "Shorten",
     quick: "Quick shorten",
     options: "Options",
-    newLink: "Link",
+    newLink: "New link",
     placeholder: "Paste https://…",
     createTitle: "Create short link",
     createHint: "One address. Everything else is optional.",
