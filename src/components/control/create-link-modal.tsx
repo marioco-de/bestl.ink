@@ -38,6 +38,8 @@ import { EventFields, ContactFields } from "@/routes/control/-cards";
 import { emptyContact, emptyEvent } from "@/lib/docbay/cards";
 import { emptySplitRule, packSplitRules, type SplitRule } from "@/lib/docbay/device-split";
 import { DeviceSplitFields } from "./device-split";
+import { UtmFields } from "./utm-fields";
+import { emptyUtmRows, packUtm, utmActive, type UtmRow } from "@/lib/docbay/utm";
 import { suggestCardSlug, cardKindPath } from "@/lib/docbay/public-url";
 import { DocActionPicker } from "./doc-action-picker";
 import { actionsPayload, withChatMode, withRequireRequest, type ChatMode, type DocAction } from "@/lib/docbay/doc-actions";
@@ -126,9 +128,7 @@ function Editor({
   const [password, setPassword] = useState("");
   const [expiresAt, setExpiresAt] = useState("");
   const [splits, setSplits] = useState<SplitRule[]>(() => [emptySplitRule()]);
-  const [utmS, setUtmS] = useState("");
-  const [utmM, setUtmM] = useState("");
-  const [utmC, setUtmC] = useState("");
+  const [utmRows, setUtmRows] = useState<UtmRow[]>(() => emptyUtmRows());
   const [shareTitle, setShareTitle] = useState("");
   const [shareText, setShareText] = useState("");
   const [shareImage, setShareImage] = useState("");
@@ -326,6 +326,7 @@ function Editor({
             button_id: ready.buttonId,
             note: note.trim(),
             tags,
+            ...packUtm(utmRows),
           },
         });
         if (made.state) state = made.state as FullState;
@@ -364,7 +365,7 @@ function Editor({
         const ready = await ensureButton(state);
         state = ready.state;
         const made = await generateLink({
-          data: { resource_id: resource.id, button_id: ready.buttonId, note: note.trim(), tags },
+          data: { resource_id: resource.id, button_id: ready.buttonId, note: note.trim(), tags, ...packUtm(utmRows) },
         });
         if (made.state) state = made.state as FullState;
         const prefix = cardKindPath(kind);
@@ -417,6 +418,7 @@ function Editor({
             tags,
             expires_at: fromDatetimeLocal(expiresAt),
             password: password || undefined,
+            ...packUtm(utmRows),
           },
         });
         if (made.state) state = made.state as FullState;
@@ -437,9 +439,7 @@ function Editor({
           og_title: shareTitle || undefined,
           og_description: shareText || undefined,
           og_image: shareImage || undefined,
-          utm_source: utmS || undefined,
-          utm_medium: utmM || undefined,
-          utm_campaign: utmC || undefined,
+          ...packUtm(utmRows),
           tenant_id: data.tenant.id,
         },
       });
@@ -467,7 +467,7 @@ function Editor({
 
   const extras: { id: Extra; label: string; icon: typeof Clock; on: boolean }[] = [
     { id: "tags", label: t("short.tags"), icon: Tag, on: tags.length > 0 },
-    { id: "campaign", label: t("short.campaign"), icon: Megaphone, on: Boolean(utmS || utmM || utmC) },
+    { id: "campaign", label: t("short.campaign"), icon: Megaphone, on: utmActive(utmRows) },
     { id: "device", label: t("short.device"), icon: MonitorSmartphone, on: splits.some((s) => s.url.trim()) },
     { id: "lock", label: t("short.lock"), icon: KeyRound, on: Boolean(password) },
     { id: "ttl", label: t("short.ttl"), icon: Clock, on: Boolean(expiresAt) },
@@ -787,13 +787,7 @@ function Editor({
 
       {extra && (
         <div className="space-y-3 rounded-md border border-border bg-bg p-3">
-          {extra === "campaign" && (
-            <div className="grid gap-2 @min-[28rem]/modal:grid-cols-3">
-              <Mini label={t("short.utmSource")} value={utmS} onChange={setUtmS} />
-              <Mini label={t("short.utmMedium")} value={utmM} onChange={setUtmM} />
-              <Mini label={t("short.utmName")} value={utmC} onChange={setUtmC} />
-            </div>
-          )}
+          {extra === "campaign" && <UtmFields value={utmRows} onChange={setUtmRows} />}
           {extra === "device" && <DeviceSplitFields value={splits} onChange={setSplits} />}
           {extra === "lock" && (
             <Mini label={t("short.openPassword")} value={password} onChange={setPassword} />
@@ -822,13 +816,7 @@ function Editor({
             }}
           />
         )}
-        {extra === "campaign" && (
-          <div className="grid gap-2">
-            <Mini label={t("short.utmSource")} value={utmS} onChange={setUtmS} />
-            <Mini label={t("short.utmMedium")} value={utmM} onChange={setUtmM} />
-            <Mini label={t("short.utmName")} value={utmC} onChange={setUtmC} />
-          </div>
-        )}
+        {extra === "campaign" && <UtmFields value={utmRows} onChange={setUtmRows} />}
         {extra === "device" && <DeviceSplitFields value={splits} onChange={setSplits} />}
         {extra === "lock" && (
           <Mini label={t("short.openPassword")} value={password} onChange={setPassword} />

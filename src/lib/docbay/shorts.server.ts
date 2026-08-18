@@ -108,6 +108,9 @@ export function mapShortRow(r: Record<string, unknown>): ShortLink {
     utm_source: r.utm_source ? String(r.utm_source) : null,
     utm_medium: r.utm_medium ? String(r.utm_medium) : null,
     utm_campaign: r.utm_campaign ? String(r.utm_campaign) : null,
+    utm_term: r.utm_term ? String(r.utm_term) : null,
+    utm_content: r.utm_content ? String(r.utm_content) : null,
+    utm_extra: parseJsonObj(r.utm_extra) as Record<string, string>,
     click_count: Number(r.click_count ?? 0),
     human_click_count: Number(r.human_click_count ?? 0),
     last_clicked_at: r.last_clicked_at
@@ -175,6 +178,11 @@ export function applyUtm(url: string, s: ShortLink): string {
     if (s.utm_source) u.searchParams.set("utm_source", s.utm_source);
     if (s.utm_medium) u.searchParams.set("utm_medium", s.utm_medium);
     if (s.utm_campaign) u.searchParams.set("utm_campaign", s.utm_campaign);
+    if (s.utm_term) u.searchParams.set("utm_term", s.utm_term);
+    if (s.utm_content) u.searchParams.set("utm_content", s.utm_content);
+    for (const [k, v] of Object.entries(s.utm_extra || {})) {
+      if (k && v) u.searchParams.set(k, String(v));
+    }
     return u.toString();
   } catch {
     return url;

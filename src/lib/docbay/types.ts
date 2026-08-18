@@ -275,6 +275,9 @@ export interface ShortLink {
   utm_source: string | null;
   utm_medium: string | null;
   utm_campaign: string | null;
+  utm_term: string | null;
+  utm_content: string | null;
+  utm_extra: Record<string, string>;
   click_count: number;
   human_click_count: number;
   last_clicked_at: string | null;

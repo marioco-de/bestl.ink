@@ -60,6 +60,9 @@ type ShortInput = {
   utm_source?: string;
   utm_medium?: string;
   utm_campaign?: string;
+  utm_term?: string;
+  utm_content?: string;
+  utm_extra?: Record<string, string>;
   disabled?: boolean;
   tenant_id?: string;
 };
@@ -112,7 +115,7 @@ export const createShort = createServerFn({ method: "POST" })
         id, tenant_id, slug, destination, title, note, tags, password_hash,
         expires_at, max_clicks, cloak, ios_url, android_url, geo_rules,
         og_title, og_description, og_image, button_id,
-        utm_source, utm_medium, utm_campaign, created_by
+        utm_source, utm_medium, utm_campaign, utm_term, utm_content, utm_extra, created_by
       ) values (
         ${id}, ${mem.tenant.id}, ${slug}, ${dest}, ${data.title ?? ""}, ${data.note ?? ""},
         ${JSON.stringify(data.tags ?? [])}, ${pw}, ${expires}, ${data.max_clicks ?? null},
@@ -120,6 +123,8 @@ export const createShort = createServerFn({ method: "POST" })
         ${JSON.stringify(data.geo_rules ?? {})}, ${data.og_title || null},
         ${data.og_description || null}, ${data.og_image || null}, ${data.button_id || null},
         ${data.utm_source || null}, ${data.utm_medium || null}, ${data.utm_campaign || null},
+        ${data.utm_term || null}, ${data.utm_content || null},
+        ${JSON.stringify(data.utm_extra ?? {})},
         ${context.userId}
       )
     `;
@@ -172,7 +177,10 @@ export const updateShort = createServerFn({ method: "POST" })
         button_id = ${data.button_id || null},
         utm_source = ${data.utm_source || null},
         utm_medium = ${data.utm_medium || null},
-        utm_campaign = ${data.utm_campaign || null}
+        utm_campaign = ${data.utm_campaign || null},
+        utm_term = ${data.utm_term || null},
+        utm_content = ${data.utm_content || null},
+        utm_extra = ${JSON.stringify(data.utm_extra ?? {})}
       where id = ${data.id} and tenant_id = ${mem.tenant.id}
     `;
     const row = (

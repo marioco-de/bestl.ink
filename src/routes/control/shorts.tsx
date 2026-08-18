@@ -40,6 +40,8 @@ import { tagColor } from "@/lib/docbay/tags";
 import { ActivityList, PresenceEye } from "@/components/control/presence-eye";
 import { RowMenu, VisitMeta } from "@/components/control/row-menu";
 import { DeviceSplitFields } from "@/components/control/device-split";
+import { UtmFields } from "@/components/control/utm-fields";
+import { packUtm, unpackUtm, type UtmRow } from "@/lib/docbay/utm";
 import { packSplitRules, unpackSplitRules, type SplitRule } from "@/lib/docbay/device-split";
 
 export const Route = createFileRoute("/control/shorts")({
@@ -424,9 +426,16 @@ function ShortEditor({
   const [descOpen, setDescOpen] = useState(Boolean(initial.og_description));
   const [ogImage, setOgImage] = useState(initial.og_image || "");
   const [buttonId, setButtonId] = useState(initial.button_id || "");
-  const [utmS, setUtmS] = useState(initial.utm_source || "");
-  const [utmM, setUtmM] = useState(initial.utm_medium || "");
-  const [utmC, setUtmC] = useState(initial.utm_campaign || "");
+  const [utmRows, setUtmRows] = useState<UtmRow[]>(() =>
+    unpackUtm({
+      utm_source: initial.utm_source,
+      utm_medium: initial.utm_medium,
+      utm_campaign: initial.utm_campaign,
+      utm_term: initial.utm_term,
+      utm_content: initial.utm_content,
+      utm_extra: initial.utm_extra,
+    }),
+  );
   const [busy, setBusy] = useState(false);
   const [pinDash, setPinDash] = useState(false);
   const [dashDisplay, setDashDisplay] = useState<"text" | "icon" | "preview">("text");
@@ -454,9 +463,7 @@ function ShortEditor({
         og_description: ogDesc || undefined,
         og_image: ogImage || undefined,
         button_id: buttonId || null,
-        utm_source: utmS || undefined,
-        utm_medium: utmM || undefined,
-        utm_campaign: utmC || undefined,
+        ...packUtm(utmRows),
         tenant_id: state.tenant.id,
       };
       const result = initial.id
@@ -617,20 +624,7 @@ function ShortEditor({
           ))}
         </select>
       </div>
-      <div className="grid gap-3 sm:grid-cols-3">
-        <div>
-          <Label>utm_source</Label>
-          <Input className="font-mono" value={utmS} onChange={(e) => setUtmS(e.target.value)} />
-        </div>
-        <div>
-          <Label>utm_medium</Label>
-          <Input className="font-mono" value={utmM} onChange={(e) => setUtmM(e.target.value)} />
-        </div>
-        <div>
-          <Label>utm_campaign</Label>
-          <Input className="font-mono" value={utmC} onChange={(e) => setUtmC(e.target.value)} />
-        </div>
-      </div>
+      <UtmFields value={utmRows} onChange={setUtmRows} />
     </FullScreenModal>
   );
 }
