@@ -83,7 +83,7 @@ export function BrandedFrame({
         <span>{copy.flag}</span>
       </a>
       {title ? (
-        <p className="mt-8 max-w-2xl truncate text-center text-sm text-white/70">{title}</p>
+        <p className="mt-8 max-w-2xl truncate text-center text-sm opacity-70">{title}</p>
       ) : null}
       <a
         href={url}
@@ -91,7 +91,7 @@ export function BrandedFrame({
           e.preventDefault();
           go();
         }}
-        className="mt-3 max-w-3xl break-all text-center font-display text-2xl font-semibold tracking-tight text-white sm:text-3xl"
+        className="mt-3 max-w-3xl break-all text-center font-display text-2xl font-semibold tracking-tight sm:text-3xl"
       >
         {url}
       </a>
@@ -99,11 +99,11 @@ export function BrandedFrame({
         <>
           <p
             key={left}
-            className="hop-count mt-8 font-display text-7xl font-semibold tabular-nums text-white sm:text-8xl"
+            className="hop-count mt-8 font-display text-7xl font-semibold tabular-nums sm:text-8xl"
           >
             {left}
           </p>
-          <p className="mt-4 max-w-2xl text-center text-sm text-white/80">
+          <p className="mt-4 max-w-2xl text-center text-sm opacity-80">
             {before}
             <a
               href={url}
@@ -111,7 +111,7 @@ export function BrandedFrame({
                 e.preventDefault();
                 go();
               }}
-              className="break-all font-medium text-white underline underline-offset-2 hover:text-white"
+              className="break-all font-medium underline underline-offset-2"
             >
               {url}
             </a>
@@ -124,8 +124,8 @@ export function BrandedFrame({
         onClick={() => (held ? go() : cancel())}
         className={
           held
-            ? "metal mt-6 inline-flex h-10 items-center rounded-lg px-5 text-sm font-medium text-white"
-            : "mt-6 inline-flex h-10 items-center rounded-lg border border-white/30 bg-white/10 px-5 text-sm font-medium text-white backdrop-blur-sm hover:bg-white/20"
+            ? "metal mt-6 inline-flex h-10 items-center rounded-lg px-5 text-sm font-medium"
+            : "mt-6 inline-flex h-10 items-center rounded-lg border border-current/30 bg-current/10 px-5 text-sm font-medium backdrop-blur-sm hover:bg-current/15"
         }
       >
         {held ? copy.go : copy.cancel}

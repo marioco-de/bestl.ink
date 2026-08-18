@@ -225,11 +225,21 @@
     --hue: var(--color-hue-teal);
     background-image: linear-gradient(
       145deg,
-      color-mix(in oklab, var(--hue) 78%, white) 0%,
-      var(--hue) 46%,
-      color-mix(in oklab, var(--hue) 42%, #243056) 100%
+      color-mix(in oklab, var(--hue) 38%, #081218) 0%,
+      color-mix(in oklab, var(--hue) 22%, #06090e) 48%,
+      #05070a 100%
     );
-    color: #fff;
+    color: #f4f8f7;
+  }
+
+  html[data-theme="light"] .hop-wash {
+    background-image: linear-gradient(
+      145deg,
+      color-mix(in oklab, var(--hue) 22%, #f7fbfa) 0%,
+      color-mix(in oklab, var(--hue) 34%, #e7f3ef) 46%,
+      color-mix(in oklab, var(--hue) 18%, #d5e8e2) 100%
+    );
+    color: #14201e;
   }
 
   .badge-shine {
