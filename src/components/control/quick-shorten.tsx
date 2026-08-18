@@ -45,7 +45,7 @@ export function QuickShorten() {
   return (
     <form
       onSubmit={(e) => void quick(e)}
-      className="flex flex-col gap-2 rounded-lg border border-border bg-bg p-1.5 shadow-sm @min-[36rem]/app:flex-row @min-[36rem]/app:items-center"
+      className="flex flex-col gap-2 rounded-lg border border-border bg-bg-elevated p-1.5 shadow-sm @min-[36rem]/app:flex-row @min-[36rem]/app:items-center"
     >
       <Input
         value={url}
