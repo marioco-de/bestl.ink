@@ -16,6 +16,7 @@ import {
   reorderTenantDomains,
   createTag,
   vercelDomainSetup,
+  saveVercelSetup,
 } from "@/lib/docbay/api";
 import { PLATFORM_LINK_HOST, CNAME_TARGET } from "@/lib/docbay/brand";
 import { TagPicker } from "@/components/control/tag-picker";
@@ -40,6 +41,8 @@ function DomainPage() {
   const [dragId, setDragId] = useState<string | null>(null);
   const [vercelReady, setVercelReady] = useState<boolean | null>(null);
   const [vercelHint, setVercelHint] = useState("");
+  const [vercelToken, setVercelToken] = useState("");
+  const [savingToken, setSavingToken] = useState(false);
   const scanned = useRef<string>("");
 
   useEffect(() => {
@@ -157,10 +160,11 @@ function DomainPage() {
     try {
       const s = (await addTenantDomain({
         data: { host, tenant_id: data.tenant.id },
-      })) as FullState;
+      })) as FullState & { vercel?: { ok: boolean; detail: string } };
       setNewHost("");
       patch(s);
-      toast.success(t("domain.added"));
+      if (s.vercel && !s.vercel.ok) toast.error(s.vercel.detail);
+      else toast.success(t("domain.added"));
       const added = s.domains.find(
         (d) => d.host === host.replace(/^https?:\/\//, "").replace(/\/$/, "").toLowerCase(),
       );
@@ -203,9 +207,49 @@ function DomainPage() {
         <h1 className="font-display text-2xl font-semibold">{t("domain.title")}</h1>
         <p className="mt-1 text-sm text-fg-muted">{t("domain.hint")}</p>
         {vercelReady === false && (
-          <p className="mt-3 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-fg-muted">
-            {vercelHint || t("domain.vercelMissing")}
-          </p>
+          <div className="mt-3 space-y-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-fg-muted">
+            <p>{vercelHint || t("domain.vercelMissing")}</p>
+            {data.isSuperAdmin && (
+              <form
+                className="flex flex-col gap-2 pt-1 @min-[28rem]/app:flex-row"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!vercelToken.trim()) return;
+                  setSavingToken(true);
+                  void saveVercelSetup({ data: { token: vercelToken.trim() } })
+                    .then((s) => {
+                      setVercelReady(s.ready);
+                      const fail = s.registered.find((r) => !r.ok);
+                      setVercelHint(
+                        s.ready
+                          ? fail
+                            ? `${fail.host}: ${fail.detail}`
+                            : t("domain.vercelOk")
+                          : s.lastError || t("domain.vercelMissing"),
+                      );
+                      setVercelToken("");
+                      if (s.ready && !fail) toast.success(t("domain.vercelOk"));
+                      else toast.error(s.lastError || t("domain.vercelMissing"));
+                    })
+                    .catch((err) => {
+                      toast.error(err instanceof Error ? err.message : t("common.error"));
+                    })
+                    .finally(() => setSavingToken(false));
+                }}
+              >
+                <Input
+                  type="password"
+                  value={vercelToken}
+                  onChange={(e) => setVercelToken(e.target.value)}
+                  placeholder={t("domain.vercelToken")}
+                  className="h-8 bg-bg-elevated"
+                />
+                <Button type="submit" size="sm" className="h-8" disabled={savingToken}>
+                  {savingToken ? t("common.loading") : t("domain.vercelSave")}
+                </Button>
+              </form>
+            )}
+          </div>
         )}
         {vercelReady && vercelHint && (
           <p className="mt-3 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-fg-muted">

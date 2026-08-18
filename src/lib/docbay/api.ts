@@ -32,6 +32,7 @@ import {
   ensurePlatformVercelDomains,
   ensureVercelDomain,
   removeVercelDomain,
+  saveVercelToken,
   syncVercelDomains,
 } from "./vercel-domains.server";
 
@@ -190,6 +191,7 @@ export const getState = createServerFn({ method: "POST" })
     if (state.tenant.suspended && !state.isSuperAdmin) {
       throw new Error("Workspace gesperrt – bitte Support kontaktieren");
     }
+    void ensurePlatformVercelDomains();
     return state;
   });
 
@@ -327,9 +329,9 @@ export const addTenantDomain = createServerFn({ method: "POST" })
       `;
     }
     await audit(mem.tenant.id, context.userId, "domain.added", { host });
-    void ensurePlatformVercelDomains();
-    await ensureVercelDomain(host).catch(() => undefined);
-    return loadFullState(context.userId, mem.tenant.id);
+    const vercel = await ensureVercelDomain(host);
+    const state = await loadFullState(context.userId, mem.tenant.id);
+    return { ...state, vercel };
   });
 
 export const updateTenantDomain = createServerFn({ method: "POST" })
@@ -460,6 +462,19 @@ export const verifyTenantDomain = createServerFn({ method: "POST" })
 export const vercelDomainSetup = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .handler(async () => syncVercelDomains());
+
+export const saveVercelSetup = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .inputValidator((d: { token: string; project?: string; team?: string }) => d)
+  .handler(async ({ context, data }) => {
+    if (!(await isSuperAdminUser(context.userId))) throw new Error("Forbidden");
+    await saveVercelToken({
+      token: data.token,
+      project: data.project,
+      team: data.team,
+    });
+    return syncVercelDomains();
+  });
 
 export const reorderTenantDomains = createServerFn({ method: "POST" })
   .middleware([authMiddleware])

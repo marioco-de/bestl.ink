@@ -1,4 +1,5 @@
 import { CNAME_TARGET, PLATFORM_LINK_HOST } from "./brand";
+import { getSetting, setSetting } from "./settings.server";
 
 export type VercelDomainResult = {
   ok: boolean;
@@ -19,26 +20,28 @@ export type VercelSetup = {
 
 type Creds = { token: string; project: string; team: string };
 
-function envCreds(): Partial<Creds> {
-  const token = (
-    process.env.VERCEL_TOKEN ||
-    process.env.VERCEL_ACCESS_TOKEN ||
-    ""
-  ).trim();
-  const project = (process.env.VERCEL_PROJECT_ID || "").trim();
-  const team = (
-    process.env.VERCEL_TEAM_ID ||
-    process.env.VERCEL_ORG_ID ||
-    ""
-  ).trim();
-  return { token, project, team };
-}
-
 let resolved: Creds | null = null;
 let lastError = "";
 
-export function vercelDomainsReady(): boolean {
-  return Boolean(envCreds().token);
+async function envAndDbCreds(): Promise<Partial<Creds>> {
+  const token = (
+    process.env.VERCEL_TOKEN ||
+    process.env.VERCEL_ACCESS_TOKEN ||
+    (await getSetting("vercel_token")) ||
+    ""
+  ).trim();
+  const project = (
+    process.env.VERCEL_PROJECT_ID ||
+    (await getSetting("vercel_project_id")) ||
+    ""
+  ).trim();
+  const team = (
+    process.env.VERCEL_TEAM_ID ||
+    process.env.VERCEL_ORG_ID ||
+    (await getSetting("vercel_team_id")) ||
+    ""
+  ).trim();
+  return { token, project, team };
 }
 
 async function vercelFetch(
@@ -46,8 +49,8 @@ async function vercelFetch(
   init: RequestInit = {},
   cred?: Partial<Creds>,
 ): Promise<{ status: number; json: Record<string, unknown> }> {
-  const token = cred?.token || envCreds().token || "";
-  const team = cred?.team ?? cred?.team ?? envCreds().team ?? "";
+  const token = cred?.token || "";
+  const team = cred?.team || "";
   const url = new URL(`https://api.vercel.com${path}`);
   if (team) url.searchParams.set("teamId", team);
   const res = await fetch(url, {
@@ -57,7 +60,7 @@ async function vercelFetch(
       "Content-Type": "application/json",
       ...(init.headers || {}),
     },
-    signal: AbortSignal.timeout(10000),
+    signal: AbortSignal.timeout(12000),
   });
   let json: Record<string, unknown> = {};
   try {
@@ -73,10 +76,15 @@ function errText(json: Record<string, unknown>, fallback: string): string {
   return err?.message || err?.code || fallback;
 }
 
+async function persistCreds(c: Creds): Promise<void> {
+  if (c.project) await setSetting("vercel_project_id", c.project);
+  if (c.team) await setSetting("vercel_team_id", c.team);
+}
+
 async function discoverCreds(): Promise<Creds | null> {
-  const e = envCreds();
+  const e = await envAndDbCreds();
   if (!e.token) {
-    lastError = "VERCEL_TOKEN fehlt";
+    lastError = "VERCEL_TOKEN fehlt — unter Domains einmal eintragen";
     return null;
   }
   if (e.project) {
@@ -115,7 +123,9 @@ async function discoverCreds(): Promise<Creds | null> {
     });
     if (hit?.projectId) {
       lastError = "";
-      return { token: e.token, project: String(hit.projectId), team };
+      const cred = { token: e.token, project: String(hit.projectId), team };
+      await persistCreds(cred);
+      return cred;
     }
 
     const projects = await vercelFetch(
@@ -124,17 +134,26 @@ async function discoverCreds(): Promise<Creds | null> {
       { token: e.token, team },
     );
     const rows = (projects.json.projects as Record<string, unknown>[]) || [];
-    const proj = rows.find((p) => {
-      const name = String(p.name || "").toLowerCase();
-      return name.includes("bestl") || name.includes("docbay") || name.includes("ltis");
-    });
+    const proj =
+      rows.find((p) => {
+        const name = String(p.name || "").toLowerCase();
+        const link = String((p.link as { repo?: string })?.repo || "").toLowerCase();
+        return (
+          name.includes("bestl") ||
+          name.includes("docbay") ||
+          link.includes("bestl") ||
+          name.includes("ltis")
+        );
+      }) || rows[0];
     if (proj?.id) {
       lastError = "";
-      return { token: e.token, project: String(proj.id), team };
+      const cred = { token: e.token, project: String(proj.id), team };
+      await persistCreds(cred);
+      return cred;
     }
   }
 
-  lastError = "Kein Vercel-Projekt mit bestl.ink gefunden";
+  lastError = "Kein Vercel-Projekt gefunden — Token-Team prüfen";
   return { token: e.token, project: "", team: defaultTeam };
 }
 
@@ -143,6 +162,22 @@ async function getCreds(): Promise<Creds | null> {
   const c = await discoverCreds();
   if (c?.project) resolved = c;
   return c;
+}
+
+export function resetVercelCredCache(): void {
+  resolved = null;
+  lastError = "";
+}
+
+export async function saveVercelToken(input: {
+  token?: string;
+  project?: string;
+  team?: string;
+}): Promise<void> {
+  if (input.token !== undefined) await setSetting("vercel_token", input.token.trim());
+  if (input.project !== undefined) await setSetting("vercel_project_id", input.project.trim());
+  if (input.team !== undefined) await setSetting("vercel_team_id", input.team.trim());
+  resetVercelCredCache();
 }
 
 export async function ensureVercelDomain(
@@ -229,7 +264,7 @@ export async function removeVercelDomain(host: string): Promise<void> {
 export async function syncVercelDomains(): Promise<VercelSetup> {
   const registered: VercelSetup["registered"] = [];
   const cred = await getCreds();
-  const hosts = [CNAME_TARGET];
+  const hosts = [CNAME_TARGET, PLATFORM_LINK_HOST, `www.${PLATFORM_LINK_HOST}`];
   try {
     const { getSql } = await import("@/lib/db");
     const sql = await getSql();
@@ -251,9 +286,13 @@ export async function syncVercelDomains(): Promise<VercelSetup> {
     const res = await ensureVercelDomain(host);
     registered.push({ host, ok: res.ok, detail: res.detail });
   }
+  const fail = registered.find((r) => !r.ok);
+  if (fail) lastError = `${fail.host}: ${fail.detail}`;
+  else lastError = "";
+  await setSetting("vercel_last_sync", JSON.stringify({ at: Date.now(), lastError, registered }));
   return {
-    ready: Boolean(cred?.project),
-    token: Boolean(envCreds().token),
+    ready: Boolean(cred?.project && cred.token),
+    token: Boolean(cred?.token || (await envAndDbCreds()).token),
     project: cred?.project || "",
     team: cred?.team || "",
     cname: CNAME_TARGET,
