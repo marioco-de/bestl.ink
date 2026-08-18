@@ -16,6 +16,7 @@ import {
   CalendarDays,
   Contact,
   Gauge,
+  Building2,
 } from "lucide-react";
 import { signOut } from "@/lib/auth/client";
 import { useTheme } from "@/lib/theme";
@@ -112,6 +113,7 @@ export function CommandPalette({
             <Row icon={Link2} label={t("nav.shared")} onSelect={() => go("/control/links", { tab: "shared" })} />
             <Row icon={GitBranch} label={t("nav.parameters")} onSelect={() => go("/control/parameters")} />
             <Row icon={Inbox} label={t("nav.requests")} onSelect={() => go("/control/requests")} />
+            <Row icon={Building2} label={t("nav.workspace")} onSelect={() => go("/control/workspace")} />
             <Row icon={Settings} label={t("nav.domains")} onSelect={() => go("/control/domain")} />
               {isSuper && (
               <Row icon={Settings} label={t("nav.customers")} onSelect={() => go("/control/customers")} />

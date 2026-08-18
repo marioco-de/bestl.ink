@@ -38,6 +38,7 @@ export const en: Messages = {
     parameters: "Parameters",
     requests: "Requests",
     settings: "Settings",
+    workspace: "Workspace",
     customers: "Customers",
     domains: "Domains",
     email: "Email",

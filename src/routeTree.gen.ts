@@ -28,6 +28,7 @@ import { Route as ControlRequestsRouteImport } from './routes/control/requests'
 import { Route as ControlResourcesRouteImport } from './routes/control/resources'
 import { Route as ControlShortsRouteImport } from './routes/control/shorts'
 import { Route as ControlStatsRouteImport } from './routes/control/stats'
+import { Route as ControlWorkspaceRouteImport } from './routes/control/workspace'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as ApiCardsResourceIdRouteImport } from './routes/api/cards/$resourceId'
 import { Route as ApiFilesResourceIdRouteImport } from './routes/api/files/$resourceId'
@@ -128,6 +129,11 @@ const ControlStatsRoute = ControlStatsRouteImport.update({
   path: '/stats',
   getParentRoute: () => ControlRoute,
 } as any)
+const ControlWorkspaceRoute = ControlWorkspaceRouteImport.update({
+  id: '/workspace',
+  path: '/workspace',
+  getParentRoute: () => ControlRoute,
+} as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
@@ -168,6 +174,7 @@ export interface FileRoutesByFullPath {
   '/control/resources': typeof ControlResourcesRoute
   '/control/shorts': typeof ControlShortsRoute
   '/control/stats': typeof ControlStatsRoute
+  '/control/workspace': typeof ControlWorkspaceRoute
   '/control/': typeof ControlIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/cards/$resourceId': typeof ApiCardsResourceIdRoute
@@ -192,6 +199,7 @@ export interface FileRoutesByTo {
   '/control/resources': typeof ControlResourcesRoute
   '/control/shorts': typeof ControlShortsRoute
   '/control/stats': typeof ControlStatsRoute
+  '/control/workspace': typeof ControlWorkspaceRoute
   '/control': typeof ControlIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/cards/$resourceId': typeof ApiCardsResourceIdRoute
@@ -218,6 +226,7 @@ export interface FileRoutesById {
   '/control/resources': typeof ControlResourcesRoute
   '/control/shorts': typeof ControlShortsRoute
   '/control/stats': typeof ControlStatsRoute
+  '/control/workspace': typeof ControlWorkspaceRoute
   '/control/': typeof ControlIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/cards/$resourceId': typeof ApiCardsResourceIdRoute
@@ -245,6 +254,7 @@ export interface FileRouteTypes {
     | '/control/resources'
     | '/control/shorts'
     | '/control/stats'
+    | '/control/workspace'
     | '/control/'
     | '/api/auth/$'
     | '/api/cards/$resourceId'
@@ -269,6 +279,7 @@ export interface FileRouteTypes {
     | '/control/resources'
     | '/control/shorts'
     | '/control/stats'
+    | '/control/workspace'
     | '/control'
     | '/api/auth/$'
     | '/api/cards/$resourceId'
@@ -294,6 +305,7 @@ export interface FileRouteTypes {
     | '/control/resources'
     | '/control/shorts'
     | '/control/stats'
+    | '/control/workspace'
     | '/control/'
     | '/api/auth/$'
     | '/api/cards/$resourceId'
@@ -450,6 +462,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ControlStatsRouteImport
       parentRoute: typeof ControlRoute
     }
+    '/control/workspace': {
+      id: '/control/workspace'
+      path: '/workspace'
+      fullPath: '/control/workspace'
+      preLoaderRoute: typeof ControlWorkspaceRouteImport
+      parentRoute: typeof ControlRoute
+    }
     '/api/auth/$': {
       id: '/api/auth/$'
       path: '/api/auth/$'
@@ -493,6 +512,7 @@ interface ControlRouteChildren {
   ControlResourcesRoute: typeof ControlResourcesRoute
   ControlShortsRoute: typeof ControlShortsRoute
   ControlStatsRoute: typeof ControlStatsRoute
+  ControlWorkspaceRoute: typeof ControlWorkspaceRoute
   ControlIndexRoute: typeof ControlIndexRoute
 }
 
@@ -508,6 +528,7 @@ const ControlRouteChildren: ControlRouteChildren = {
   ControlResourcesRoute: ControlResourcesRoute,
   ControlShortsRoute: ControlShortsRoute,
   ControlStatsRoute: ControlStatsRoute,
+  ControlWorkspaceRoute: ControlWorkspaceRoute,
   ControlIndexRoute: ControlIndexRoute,
 }
 

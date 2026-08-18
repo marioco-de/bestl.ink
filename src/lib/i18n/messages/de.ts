@@ -36,6 +36,7 @@ export const de = {
     parameters: "Parameter",
     requests: "Anfragen",
     settings: "Einstellungen",
+    workspace: "Workspace",
     customers: "Kunden",
     domains: "Domains",
     email: "E-Mail",

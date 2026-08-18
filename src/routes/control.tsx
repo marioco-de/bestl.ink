@@ -87,6 +87,7 @@ const primaryNav: {
 
 const settingsNav: {
   to:
+    | "/control/workspace"
     | "/control/domain"
     | "/control/email"
     | "/control/integrations"
@@ -97,6 +98,7 @@ const settingsNav: {
   superOnly?: boolean;
   hue: string;
 }[] = [
+  { to: "/control/workspace", labelKey: "nav.workspace", icon: Building2, hue: "teal" },
   { to: "/control/customers", labelKey: "nav.customers", icon: Users, superOnly: true, hue: "violet" },
   { to: "/control/domain", labelKey: "nav.domains", icon: Globe2, hue: "lime" },
   { to: "/control/email", labelKey: "nav.email", icon: Mail, hue: "amber" },

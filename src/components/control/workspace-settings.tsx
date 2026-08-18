@@ -1,0 +1,198 @@
+import { Plus } from "lucide-react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useControl } from "@/lib/docbay/control-store";
+import {
+  addDashTeamMember,
+  addDashTeamSection,
+  createDashTeam,
+  getDash,
+  removeDashTeamMember,
+  saveDashSettings,
+} from "@/lib/docbay/dashboard-api";
+import { useT } from "@/lib/i18n";
+import type { DashState } from "@/lib/docbay/types";
+
+export function WorkspaceSettings() {
+  const t = useT();
+  const { data, setData } = useControl();
+  const dash = data.dash;
+  const admin = data.member.role !== "member";
+  const team = dash.teams.find((x) => x.id === dash.active_team_id) || dash.teams[0];
+  const above = dash.sections.filter((s) => s.kind === "team" && s.zone === "above");
+  const below = dash.sections.filter((s) => s.kind === "team" && s.zone === "below");
+
+  function apply(next: DashState) {
+    setData({
+      ...data,
+      dash: next,
+      tenant: { ...data.tenant, dash_user_buttons: next.user_buttons },
+    });
+  }
+
+  async function run(fn: () => Promise<DashState>) {
+    try {
+      apply(await fn());
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t("common.error"));
+    }
+  }
+
+  if (!admin) {
+    return <p className="text-sm text-fg-muted">{t("workspace.loadFail")}</p>;
+  }
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle>{t("dash.personal")}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <label className="block text-sm text-fg-muted">{t("dash.userAny")}</label>
+          <select
+            className="mt-1.5 h-10 w-full rounded-md border border-border bg-bg-elevated px-2 text-sm"
+            value={dash.user_buttons}
+            onChange={(e) =>
+              void run(() =>
+                saveDashSettings({
+                  data: {
+                    tenant_id: data.tenant.id,
+                    user_buttons: e.target.value as DashState["user_buttons"],
+                  },
+                }),
+              )
+            }
+          >
+            <option value="off">{t("dash.userOff")}</option>
+            <option value="anywhere">{t("dash.userAny")}</option>
+            <option value="above">{t("dash.userAbove")}</option>
+            <option value="below">{t("dash.userBelow")}</option>
+          </select>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between gap-2">
+          <CardTitle>{t("dash.teamBlock")}</CardTitle>
+          <Button
+            size="sm"
+            onClick={() => {
+              const name = window.prompt(t("dash.teamName"), "Team");
+              if (name)
+                void run(() =>
+                  createDashTeam({ data: { name, tenant_id: data.tenant.id } }),
+                );
+            }}
+          >
+            <Plus className="h-3.5 w-3.5" /> {t("dash.newTeam")}
+          </Button>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {dash.teams.length === 0 && (
+            <p className="text-sm text-fg-muted">{t("dash.noTeam")}</p>
+          )}
+          {dash.teams.length > 0 && (
+            <select
+              className="h-10 w-full rounded-md border border-border bg-bg-elevated px-2 text-sm"
+              value={team?.id || ""}
+              onChange={(e) => {
+                const id = e.target.value;
+                if (!id) return;
+                void run(() => getDash({ data: { tenant_id: data.tenant.id, team_id: id } }));
+              }}
+            >
+              {dash.teams.map((tm) => (
+                <option key={tm.id} value={tm.id}>
+                  {tm.name}
+                </option>
+              ))}
+            </select>
+          )}
+          {team && (
+            <>
+              <div className="flex flex-wrap gap-2">
+                {above.length + below.length < 2 && !above.length && (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() =>
+                      void run(() =>
+                        addDashTeamSection({
+                          data: { team_id: team.id, zone: "above", tenant_id: data.tenant.id },
+                        }),
+                      )
+                    }
+                  >
+                    {t("dash.addAbove")}
+                  </Button>
+                )}
+                {above.length + below.length < 2 && !below.length && (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() =>
+                      void run(() =>
+                        addDashTeamSection({
+                          data: { team_id: team.id, zone: "below", tenant_id: data.tenant.id },
+                        }),
+                      )
+                    }
+                  >
+                    {t("dash.addBelow")}
+                  </Button>
+                )}
+              </div>
+              <div className="flex flex-wrap items-center gap-1 text-sm">
+                <span className="text-fg-muted">{t("dash.members")}:</span>
+                {team.member_ids.map((uid) => {
+                  const m = data.members.find((x) => x.user_id === uid);
+                  return (
+                    <button
+                      key={uid}
+                      type="button"
+                      className="rounded-full border border-border bg-bg-elevated px-2 py-0.5 text-xs hover:border-danger hover:text-danger"
+                      onClick={() =>
+                        void run(() =>
+                          removeDashTeamMember({
+                            data: { team_id: team.id, user_id: uid, tenant_id: data.tenant.id },
+                          }),
+                        )
+                      }
+                    >
+                      {m?.name || m?.email || uid.slice(0, 6)}
+                    </button>
+                  );
+                })}
+                <select
+                  className="h-8 rounded-md border border-border bg-bg-elevated px-1 text-xs"
+                  defaultValue=""
+                  onChange={(e) => {
+                    const uid = e.target.value;
+                    e.currentTarget.value = "";
+                    if (!uid) return;
+                    void run(() =>
+                      addDashTeamMember({
+                        data: { team_id: team.id, user_id: uid, tenant_id: data.tenant.id },
+                      }),
+                    );
+                  }}
+                >
+                  <option value="">{t("dash.addMember")}</option>
+                  {data.members
+                    .filter((m) => !team.member_ids.includes(m.user_id))
+                    .map((m) => (
+                      <option key={m.user_id} value={m.user_id}>
+                        {m.name || m.email || m.user_id}
+                      </option>
+                    ))}
+                </select>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
