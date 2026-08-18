@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Shield } from "lucide-react";
 import { BRAND_HOME } from "@/lib/docbay/brand";
 import { splashCopy } from "@/lib/i18n/splash";
 
-const DELAY = 1;
+const DELAY = 3;
 
 export function BrandFlag({ dest }: { dest?: string }) {
   const copy = splashCopy();
@@ -35,29 +35,35 @@ export function BrandedFrame({
   const copy = splashCopy();
   const [left, setLeft] = useState(DELAY);
   const [held, setHeld] = useState(false);
+  const heldRef = useRef(false);
 
   useEffect(() => {
-    if (held) return;
+    if (heldRef.current) return;
+    setLeft(DELAY);
     const started = Date.now();
     const tick = window.setInterval(() => {
-      const remain = Math.max(0, DELAY - Math.floor((Date.now() - started) / 1000));
-      setLeft(remain);
+      if (heldRef.current) {
+        window.clearInterval(tick);
+        return;
+      }
+      const remain = DELAY - Math.floor((Date.now() - started) / 1000);
       if (remain <= 0) {
         window.clearInterval(tick);
         window.location.replace(url);
+        return;
       }
-    }, 100);
-    const hard = window.setTimeout(() => {
-      if (!held) window.location.replace(url);
-    }, DELAY * 1000);
-    return () => {
-      window.clearInterval(tick);
-      window.clearTimeout(hard);
-    };
-  }, [url, held]);
+      setLeft(remain);
+    }, 80);
+    return () => window.clearInterval(tick);
+  }, [url]);
 
   function go() {
     window.location.replace(url);
+  }
+
+  function cancel() {
+    heldRef.current = true;
+    setHeld(true);
   }
 
   const line =
@@ -92,11 +98,19 @@ export function BrandedFrame({
         {url}
       </a>
       {!held && (
-        <p className="mt-4 max-w-2xl text-center text-sm text-white/80">{line}</p>
+        <>
+          <p
+            key={left}
+            className="hop-count mt-8 font-display text-7xl font-semibold tabular-nums text-white sm:text-8xl"
+          >
+            {left}
+          </p>
+          <p className="mt-4 max-w-2xl text-center text-sm text-white/80">{line}</p>
+        </>
       )}
       <button
         type="button"
-        onClick={() => (held ? go() : setHeld(true))}
+        onClick={() => (held ? go() : cancel())}
         className={
           held
             ? "metal mt-6 inline-flex h-10 items-center rounded-lg px-5 text-sm font-medium text-white"

@@ -22,6 +22,7 @@ export const en: Messages = {
     delete: "Delete",
     edit: "Edit",
     copy: "Copied",
+    copyAction: "Copy",
     error: "Error",
     loading: "…",
     optional: "optional",
@@ -235,6 +236,7 @@ export const en: Messages = {
     ogHint: "How this link would look on Facebook, LinkedIn or Slack.",
     ogFallback: "Your link",
     ogFallbackText: "Title and text show up here once you fill them in.",
+    scrollPreview: "Scroll for preview",
   },
   thread: {
     priority: "Priority",

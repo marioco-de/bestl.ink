@@ -20,6 +20,7 @@ export const de = {
     delete: "Löschen",
     edit: "Bearbeiten",
     copy: "Kopiert",
+    copyAction: "Kopieren",
     error: "Fehler",
     loading: "…",
     optional: "optional",
@@ -233,6 +234,7 @@ export const de = {
     ogHint: "So sähe der Link bei Facebook, LinkedIn oder Slack aus.",
     ogFallback: "Dein Link",
     ogFallbackText: "Titel und Text erscheinen hier, sobald du sie ausfüllst.",
+    scrollPreview: "Weiterscrollen für Vorschau",
   },
   thread: {
     priority: "Priorität",

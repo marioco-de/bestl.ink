@@ -45,7 +45,6 @@ import { DocActionPicker } from "./doc-action-picker";
 import { actionsPayload, withChatMode, withRequireRequest, type ChatMode, type DocAction } from "@/lib/docbay/doc-actions";
 import { MAX_UPLOAD_BYTES, MAX_UPLOAD_LABEL } from "@/lib/docbay/upload";
 import { Upload } from "lucide-react";
-import { FullScreenModal } from "@/components/ui/fullscreen-modal";
 
 type Extra = "tags" | "campaign" | "device" | "lock" | "ttl" | null;
 
@@ -75,24 +74,6 @@ export function CreateLinkModal() {
   }, [createSeed]);
 
   if (!createOpen) return null;
-  if (doneUrl) {
-    return (
-      <FullScreenModal title="Link bereit" onClose={closeCreate} wide>
-        <div className="flex flex-col items-stretch gap-4 py-4 @min-[640px]/fs:flex-row @min-[640px]/fs:items-center">
-          <p className="min-w-0 flex-1 break-all font-mono text-sm">{doneUrl}</p>
-          <Button
-            className="shrink-0"
-            onClick={() => {
-              void navigator.clipboard.writeText(doneUrl);
-              toast.success("Kopiert");
-            }}
-          >
-            Kopieren
-          </Button>
-        </div>
-      </FullScreenModal>
-    );
-  }
   return (
     <Editor
       key={createSeed}
@@ -104,6 +85,7 @@ export function CreateLinkModal() {
       setTags={setTags}
       pendingTags={pendingTags}
       setPendingTags={setPendingTags}
+      createdUrl={doneUrl}
       onClose={closeCreate}
       onSaved={(s, url) => {
         setData(s);
@@ -125,6 +107,7 @@ function Editor({
   setTags,
   pendingTags,
   setPendingTags,
+  createdUrl,
 }: {
   data: FullState;
   seed: string;
@@ -136,6 +119,7 @@ function Editor({
   setTags: (v: string[]) => void;
   pendingTags: { name: string; color: string }[];
   setPendingTags: (v: { name: string; color: string }[]) => void;
+  createdUrl: string | null;
 }) {
   const { setData, switchWorkspace, prefetchWorkspace } = useControl();
   const t = useT();
@@ -530,8 +514,9 @@ function Editor({
       title={kindTitle}
       onClose={onClose}
       toolbar={<CreateKindBar value={kind} onChange={onKind} />}
-      url={shortUrl}
+      url={createdUrl || shortUrl}
       slug={slug}
+      created={Boolean(createdUrl)}
       preview={{ title: previewTitle, text: previewText, image: shareImage, host }}
       footer={
         <>
@@ -600,9 +585,16 @@ function Editor({
             hue={kindMeta(kind).hue}
             className="h-9"
             disabled={busy}
-            onClick={() => void save()}
+            onClick={() => {
+              if (createdUrl) {
+                void navigator.clipboard.writeText(createdUrl);
+                toast.success("Kopiert");
+                return;
+              }
+              void save();
+            }}
           >
-            {busy ? t("common.loading") : t("short.createBtn")}
+            {createdUrl ? t("common.copyAction") : busy ? t("common.loading") : t("short.createBtn")}
           </HueButton>
         </>
       }

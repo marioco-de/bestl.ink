@@ -15,7 +15,15 @@ import { cn } from "@/lib/utils";
 
 const PRESETS = ["#111111", "#1d4ed8", "#0f766e", "#9f1239", "#7c3aed"];
 
-export function QrDrawer({ url, slug }: { url: string; slug: string }) {
+export function QrDrawer({
+  url,
+  slug,
+  variant = "all",
+}: {
+  url: string;
+  slug: string;
+  variant?: "all" | "desktop" | "mobile-flag" | "inline";
+}) {
   const [open, setOpen] = useState(false);
   const [fg, setFg] = useState("#111111");
   const [bg, setBg] = useState("#ffffff");
@@ -85,45 +93,53 @@ export function QrDrawer({ url, slug }: { url: string; slug: string }) {
 
   return (
     <>
-      <div
-        className="pointer-events-none absolute top-1/2 right-0 z-10 hidden -translate-y-1/2 @min-[40rem]/stage:block"
-        onMouseEnter={() => setOpen(true)}
-        onMouseLeave={() => setOpen(false)}
-      >
-        <div
-          className={cn(
-            "flex items-center transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
-            open ? "translate-x-full" : "translate-x-8",
-          )}
-        >
-          <div className={cn("pointer-events-auto", !open && "pointer-events-none")}>
-            {panel}
-          </div>
-          <Flag vertical open={open} onClick={() => setOpen((v) => !v)} />
+      {variant === "inline" && (
+        <div className="w-full [&>aside]:w-full [&>aside]:max-w-none [&>aside]:border [&>aside]:rounded-xl">
+          {panel}
         </div>
-      </div>
-
-      <div className="fixed inset-x-0 bottom-0 z-30 @min-[40rem]/stage:hidden">
-        <div className="flex flex-col items-center pb-[env(safe-area-inset-bottom)]">
+      )}
+      {(variant === "all" || variant === "desktop") && (
+        <div
+          className="pointer-events-none absolute top-1/2 right-0 z-10 hidden -translate-y-1/2 @min-[40rem]/stage:block"
+          onMouseEnter={() => setOpen(true)}
+          onMouseLeave={() => setOpen(false)}
+        >
           <div
             className={cn(
-              "w-full origin-bottom transition-transform duration-200 ease-[cubic-bezier(0.22,1,0.36,1)]",
-              open ? "translate-y-0" : "pointer-events-none translate-y-[110%]",
+              "flex items-center transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
+              open ? "translate-x-full" : "translate-x-8",
             )}
           >
-            <div className="mx-auto max-w-lg px-3 pb-2">{panel}</div>
+            <div className={cn("pointer-events-auto", !open && "pointer-events-none")}>
+              {panel}
+            </div>
+            <Flag vertical open={open} onClick={() => setOpen((v) => !v)} />
           </div>
-          <button
-            type="button"
-            onClick={() => setOpen((v) => !v)}
-            className="mb-2 flex h-8 items-center gap-1.5 rounded-md border border-border bg-bg-elevated px-3 text-[11px] font-medium text-fg-muted shadow-sm"
-            aria-expanded={open}
-          >
-            <QrCode className="h-3.5 w-3.5" />
-            QR
-          </button>
         </div>
-      </div>
+      )}
+      {(variant === "all" || variant === "mobile-flag") && (
+        <div className="fixed inset-x-0 bottom-0 z-30 @min-[40rem]/stage:hidden">
+          <div className="flex flex-col items-center pb-[env(safe-area-inset-bottom)]">
+            <div
+              className={cn(
+                "w-full origin-bottom transition-transform duration-200 ease-[cubic-bezier(0.22,1,0.36,1)]",
+                open ? "translate-y-0" : "pointer-events-none translate-y-[110%]",
+              )}
+            >
+              <div className="mx-auto max-w-lg px-3 pb-2">{panel}</div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setOpen((v) => !v)}
+              className="mb-2 flex h-8 items-center gap-1.5 rounded-md border border-border bg-bg-elevated px-3 text-[11px] font-medium text-fg-muted shadow-sm"
+              aria-expanded={open}
+            >
+              <QrCode className="h-3.5 w-3.5" />
+              QR
+            </button>
+          </div>
+        </div>
+      )}
     </>
   );
 }
