@@ -1,12 +1,12 @@
 export const de = {
   meta: {
-    title: "BESTL.INK – Der Link sagt alles",
+    title: "BESTL.INK – Ein Link sagt mehr als 1000 Worte",
     description:
       "BESTL.INK: Kurzlinks, gated Documents und Attribution. Inhalte, die nicht offen im Netz liegen.",
   },
   brand: {
     tagline: "Share less. Know more.",
-    slogan: "Der Link sagt alles. Der Inhalt bleibt euer.",
+    slogan: "Ein Link sagt mehr als 1000 Worte. Kürzen. Und schützen.",
     flag: "Gekürzt und gesichert mit {name}",
     whatIs: "Was ist {name}?",
     redirect: "Sie werden in {n} Sekunden zu {url} weitergeleitet.",
