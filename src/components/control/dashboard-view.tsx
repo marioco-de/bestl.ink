@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { HueButton } from "@/components/ui/hue-button";
 import { useControl } from "@/lib/docbay/control-store";
 import {
   addDashTeamSection,
@@ -360,9 +361,9 @@ function SectionBoard({
             <Button size="sm" variant="ghost" onClick={onDraw}>
               <Frame className="h-3.5 w-3.5" /> {drawing ? t("dash.drawing") : t("dash.group")}
             </Button>
-            <Button size="sm" className="hue-action" style={hueStyle(hue)} onClick={onPick}>
+            <HueButton hue={hue} size="sm" onClick={onPick}>
               <Plus className="h-3.5 w-3.5" /> {t("dash.addBtn")}
-            </Button>
+            </HueButton>
           </>
         )}
       </div>

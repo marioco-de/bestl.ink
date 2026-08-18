@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { HueButton } from "@/components/ui/hue-button";
 import { Input, Textarea, Label } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -61,9 +62,9 @@ export function CardsWorkspace({ kind }: { kind: "event" | "contact" }) {
             ? "Termin anlegen, Link teilen. Der Empfänger bekommt eine Kalenderdatei."
             : "Visitenkarte hinterlegen. Der Link liefert eine vCard ins Adressbuch."}
         </p>
-        <Button size="sm" className="shrink-0" onClick={() => setEditing("new")}>
+        <HueButton hue={kind === "event" ? "amber" : "ruby"} size="sm" className="shrink-0" onClick={() => setEditing("new")}>
           <Plus className="h-4 w-4" /> {label}
-        </Button>
+        </HueButton>
       </div>
 
       {editing !== null && (

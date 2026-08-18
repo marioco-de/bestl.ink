@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { HueButton } from "@/components/ui/hue-button";
 import { Input, Textarea, Label } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -64,6 +65,7 @@ export function ShortsWorkspace({
   const data = useControlData();
   const setGlobal = useSetControlData();
   const openCreate = useOpenCreate();
+  const t = useT();
   const [state, setState] = useState(data);
   const [editor, setEditor] = useState<Partial<ShortLink> | "new" | null>(null);
   const [statsFor, setStatsFor] = useState<ShortLink | null>(null);
@@ -106,14 +108,9 @@ export function ShortsWorkspace({
 
       {hideChrome && (
         <div className="flex justify-end">
-          <Button
-            size="sm"
-            className="hue-action"
-            style={{ ["--hue"]: "var(--color-hue-azure)" } as React.CSSProperties}
-            onClick={() => openCreate()}
-          >
-            <Plus className="h-4 w-4" /> URL
-          </Button>
+          <HueButton hue="azure" size="sm" onClick={() => openCreate()}>
+            <Plus className="h-4 w-4" /> {t("short.addUrl")}
+          </HueButton>
         </div>
       )}
 

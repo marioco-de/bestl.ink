@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { HueButton } from "@/components/ui/hue-button";
 import { Input, Textarea, Label } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -84,20 +85,14 @@ export function ResourcesWorkspace({
       )}
       {hideChrome && (
         <div className="flex justify-end">
-          <Button
+          <HueButton
+            hue={typeFilter === "page" ? "lime" : "violet"}
             size="sm"
-            className="hue-action"
-            style={
-              {
-                ["--hue"]:
-                  typeFilter === "page" ? "var(--color-hue-lime)" : "var(--color-hue-violet)",
-              } as React.CSSProperties
-            }
             onClick={() => setShowForm(true)}
           >
             <Plus className="h-4 w-4" />{" "}
             {typeFilter === "page" ? "Seite" : "Dokument"}
-          </Button>
+          </HueButton>
         </div>
       )}
 

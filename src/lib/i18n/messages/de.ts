@@ -67,6 +67,7 @@ export const de = {
     shorten: "Kürzen",
     quick: "Schnell kürzen",
     options: "Optionen",
+    addUrl: "URL",
     newLink: "Neuer Link",
     placeholder: "https://… einfügen",
     createTitle: "Kurzlink anlegen",

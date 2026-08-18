@@ -157,22 +157,30 @@
     animation: page-in 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 
+  .metal,
   .hue-action {
     --hue: var(--color-hue-teal);
-    background: linear-gradient(
-      160deg,
-      color-mix(in oklab, var(--hue) 22%, var(--color-bg-elevated)),
-      color-mix(in oklab, var(--hue) 8%, var(--color-bg-elevated))
+    background-image: linear-gradient(
+      145deg,
+      color-mix(in oklab, var(--hue) 78%, white) 0%,
+      var(--hue) 46%,
+      color-mix(in oklab, var(--hue) 42%, #243056) 100%
     );
-    color: var(--hue);
-    border: 1px solid color-mix(in oklab, var(--hue) 28%, transparent);
+    color: #fff;
+    border-color: color-mix(in oklab, var(--hue) 38%, transparent);
+    box-shadow: inset 0 1px 0 color-mix(in oklab, white 28%, transparent);
   }
+  .metal:hover,
   .hue-action:hover {
-    background: linear-gradient(
-      160deg,
-      color-mix(in oklab, var(--hue) 32%, var(--color-bg-elevated)),
-      color-mix(in oklab, var(--hue) 14%, var(--color-bg-elevated))
-    );
+    filter: brightness(1.06);
+  }
+
+  .metal-ruby {
+    --hue: var(--color-hue-ruby);
+  }
+
+  .metal-azure {
+    --hue: var(--color-hue-azure);
   }
 
   .dash-section {
@@ -183,24 +191,6 @@
       var(--color-bg-elevated)
     );
     border: 1px solid color-mix(in oklab, var(--hue) 22%, var(--color-border));
-  }
-
-  .metal {
-    background-image: var(--metal-primary);
-    color: var(--color-primary-fg);
-    box-shadow: inset 0 1px 0 color-mix(in oklab, white 28%, transparent);
-  }
-
-  .metal-ruby {
-    background-image: var(--metal-ruby);
-    color: #fff8f6;
-    box-shadow: inset 0 1px 0 color-mix(in oklab, white 26%, transparent);
-  }
-
-  .metal-azure {
-    background-image: var(--metal-azure);
-    color: #f4f8ff;
-    box-shadow: inset 0 1px 0 color-mix(in oklab, white 26%, transparent);
   }
 
   .nav-fold {
