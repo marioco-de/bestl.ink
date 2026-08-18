@@ -7,7 +7,7 @@ export const de = {
   brand: {
     tagline: "Share less. Know more.",
     slogan: "Der Link sagt alles. Der Inhalt bleibt euer.",
-    flag: "shortened & secured with {name}",
+    flag: "Gekürzt und gesichert mit {name}",
     whatIs: "Was ist {name}?",
     redirect: "Sie werden in {n} Sekunden zu {url} weitergeleitet.",
     redirectOne: "Sie werden in 1 Sekunde zu {url} weitergeleitet.",
