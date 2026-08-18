@@ -20,12 +20,14 @@ import { PLATFORM_LINK_HOST, CNAME_TARGET } from "@/lib/docbay/brand";
 import { TagPicker } from "@/components/control/tag-picker";
 import type { FullState, TenantDomain } from "@/lib/docbay/types";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 
 export const Route = createFileRoute("/control/domain")({
   component: DomainPage,
 });
 
 function DomainPage() {
+  const t = useT();
   const data = useControlData();
   const setGlobal = useSetControlData();
   const [company, setCompany] = useState(data.tenant.brand_company || data.tenant.name);
@@ -59,8 +61,8 @@ function DomainPage() {
       });
       patchDomain(res.domain);
       if (!silent) {
-        if (res.ok) toast.success("DNS sitzt. Jetzt aktivieren.");
-        else toast.message(res.detail || "DNS noch ausstehend");
+        if (res.ok) toast.success(t("domain.dnsOk"));
+        else toast.message(res.detail || t("domain.dnsWait"));
       }
     } catch (err) {
       if (!silent) toast.error(err instanceof Error ? err.message : "Prüfung fehlgeschlagen");
@@ -76,9 +78,9 @@ function DomainPage() {
         data: { id, connected: true, tenant_id: data.tenant.id },
       })) as FullState;
       patch(s);
-      toast.success("Domain aktiv");
+      toast.success(t("domain.nowActive"));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Fehler");
+      toast.error(err instanceof Error ? err.message : t("common.error"));
     } finally {
       setBusy(false);
     }
@@ -103,15 +105,23 @@ function DomainPage() {
     try {
       const s = (await updateTenant({
         data: {
+          name: company.trim(),
           brand_company: company.trim(),
           subdomain: subdomain.trim(),
           tenant_id: data.tenant.id !== "platform" ? data.tenant.id : undefined,
         },
       })) as FullState;
-      patch(s);
-      toast.success("Gespeichert");
+      patch({
+        ...s,
+        workspaces: s.workspaces.map((w) =>
+          w.id === s.tenant.id
+            ? { ...w, name: s.tenant.name, subdomain: s.tenant.subdomain }
+            : w,
+        ),
+      });
+      toast.success(t("common.saved"));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Fehler");
+      toast.error(err instanceof Error ? err.message : t("common.error"));
     } finally {
       setBusy(false);
     }
@@ -127,13 +137,13 @@ function DomainPage() {
       })) as FullState;
       setNewHost("");
       patch(s);
-      toast.success("Domain hinzugefügt");
+      toast.success(t("domain.added"));
       const added = s.domains.find(
         (d) => d.host === host.replace(/^https?:\/\//, "").replace(/\/$/, "").toLowerCase(),
       );
       if (added) void checkDns(added.id, true);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Fehler");
+      toast.error(err instanceof Error ? err.message : t("common.error"));
     } finally {
       setBusy(false);
     }
@@ -152,14 +162,14 @@ function DomainPage() {
     void reorderTenantDomains({
       data: { ids: ordered.map((d) => d.id), tenant_id: data.tenant.id },
     }).catch((err) => {
-      toast.error(err instanceof Error ? err.message : "Reihenfolge nicht gespeichert");
+      toast.error(err instanceof Error ? err.message : t("common.error"));
     });
   }
 
   if (data.tenant.id === "platform") {
     return (
       <div className="mx-auto max-w-lg text-sm text-fg-muted">
-        Wähle einen Workspace, um Domains zu verwalten.
+        {t("domain.pickWorkspace")}
       </div>
     );
   }
@@ -167,25 +177,22 @@ function DomainPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div>
-        <h1 className="font-display text-2xl font-semibold">Domains</h1>
-        <p className="mt-1 text-sm text-fg-muted">
-          Ziehen zum Sortieren — dieselbe Reihenfolge gilt beim Anlegen eines Kurzlinks.
-          Kurzlinks laufen über {PLATFORM_LINK_HOST} oder eine verbundene Domain.
-        </p>
+        <h1 className="font-display text-2xl font-semibold">{t("domain.title")}</h1>
+        <p className="mt-1 text-sm text-fg-muted">{t("domain.hint")}</p>
       </div>
 
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Globe2 className="h-4 w-4" /> Angeschlossene Hosts
+            <Globe2 className="h-4 w-4" /> {t("domain.hosts")}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3 text-sm">
           <div className="rounded-md border border-border bg-bg p-3">
-            <p className="text-xs uppercase text-fg-subtle">Platform</p>
+            <p className="text-xs uppercase text-fg-subtle">{t("domain.platform")}</p>
             <p className="mt-1 font-mono text-primary">https://{PLATFORM_LINK_HOST}/…</p>
           </div>
-          {data.domains.map((d) => (
+          {data.domains.map((d, i) => (
             <div
               key={d.id}
               draggable
@@ -204,16 +211,22 @@ function DomainPage() {
                 setDragId(null);
               }}
               className={cn(
-                "space-y-2 rounded-md border border-border bg-bg p-3",
+                "relative space-y-2 rounded-md border bg-bg p-3",
+                i === 0 ? "border-primary/45" : "border-border",
                 dragId === d.id && "opacity-50",
               )}
             >
+              {i === 0 && (
+                <span className="absolute bottom-0 right-3 z-10 flex h-5 translate-y-1/2 items-center rounded-sm border border-border bg-bg-elevated px-1.5 text-[10px] font-medium tracking-wide text-fg-muted">
+                  {t("domain.standard")}
+                </span>
+              )}
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex min-w-0 items-center gap-2">
                   <button
                     type="button"
                     className="cursor-grab text-fg-subtle active:cursor-grabbing"
-                    aria-label="Reihenfolge ändern"
+                    aria-label={t("domain.reorder")}
                     draggable={false}
                   >
                     <GripVertical className="h-4 w-4" />
@@ -223,13 +236,13 @@ function DomainPage() {
                 <div className="flex items-center gap-1">
                   {d.connected ? (
                     <Badge variant="success">
-                      <CheckCircle2 className="mr-1 h-3 w-3" /> Aktiv
+                      <CheckCircle2 className="mr-1 h-3 w-3" /> {t("domain.active")}
                     </Badge>
                   ) : d.dns_ok ? (
-                    <Badge variant="secondary">DNS bereit</Badge>
+                    <Badge variant="secondary">{t("domain.dnsReady")}</Badge>
                   ) : (
                     <Badge variant="warning">
-                      {checking === d.id ? "Prüfe DNS…" : "DNS ausstehend"}
+                      {checking === d.id ? t("domain.checking") : t("domain.dnsPending")}
                     </Badge>
                   )}
                   {d.connected ? (
@@ -244,7 +257,7 @@ function DomainPage() {
                         patch(s);
                       }}
                     >
-                      Trennen
+                      {t("domain.disconnect")}
                     </Button>
                   ) : d.dns_ok ? (
                     <Button
@@ -253,7 +266,7 @@ function DomainPage() {
                       disabled={busy}
                       onClick={() => void activate(d.id)}
                     >
-                      Aktivieren
+                      {t("domain.activate")}
                     </Button>
                   ) : (
                     <Button
@@ -263,7 +276,7 @@ function DomainPage() {
                       disabled={checking === d.id}
                       onClick={() => void checkDns(d.id)}
                     >
-                      {checking === d.id ? "…" : "Aktualisieren"}
+                      {checking === d.id ? t("common.loading") : t("domain.refresh")}
                     </Button>
                   )}
                   <Button
@@ -275,7 +288,7 @@ function DomainPage() {
                         data: { id: d.id, tenant_id: data.tenant.id },
                       })) as FullState;
                       patch(s);
-                      toast.success("Domain entfernt");
+                      toast.success(t("domain.removed"));
                     }}
                   >
                     <Trash2 className="h-3.5 w-3.5 text-danger" />
@@ -289,10 +302,10 @@ function DomainPage() {
                   className="ml-2 inline-flex items-center gap-1 text-primary"
                   onClick={() => {
                     void navigator.clipboard.writeText(CNAME_TARGET);
-                    toast.success("Kopiert");
+                    toast.success(t("common.copy"));
                   }}
                 >
-                  <Copy className="h-3 w-3" /> CNAME
+                  <Copy className="h-3 w-3" /> {t("domain.cname")}
                 </button>
               </p>
               <TagPicker
@@ -326,7 +339,7 @@ function DomainPage() {
               }}
             />
             <Button type="button" disabled={busy} onClick={() => void addDomain()}>
-              <Plus className="h-4 w-4" /> Domain
+              <Plus className="h-4 w-4" /> {t("domain.add")}
             </Button>
           </div>
         </CardContent>
@@ -334,16 +347,16 @@ function DomainPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Workspace</CardTitle>
+          <CardTitle>{t("domain.workspace")}</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={saveBrand} className="space-y-4">
             <div>
-              <Label>Name</Label>
+              <Label>{t("common.name")}</Label>
               <Input value={company} onChange={(e) => setCompany(e.target.value)} />
             </div>
             <div>
-              <Label>Kürzel</Label>
+              <Label>{t("domain.slug")}</Label>
               <div className="flex items-center gap-2">
                 <Input
                   value={subdomain}
@@ -355,7 +368,7 @@ function DomainPage() {
               </div>
             </div>
             <Button type="submit" disabled={busy}>
-              Speichern
+              {t("common.save")}
             </Button>
           </form>
         </CardContent>

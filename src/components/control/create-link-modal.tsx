@@ -19,34 +19,16 @@ import { useControl } from "@/lib/docbay/control-store";
 import { createShort } from "@/lib/docbay/shorts-api";
 import { genToken } from "@/lib/docbay/id";
 import { PLATFORM_LINK_HOST } from "@/lib/docbay/brand";
+import { orderedHosts, defaultHost, withHttp } from "@/lib/docbay/hosts";
 import { cn } from "@/lib/utils";
 import type { FullState } from "@/lib/docbay/types";
 import { QrDrawer } from "./qr-drawer";
 import { TagPicker } from "./tag-picker";
 import { createTag } from "@/lib/docbay/api";
 import { upsertShort } from "@/lib/docbay/state-patch";
+import { useT } from "@/lib/i18n";
 
 type Extra = "campaign" | "device" | "lock" | "ttl" | null;
-
-function collectHosts(data: FullState): string[] {
-  const hosts: string[] = [];
-  const seen = new Set<string>();
-  const add = (raw?: string) => {
-    const h = (raw || "").trim().toLowerCase();
-    if (!h || seen.has(h)) return;
-    seen.add(h);
-    hosts.push(h);
-  };
-  const ordered = [...(data.domains ?? [])].sort(
-    (a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0),
-  );
-  for (const d of ordered) add(d.host);
-  add(data.tenant.custom_domain);
-  add(data.tenant.public_host);
-  if (data.tenant.subdomain) add(`${data.tenant.subdomain}.${PLATFORM_LINK_HOST}`);
-  add(PLATFORM_LINK_HOST);
-  return hosts;
-}
 
 export function CreateLinkModal() {
   const { data, setData, createOpen, createSeed, closeCreate } = useControl();
@@ -77,9 +59,10 @@ function Editor({
   onSaved: (s: FullState) => void;
 }) {
   const { setData, switchWorkspace, prefetchWorkspace } = useControl();
+  const t = useT();
   const navigate = useNavigate();
-  const hosts = useMemo(() => collectHosts(data), [data]);
-  const [host, setHost] = useState(hosts[0] || PLATFORM_LINK_HOST);
+  const hosts = useMemo(() => orderedHosts(data), [data]);
+  const [host, setHost] = useState(defaultHost(data));
   const [destination, setDestination] = useState(seed);
   const [slug, setSlug] = useState(() => genToken(5));
   const [note, setNote] = useState("");
@@ -157,9 +140,9 @@ function Editor({
   }
 
   async function save() {
-    const dest = destination.trim();
+    const dest = withHttp(destination);
     if (!dest) {
-      toast.error("Wohin soll der Link führen?");
+      toast.error(t("short.destMissing"));
       return;
     }
     const withProto = /^https?:\/\//i.test(dest) ? dest : `https://${dest}`;
@@ -185,20 +168,20 @@ function Editor({
           tenant_id: data.tenant.id,
         },
       });
-      toast.success(`Kurzlink liegt bereit · ${host}/${slug}`);
+      toast.success(t("short.ready", { path: `${host}/${created.short.slug}` }));
       onSaved(upsertShort(data, created.short));
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Fehler");
+      toast.error(e instanceof Error ? e.message : t("common.error"));
     } finally {
       setBusy(false);
     }
   }
 
   const extras: { id: Extra; label: string; icon: typeof Clock; on: boolean }[] = [
-    { id: "campaign", label: "Kampagne", icon: Tag, on: Boolean(utmS || utmM || utmC) },
-    { id: "device", label: "Gerät", icon: MonitorSmartphone, on: Boolean(ios || android) },
-    { id: "lock", label: "Schutz", icon: KeyRound, on: Boolean(password) },
-    { id: "ttl", label: "Ablauf", icon: Clock, on: Boolean(expiresHours) },
+    { id: "campaign", label: t("short.campaign"), icon: Tag, on: Boolean(utmS || utmM || utmC) },
+    { id: "device", label: t("short.device"), icon: MonitorSmartphone, on: Boolean(ios || android) },
+    { id: "lock", label: t("short.lock"), icon: KeyRound, on: Boolean(password) },
+    { id: "ttl", label: t("short.ttl"), icon: Clock, on: Boolean(expiresHours) },
   ];
 
   return (
@@ -206,7 +189,7 @@ function Editor({
       <button
         type="button"
         className="absolute inset-0 bg-fg/30 backdrop-blur-sm"
-        aria-label="Schließen"
+        aria-label={t("common.close")}
         onClick={onClose}
       />
       <div className="relative flex h-full w-full items-center justify-center p-0 @min-[40rem]/stage:p-6 @min-[40rem]/stage:pr-14">
@@ -214,21 +197,21 @@ function Editor({
         <div
           role="dialog"
           aria-modal="true"
-          aria-label="Kurzlink anlegen"
+          aria-label={t("short.createTitle")}
           className="@container/modal relative flex h-full min-w-0 w-full flex-col overflow-hidden bg-bg-elevated shadow-2xl @min-[40rem]/stage:h-auto @min-[40rem]/stage:max-h-[min(88dvh,720px)] @min-[40rem]/stage:rounded-xl @min-[40rem]/stage:border @min-[40rem]/stage:border-border"
         >
           <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
             <div>
               <h2 className="font-display text-base font-semibold tracking-tight">
-                Kurzlink anlegen
+                {t("short.createTitle")}
               </h2>
-              <p className="text-[12px] text-fg-subtle">Eine Adresse. Der Rest ist Beiwerk.</p>
+              <p className="text-[12px] text-fg-subtle">{t("short.createHint")}</p>
             </div>
             <button
               type="button"
               onClick={onClose}
               className="flex h-9 w-9 items-center justify-center rounded-md text-fg-muted hover:bg-bg-subtle hover:text-fg"
-              aria-label="Schließen"
+              aria-label={t("common.close")}
             >
               <X className="h-5 w-5" />
             </button>
@@ -237,24 +220,24 @@ function Editor({
           <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5">
             <div className="space-y-6">
               <section>
-                <p className="mb-1.5 text-xs font-medium">Wohin soll er führen?</p>
+                <p className="mb-1.5 text-xs font-medium">{t("short.destLabel")}</p>
                 <Input
                   autoFocus
                   value={destination}
                   onChange={(e) => setDestination(e.target.value)}
-                  placeholder="www.seite.de/angebot"
+                  placeholder={t("short.destPlaceholder")}
                 />
               </section>
 
               <section>
                 <div className="mb-1.5 flex items-center justify-between">
-                  <p className="text-xs font-medium">So heißt der Link</p>
+                  <p className="text-xs font-medium">{t("short.nameLabel")}</p>
                   <button
                     type="button"
                     className="inline-flex h-7 items-center gap-1 text-[11px] text-fg-muted hover:text-fg"
                     onClick={() => setSlug(genToken(5))}
                   >
-                    <Shuffle className="h-3 w-3" /> würfeln
+                    <Shuffle className="h-3 w-3" /> {t("short.roll")}
                   </button>
                 </div>
                 <div className="flex rounded-md border border-border bg-bg">
@@ -277,7 +260,7 @@ function Editor({
                         <button
                           type="button"
                           className="fixed inset-0 z-10"
-                          aria-label="Schließen"
+                          aria-label={t("common.close")}
                           onClick={() => setHostOpen(false)}
                         />
                         <ul
@@ -316,7 +299,7 @@ function Editor({
               </section>
 
               <section className="space-y-2">
-                <p className="text-xs font-medium text-fg-muted">Nur fürs Team</p>
+                <p className="text-xs font-medium text-fg-muted">{t("short.teamOnly")}</p>
                 <TagPicker
                   catalog={data.tags}
                   value={tags}
@@ -331,14 +314,14 @@ function Editor({
                 <Textarea
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
-                  placeholder="Wer bekommt den Link? z. B. Müller, Rückruf"
+                  placeholder={t("short.notePh")}
                   className="min-h-[64px]"
                 />
               </section>
 
               <section>
                 <p className="mb-1.5 text-xs font-medium text-fg-muted">
-                  Wenn jemand den Link teilt
+                  {t("short.shareWhen")}
                 </p>
                 <div className="overflow-hidden rounded-md border border-border bg-bg">
                   <div className="flex aspect-[2/1] items-center justify-center bg-bg-subtle">
@@ -351,19 +334,19 @@ function Editor({
                   <div className="space-y-1 p-2.5">
                     <input
                       className="w-full bg-transparent text-sm font-medium outline-none"
-                      placeholder="Titel in WhatsApp & Co."
+                      placeholder={t("short.shareTitlePh")}
                       value={shareTitle}
                       onChange={(e) => setShareTitle(e.target.value)}
                     />
                     <input
                       className="w-full bg-transparent text-xs text-fg-muted outline-none"
-                      placeholder="Ein Satz dazu"
+                      placeholder={t("short.shareTextPh")}
                       value={shareText}
                       onChange={(e) => setShareText(e.target.value)}
                     />
                     <input
                       className="w-full bg-transparent text-[11px] text-fg-subtle outline-none"
-                      placeholder="Bild-URL (optional)"
+                      placeholder={t("short.shareImgPh")}
                       value={shareImage}
                       onChange={(e) => setShareImage(e.target.value)}
                     />
@@ -375,23 +358,23 @@ function Editor({
                 <div className="space-y-3 rounded-md border border-border bg-bg p-3">
                   {extra === "campaign" && (
                     <div className="grid gap-2 @min-[28rem]/modal:grid-cols-3">
-                      <Mini label="Quelle" value={utmS} onChange={setUtmS} />
-                      <Mini label="Kanal" value={utmM} onChange={setUtmM} />
-                      <Mini label="Name" value={utmC} onChange={setUtmC} />
+                      <Mini label={t("short.utmSource")} value={utmS} onChange={setUtmS} />
+                      <Mini label={t("short.utmMedium")} value={utmM} onChange={setUtmM} />
+                      <Mini label={t("short.utmName")} value={utmC} onChange={setUtmC} />
                     </div>
                   )}
                   {extra === "device" && (
                     <div className="grid gap-2">
-                      <Mini label="Andere URL auf dem iPhone" value={ios} onChange={setIos} />
-                      <Mini label="Andere URL auf Android" value={android} onChange={setAndroid} />
+                      <Mini label={t("short.iosUrl")} value={ios} onChange={setIos} />
+                      <Mini label={t("short.androidUrl")} value={android} onChange={setAndroid} />
                     </div>
                   )}
                   {extra === "lock" && (
-                    <Mini label="Passwort zum Öffnen" value={password} onChange={setPassword} />
+                    <Mini label={t("short.openPassword")} value={password} onChange={setPassword} />
                   )}
                   {extra === "ttl" && (
                     <Mini
-                      label="Stunden bis ungültig"
+                      label={t("short.hoursUntil")}
                       value={expiresHours}
                       onChange={setExpiresHours}
                       type="number"
@@ -429,7 +412,7 @@ function Editor({
                     <button
                       type="button"
                       className="fixed inset-0 z-10"
-                      aria-label="Schließen"
+                      aria-label={t("common.close")}
                       onClick={() => setWsOpen(false)}
                     />
                     <ul
@@ -479,7 +462,7 @@ function Editor({
               })}
             </div>
             <Button className="h-9" disabled={busy} onClick={() => void save()}>
-              {busy ? "…" : "Anlegen"}
+              {busy ? t("common.loading") : t("short.createBtn")}
             </Button>
           </footer>
         </div>

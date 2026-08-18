@@ -8,6 +8,7 @@ import {
 import { Toaster } from "sonner";
 import { CreatedWithGrokBanner } from "@/components/created-with-grok-banner";
 import { ThemeProvider, THEME_BOOT_SCRIPT, useTheme } from "@/lib/theme";
+import { I18nProvider } from "@/lib/i18n";
 import appCss from "@/styles.css?url";
 
 import { AppErrorComponent } from "@/lib/error-component";
@@ -40,9 +41,11 @@ function RootComponent() {
   return (
     <RootDocument>
       <ThemeProvider>
-        <CreatedWithGrokBanner />
-        <Outlet />
-        <ThemedToaster />
+        <I18nProvider>
+          <CreatedWithGrokBanner />
+          <Outlet />
+          <ThemedToaster />
+        </I18nProvider>
       </ThemeProvider>
     </RootDocument>
   );

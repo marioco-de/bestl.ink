@@ -1,35 +1,12 @@
 import { ArrowRight, Link2Off, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BRAND_HOME, BRAND_NAME, BRAND_SIGNUP, BRAND_TAGLINE } from "@/lib/docbay/brand";
+import { useI18n } from "@/lib/i18n";
 
 export type MissReason = "missing" | "expired" | "disabled" | "limit";
 
-const LINES: Record<MissReason, string[]> = {
-  missing: [
-    "Dieser Link ist kürzer als gedacht.",
-    "Hier fehlt das Stück Kette.",
-    "Jemand hat zu gründlich gekürzt.",
-    "Nichts hinter dieser Adresse. Wirklich nichts.",
-    "Der Link ist ausgerückt. Wir sind geblieben.",
-    "Zu kurz gekommen — der Link, nicht du.",
-  ],
-  expired: [
-    "Dieser Link hat Feierabend.",
-    "Gültig war gestern.",
-    "Die Uhr ist abgelaufen. Der Witz auch bald.",
-  ],
-  disabled: [
-    "Dieser Link wurde stillgelegt.",
-    "Absichtlich aus. Nicht verloren.",
-  ],
-  limit: [
-    "Dieser Link hat genug Klicks gehabt.",
-    "Kontingent voll. Der Vorhang fällt.",
-  ],
-};
-
-function pickLine(reason: MissReason, seed: string): string {
-  const list = LINES[reason];
+function pickLine(list: string[], seed: string): string {
+  if (!list.length) return "";
   let h = 0;
   for (let i = 0; i < seed.length; i++) h = (h * 33 + seed.charCodeAt(i)) >>> 0;
   return list[h % list.length] ?? list[0];
@@ -46,16 +23,17 @@ export function NotFoundSplash({
   company?: string;
   reason?: MissReason;
 }) {
+  const { t, list } = useI18n();
   const path = slug ? `${host}/${slug}` : host;
-  const line = pickLine(reason, path);
+  const line = pickLine(list(`miss.${reason}`), path);
   const hint =
     reason === "expired"
-      ? "Die Zeit war um. Der Inhalt bleibt, wo er hingehört."
+      ? t("miss.hintExpired")
       : reason === "disabled"
-        ? "Der Absender hat den Hahn zugedreht."
+        ? t("miss.hintDisabled")
         : reason === "limit"
-          ? "Maximale Aufrufe erreicht — mehr gibt es nicht."
-          : "Vertippt, abgelaufen oder nie angelegt. Wir wissen es nicht. Du jetzt schon.";
+          ? t("miss.hintLimit")
+          : t("miss.hintMissing");
 
   return (
     <div className="relative flex min-h-dvh flex-col overflow-hidden bg-bg">
@@ -89,39 +67,36 @@ export function NotFoundSplash({
         </h1>
         <p className="mt-3 max-w-sm text-sm leading-relaxed text-fg-muted">{hint}</p>
         {company ? (
-          <p className="mt-2 text-xs text-fg-subtle">
-            Eigentlich ein Link von <span className="text-fg">{company}</span>. Nur halt nicht dieser.
-          </p>
+          <p className="mt-2 text-xs text-fg-subtle">{t("miss.company", { company })}</p>
         ) : null}
 
         <div className="mt-10 w-full rounded-xl border border-border bg-bg-elevated p-5 text-left">
-          <p className="font-display text-sm font-semibold">So endet ein Link besser nicht.</p>
+          <p className="font-display text-sm font-semibold">{t("miss.pitchTitle")}</p>
           <p className="mt-1.5 text-sm leading-relaxed text-fg-muted">
-            {BRAND_NAME} kürzt, sichert und misst — auf eurer Domain. Wenn etwas fehlt, sagen
-            wir das wenigstens mit Anstand.
+            {t("miss.pitchBody", { name: BRAND_NAME })}
           </p>
           <ul className="mt-4 space-y-1.5 text-sm text-fg-muted">
             <li className="flex gap-2">
               <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-primary" />
-              Kurzlinks & QR auf eigener Domain
+              {t("miss.p1")}
             </li>
             <li className="flex gap-2">
               <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-primary" />
-              Dokumente nur mit Token, nie offen im Netz
+              {t("miss.p2")}
             </li>
             <li className="flex gap-2">
               <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-primary" />
-              Hosting in Deutschland, Tracking ohne Cookies
+              {t("miss.p3")}
             </li>
           </ul>
           <div className="mt-5 flex flex-col gap-2 sm:flex-row">
             <Button asChild className="flex-1">
               <a href={BRAND_SIGNUP}>
-                Workspace starten <ArrowRight className="h-4 w-4" />
+                {t("miss.start")} <ArrowRight className="h-4 w-4" />
               </a>
             </Button>
             <Button asChild variant="secondary" className="flex-1">
-              <a href={BRAND_HOME}>Was ist {BRAND_NAME}?</a>
+              <a href={BRAND_HOME}>{t("brand.whatIs", { name: BRAND_NAME })}</a>
             </Button>
           </div>
         </div>
@@ -134,8 +109,7 @@ export function NotFoundSplash({
         <span className="metal flex h-4 w-4 items-center justify-center rounded-sm font-display text-[8px] font-semibold text-primary-fg">
           bl
         </span>
-        shortened & secured with{" "}
-        <span className="font-medium text-fg">{BRAND_NAME}</span>
+        {t("brand.flag", { name: BRAND_NAME })}
       </a>
     </div>
   );

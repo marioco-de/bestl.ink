@@ -1,12 +1,12 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { ArrowRight, Ban, Copy, ExternalLink } from "lucide-react";
+import { Ban, Copy, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { useControlData, useSetControlData, useOpenCreate } from "@/lib/docbay/use-control";
+import { useControlData, useSetControlData } from "@/lib/docbay/use-control";
 import { revokeLink } from "@/lib/docbay/api";
 import { formatDateDe, cn } from "@/lib/utils";
 import type { FullState } from "@/lib/docbay/types";
@@ -16,6 +16,7 @@ import { CardsWorkspace } from "./-cards";
 import { cardDownloadPath } from "@/lib/docbay/cards";
 import { TagChip } from "@/components/control/tag-picker";
 import { tagColor } from "@/lib/docbay/tags";
+import { useT } from "@/lib/i18n";
 
 type Tab = "urls" | "docs" | "pages" | "events" | "contacts" | "shared";
 
@@ -40,9 +41,8 @@ function LinksHub() {
   const data = useControlData();
   const search = Route.useSearch();
   const navigate = useNavigate();
-  const openCreate = useOpenCreate();
+  const t = useT();
   const tab = search.tab || "urls";
-  const [url, setUrl] = useState("");
 
   const counts = {
     urls: data.shorts.length,
@@ -66,12 +66,12 @@ function LinksHub() {
   }
 
   const titles: Record<Tab, string> = {
-    urls: "URLs",
-    docs: "Dokumente",
-    pages: "Seiten",
-    events: "Termine",
-    contacts: "Kontakte",
-    shared: "Geteilt",
+    urls: t("tabs.urls"),
+    docs: t("tabs.docs"),
+    pages: t("tabs.pages"),
+    events: t("tabs.events"),
+    contacts: t("tabs.contacts"),
+    shared: t("tabs.shared"),
   };
 
   return (
@@ -80,42 +80,20 @@ function LinksHub() {
         <h1 className="font-display text-2xl font-semibold tracking-tight">
           {titles[tab]}
         </h1>
-        <p className="mt-1 text-sm text-fg-muted">
-          URL einfügen oder C drücken – der Rest ist optional.
-        </p>
+        <p className="mt-1 text-sm text-fg-muted">{t("links.hint")}</p>
       </div>
-
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          openCreate(url.trim());
-          setUrl("");
-        }}
-        className="flex flex-col gap-2 rounded-lg border border-border bg-bg-elevated p-1.5 @min-[32rem]/hub:flex-row @min-[32rem]/hub:items-center"
-      >
-        <Input
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          placeholder="https://… einfügen"
-          className="h-11 border-0 bg-transparent shadow-none focus-visible:ring-0"
-        />
-        <Button type="submit" className="h-11 shrink-0">
-          Kürzen
-          <ArrowRight className="h-4 w-4" />
-        </Button>
-      </form>
 
       <div className="flex gap-1 overflow-x-auto border-b border-border pb-px @min-[52rem]/app:hidden">
         {(
           [
-            ["urls", "URLs", counts.urls, "text-hue-azure", "bg-hue-azure"],
-            ["docs", "Dokumente", counts.docs, "text-hue-violet", "bg-hue-violet"],
-            ["pages", "Seiten", counts.pages, "text-hue-lime", "bg-hue-lime"],
-            ["events", "Termine", counts.events, "text-hue-amber", "bg-hue-amber"],
-            ["contacts", "Kontakte", counts.contacts, "text-hue-ruby", "bg-hue-ruby"],
-            ["shared", "Geteilt", counts.shared, "text-hue-teal", "bg-hue-teal"],
+            ["urls", "tabs.urls", counts.urls, "text-hue-azure", "bg-hue-azure"],
+            ["docs", "tabs.docs", counts.docs, "text-hue-violet", "bg-hue-violet"],
+            ["pages", "tabs.pages", counts.pages, "text-hue-lime", "bg-hue-lime"],
+            ["events", "tabs.events", counts.events, "text-hue-amber", "bg-hue-amber"],
+            ["contacts", "tabs.contacts", counts.contacts, "text-hue-ruby", "bg-hue-ruby"],
+            ["shared", "tabs.shared", counts.shared, "text-hue-teal", "bg-hue-teal"],
           ] as const
-        ).map(([id, label, n, text, bar]) => (
+        ).map(([id, key, n, text, bar]) => (
           <button
             key={id}
             type="button"
@@ -125,7 +103,7 @@ function LinksHub() {
               tab === id ? text : "text-fg-muted hover:text-fg",
             )}
           >
-            {label}
+            {t(key)}
             <span className="ml-1.5 tabular text-xs text-fg-subtle">{n}</span>
             {tab === id && (
               <span className={cn("absolute inset-x-2 -bottom-px h-0.5 rounded-full", bar)} />

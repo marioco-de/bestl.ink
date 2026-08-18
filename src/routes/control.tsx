@@ -43,7 +43,9 @@ import { CommandPalette } from "@/components/control/command-palette";
 import { ShortcutsHelp } from "@/components/control/shortcuts-help";
 import { CreateLinkModal } from "@/components/control/create-link-modal";
 import { WorkspaceSwitcher } from "@/components/control/workspace-switcher";
+import { QuickShorten } from "@/components/control/quick-shorten";
 import { useTheme } from "@/lib/theme";
+import { useI18n, useT } from "@/lib/i18n";
 
 type ControlSearch = { tenant?: string };
 
@@ -70,15 +72,15 @@ export const Route = createFileRoute("/control")({
 
 const primaryNav: {
   to: "/control" | "/control/links" | "/control/parameters" | "/control/requests";
-  label: string;
+  labelKey: string;
   icon: typeof LayoutDashboard;
   exact?: boolean;
   hue: string;
 }[] = [
-  { to: "/control", label: "Übersicht", icon: LayoutDashboard, exact: true, hue: "teal" },
-  { to: "/control/links", label: "Links", icon: Link2, hue: "azure" },
-  { to: "/control/parameters", label: "Parameter", icon: GitBranch, hue: "amber" },
-  { to: "/control/requests", label: "Anfragen", icon: Inbox, hue: "ruby" },
+  { to: "/control", labelKey: "nav.overview", icon: LayoutDashboard, exact: true, hue: "teal" },
+  { to: "/control/links", labelKey: "nav.links", icon: Link2, hue: "azure" },
+  { to: "/control/parameters", labelKey: "nav.parameters", icon: GitBranch, hue: "amber" },
+  { to: "/control/requests", labelKey: "nav.requests", icon: Inbox, hue: "ruby" },
 ];
 
 const settingsNav: {
@@ -88,16 +90,16 @@ const settingsNav: {
     | "/control/integrations"
     | "/control/audit"
     | "/control/customers";
-  label: string;
+  labelKey: string;
   icon: typeof Globe2;
   superOnly?: boolean;
   hue: string;
 }[] = [
-  { to: "/control/customers", label: "Kunden", icon: Users, superOnly: true, hue: "violet" },
-  { to: "/control/domain", label: "Domains", icon: Globe2, hue: "lime" },
-  { to: "/control/email", label: "E-Mail", icon: Mail, hue: "amber" },
-  { to: "/control/integrations", label: "Integrationen", icon: Webhook, hue: "azure" },
-  { to: "/control/audit", label: "Audit", icon: ScrollText, hue: "violet" },
+  { to: "/control/customers", labelKey: "nav.customers", icon: Users, superOnly: true, hue: "violet" },
+  { to: "/control/domain", labelKey: "nav.domains", icon: Globe2, hue: "lime" },
+  { to: "/control/email", labelKey: "nav.email", icon: Mail, hue: "amber" },
+  { to: "/control/integrations", labelKey: "nav.integrations", icon: Webhook, hue: "azure" },
+  { to: "/control/audit", labelKey: "nav.audit", icon: ScrollText, hue: "violet" },
 ];
 
 const hueActive: Record<string, string> = {
@@ -110,12 +112,12 @@ const hueActive: Record<string, string> = {
 };
 
 const LINK_TABS = [
-  { id: "urls", label: "URLs", icon: Link2, hue: "azure" },
-  { id: "docs", label: "Dokumente", icon: FileText, hue: "violet" },
-  { id: "pages", label: "Seiten", icon: Globe2, hue: "lime" },
-  { id: "events", label: "Termine", icon: CalendarDays, hue: "amber" },
-  { id: "contacts", label: "Kontakte", icon: Contact, hue: "ruby" },
-  { id: "shared", label: "Geteilt", icon: Share2, hue: "teal" },
+  { id: "urls", labelKey: "nav.urls", icon: Link2, hue: "azure" },
+  { id: "docs", labelKey: "nav.docs", icon: FileText, hue: "violet" },
+  { id: "pages", labelKey: "nav.pages", icon: Globe2, hue: "lime" },
+  { id: "events", labelKey: "nav.events", icon: CalendarDays, hue: "amber" },
+  { id: "contacts", labelKey: "nav.contacts", icon: Contact, hue: "ruby" },
+  { id: "shared", labelKey: "nav.shared", icon: Share2, hue: "teal" },
 ] as const;
 
 type LinksTab = (typeof LINK_TABS)[number]["id"];
@@ -143,6 +145,8 @@ function ControlLayout() {
 
 function ControlShell() {
   const { data, openCreate } = useControl();
+  const t = useT();
+  const { locale, setLocale } = useI18n();
   const search = Route.useSearch();
   const location = useRouterState({ select: (s) => s.location });
   const pathname = location.pathname;
@@ -277,7 +281,7 @@ function ControlShell() {
             onClick={() => openCreate()}
           >
             <span className="flex items-center gap-1.5">
-              <Plus className="h-3.5 w-3.5" /> Kürzen
+              <Plus className="h-3.5 w-3.5" /> {t("short.options")}
             </span>
             <kbd className="rounded border border-primary-fg/20 px-1 font-mono text-[10px] opacity-70">
               C
@@ -315,7 +319,7 @@ function ControlShell() {
                 )}
               >
                 <Icon className="h-4 w-4 shrink-0" />
-                <span className="flex-1">{item.label}</span>
+                <span className="flex-1">{t(item.labelKey)}</span>
                 {item.to === "/control/requests" &&
                   data.stats.pending_requests > 0 && (
                     <span className="rounded-full bg-warning/20 px-1.5 text-[10px] text-warning tabular">
@@ -326,7 +330,7 @@ function ControlShell() {
             );
           })}
           <p className="mt-4 px-2.5 pb-1 text-[10px] font-medium uppercase tracking-wider text-fg-subtle">
-            Einstellungen
+            {t("nav.settings")}
           </p>
           {settingsNav
             .filter((item) => !item.superOnly || data.isSuperAdmin)
@@ -348,7 +352,7 @@ function ControlShell() {
                   )}
                 >
                   <Icon className="h-4 w-4 shrink-0" />
-                  {item.label}
+                  {t(item.labelKey)}
                 </Link>
               );
             })}
@@ -356,7 +360,7 @@ function ControlShell() {
         <div className="space-y-1 border-t border-border p-3">
           {data.isSuperAdmin && (
             <p className="flex items-center gap-1.5 px-2 text-[11px] text-fg-muted">
-              <Building2 className="h-3 w-3" /> Platform
+              <Building2 className="h-3 w-3" /> {t("common.platform")}
             </p>
           )}
           <p className="truncate px-2 font-mono text-[10px] text-fg-subtle">
@@ -368,21 +372,36 @@ function ControlShell() {
             onClick={cycle}
           >
             <ThemeIcon className="h-3.5 w-3.5" />
-            Theme: {pref === "system" ? "System" : pref === "light" ? "Hell" : "Dunkel"}
+            {t("nav.theme", {
+              value:
+                pref === "system"
+                  ? t("nav.themeSystem")
+                  : pref === "light"
+                    ? t("nav.themeLight")
+                    : t("nav.themeDark"),
+            })}
+          </button>
+          <button
+            type="button"
+            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-fg-subtle transition-colors hover:bg-bg-subtle hover:text-fg"
+            onClick={() => setLocale(locale === "de" ? "en" : "de")}
+          >
+            <Globe2 className="h-3.5 w-3.5" />
+            {t("nav.language")}: {locale.toUpperCase()}
           </button>
           <button
             type="button"
             className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-fg-subtle transition-colors hover:bg-bg-subtle hover:text-fg"
             onClick={() => setHelp(true)}
           >
-            <Keyboard className="h-3.5 w-3.5" /> Kürzel
+            <Keyboard className="h-3.5 w-3.5" /> {t("nav.shortcuts")}
           </button>
           <button
             type="button"
             className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-fg-subtle transition-colors hover:bg-bg-subtle hover:text-fg"
             onClick={() => void signOut("/login")}
           >
-            <LogOut className="h-3.5 w-3.5" /> Abmelden
+            <LogOut className="h-3.5 w-3.5" /> {t("nav.signOut")}
           </button>
         </div>
       </aside>
@@ -403,7 +422,7 @@ function ControlShell() {
               className="flex h-9 min-w-0 items-center gap-2 rounded-md border border-border bg-bg-subtle/60 px-3 text-left text-sm text-fg-subtle transition-colors hover:bg-bg-subtle @min-[28rem]/app:min-w-[200px]"
             >
               <Search className="h-3.5 w-3.5 shrink-0" />
-              <span className="hidden flex-1 @min-[28rem]/app:inline">Suchen…</span>
+              <span className="hidden flex-1 @min-[28rem]/app:inline">{t("common.search")}</span>
               <kbd className="hidden rounded border border-border px-1 font-mono text-[10px] @min-[28rem]/app:inline">
                 ⌘K
               </kbd>
@@ -411,9 +430,10 @@ function ControlShell() {
           </div>
           <Button type="button" size="sm" className="h-10" onClick={() => openCreate()}>
             <Plus className="h-3.5 w-3.5" />
-            <span className="hidden @min-[24rem]/app:inline">Kürzen</span>
+            <span className="hidden @min-[24rem]/app:inline">{t("short.options")}</span>
           </Button>
         </header>
+        <QuickShorten />
         <main key={pathname} className="page-in flex-1 px-4 py-6 @min-[52rem]/app:px-8 @min-[52rem]/app:py-8">
           <Outlet />
         </main>
@@ -461,7 +481,7 @@ function ControlShell() {
                     className="flex min-h-11 items-center gap-2.5 rounded-md px-3 py-3 text-sm text-fg-muted"
                   >
                     <Icon className="h-4 w-4" />
-                    {item.label}
+                    {t(item.labelKey)}
                   </Link>
                 );
               })}
@@ -478,7 +498,7 @@ function ControlShell() {
                       className="flex min-h-11 items-center gap-2.5 rounded-md px-3 py-3 text-sm text-fg-muted"
                     >
                       <Icon className="h-4 w-4" />
-                      {item.label}
+                      {t(item.labelKey)}
                     </Link>
                   );
                 })}
@@ -515,6 +535,7 @@ function LinksNav({
   onNavigate?: () => void;
   compact?: boolean;
 }) {
+  const t = useT();
   return (
     <div>
       <Link
@@ -532,7 +553,7 @@ function LinksNav({
         )}
       >
         <Link2 className="h-4 w-4 shrink-0" />
-        <span className="flex-1">Links</span>
+        <span className="flex-1">{t("nav.links")}</span>
         <ChevronDown
           className={cn(
             "h-3.5 w-3.5 shrink-0 opacity-70 transition-transform duration-200 ease-out",
@@ -563,7 +584,7 @@ function LinksNav({
                   )}
                 >
                   <Icon className="h-3.5 w-3.5 shrink-0" />
-                  <span className="flex-1 truncate">{item.label}</span>
+                  <span className="flex-1 truncate">{t(item.labelKey)}</span>
                   <span className="tabular text-[11px] text-fg-subtle">{counts[item.id]}</span>
                 </Link>
               );

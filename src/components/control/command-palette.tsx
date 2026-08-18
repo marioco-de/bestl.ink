@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { signOut } from "@/lib/auth/client";
 import { useTheme } from "@/lib/theme";
+import { useT } from "@/lib/i18n";
 
 export function CommandPalette({
   open,
@@ -34,6 +35,7 @@ export function CommandPalette({
 }) {
   const navigate = useNavigate();
   const { cycle } = useTheme();
+  const t = useT();
   const [q, setQ] = useState("");
 
   useEffect(() => {
@@ -53,26 +55,26 @@ export function CommandPalette({
         type="button"
         className="absolute inset-0 bg-fg/30 backdrop-blur-sm"
         onClick={() => onOpenChange(false)}
-        aria-label="Schließen"
+        aria-label={t("common.close")}
       />
       <Command
         className="relative z-10 w-full max-w-lg overflow-hidden rounded-xl border border-border bg-bg-elevated shadow-2xl"
-        label="Befehlspalette"
+        label={t("cmd.label")}
       >
         <Command.Input
           value={q}
           onValueChange={setQ}
-          placeholder="Link suchen, Seite öffnen…"
+          placeholder={t("cmd.placeholder")}
           className="h-12 w-full border-b border-border bg-transparent px-4 text-sm outline-none placeholder:text-fg-subtle"
         />
         <Command.List className="max-h-80 overflow-y-auto p-1.5">
           <Command.Empty className="px-3 py-6 text-center text-sm text-fg-muted">
-            Nichts gefunden
+            {t("cmd.empty")}
           </Command.Empty>
-          <Command.Group heading="Aktionen" className="px-1 py-1 text-[11px] text-fg-subtle">
+          <Command.Group heading={t("cmd.actions")} className="px-1 py-1 text-[11px] text-fg-subtle">
             <Row
               icon={Plus}
-              label="Neuen Link kürzen"
+              label={t("cmd.newLink")}
               kbd="C"
               onSelect={() => {
                 onOpenChange(false);
@@ -81,7 +83,7 @@ export function CommandPalette({
             />
             <Row
               icon={Sun}
-              label="Theme wechseln"
+              label={t("cmd.theme")}
               kbd="T"
               onSelect={() => {
                 cycle();
@@ -90,7 +92,7 @@ export function CommandPalette({
             />
             <Row
               icon={Keyboard}
-              label="Tastenkürzel"
+              label={t("cmd.shortcuts")}
               kbd="?"
               onSelect={() => {
                 onOpenChange(false);
@@ -98,25 +100,25 @@ export function CommandPalette({
               }}
             />
           </Command.Group>
-          <Command.Group heading="Gehe zu" className="px-1 py-1 text-[11px] text-fg-subtle">
-            <Row icon={LayoutDashboard} label="Übersicht" kbd="G H" onSelect={() => go("/control")} />
-            <Row icon={Link2} label="URLs" kbd="G L" onSelect={() => go("/control/links", { tab: "urls" })} />
-            <Row icon={FileText} label="Dokumente" onSelect={() => go("/control/links", { tab: "docs" })} />
-            <Row icon={Globe} label="Seiten" onSelect={() => go("/control/links", { tab: "pages" })} />
-            <Row icon={CalendarDays} label="Termine" onSelect={() => go("/control/links", { tab: "events" })} />
-            <Row icon={Contact} label="Kontakte" onSelect={() => go("/control/links", { tab: "contacts" })} />
-            <Row icon={Link2} label="Geteilt" onSelect={() => go("/control/links", { tab: "shared" })} />
-            <Row icon={GitBranch} label="Parameter" onSelect={() => go("/control/parameters")} />
-            <Row icon={Inbox} label="Anfragen" onSelect={() => go("/control/requests")} />
-            <Row icon={Settings} label="Domain" onSelect={() => go("/control/domain")} />
-            {isSuper && (
-              <Row icon={Settings} label="Kunden" onSelect={() => go("/control/customers")} />
-            )}
+          <Command.Group heading={t("cmd.go")} className="px-1 py-1 text-[11px] text-fg-subtle">
+            <Row icon={LayoutDashboard} label={t("nav.overview")} kbd="G H" onSelect={() => go("/control")} />
+            <Row icon={Link2} label={t("nav.urls")} kbd="G L" onSelect={() => go("/control/links", { tab: "urls" })} />
+            <Row icon={FileText} label={t("nav.docs")} onSelect={() => go("/control/links", { tab: "docs" })} />
+            <Row icon={Globe} label={t("nav.pages")} onSelect={() => go("/control/links", { tab: "pages" })} />
+            <Row icon={CalendarDays} label={t("nav.events")} onSelect={() => go("/control/links", { tab: "events" })} />
+            <Row icon={Contact} label={t("nav.contacts")} onSelect={() => go("/control/links", { tab: "contacts" })} />
+            <Row icon={Link2} label={t("nav.shared")} onSelect={() => go("/control/links", { tab: "shared" })} />
+            <Row icon={GitBranch} label={t("nav.parameters")} onSelect={() => go("/control/parameters")} />
+            <Row icon={Inbox} label={t("nav.requests")} onSelect={() => go("/control/requests")} />
+            <Row icon={Settings} label={t("nav.domains")} onSelect={() => go("/control/domain")} />
+              {isSuper && (
+              <Row icon={Settings} label={t("nav.customers")} onSelect={() => go("/control/customers")} />
+              )}
           </Command.Group>
-          <Command.Group heading="Account" className="px-1 py-1 text-[11px] text-fg-subtle">
+          <Command.Group heading={t("cmd.account")} className="px-1 py-1 text-[11px] text-fg-subtle">
             <Row
               icon={LogOut}
-              label="Abmelden"
+              label={t("nav.signOut")}
               onSelect={() => {
                 onOpenChange(false);
                 void signOut("/login");

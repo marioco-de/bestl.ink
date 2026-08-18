@@ -8,6 +8,7 @@ import { createWorkspace } from "@/lib/docbay/api";
 import { useControl } from "@/lib/docbay/control-store";
 import type { FullState } from "@/lib/docbay/types";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 
 export function WorkspaceSwitcher({
   data,
@@ -18,6 +19,7 @@ export function WorkspaceSwitcher({
 }) {
   const navigate = useNavigate();
   const { setData, switchWorkspace, prefetchWorkspace } = useControl();
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [company, setCompany] = useState("");
@@ -38,7 +40,7 @@ export function WorkspaceSwitcher({
 
   async function create() {
     if (!company.trim()) {
-      toast.error("Name erforderlich");
+      toast.error(t("workspace.nameRequired"));
       return;
     }
     setBusy(true);
@@ -47,7 +49,7 @@ export function WorkspaceSwitcher({
         data: { company: company.trim() },
       })) as FullState;
       setData(next);
-      toast.success("Workspace angelegt");
+      toast.success(t("workspace.created"));
       setCreating(false);
       setCompany("");
       setOpen(false);
@@ -58,7 +60,7 @@ export function WorkspaceSwitcher({
         }),
       } as never);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Fehler");
+      toast.error(err instanceof Error ? err.message : t("common.error"));
     } finally {
       setBusy(false);
     }
@@ -84,7 +86,7 @@ export function WorkspaceSwitcher({
           <button
             type="button"
             className="fixed inset-0 z-40"
-            aria-label="Schließen"
+            aria-label={t("common.close")}
             onClick={() => {
               setOpen(false);
               setCreating(false);
@@ -109,11 +111,11 @@ export function WorkspaceSwitcher({
             <div className="border-t border-border p-2">
               {creating ? (
                 <div className="space-y-2">
-                  <Label>Neuer Workspace</Label>
+                  <Label>{t("workspace.new")}</Label>
                   <Input
                     value={company}
                     onChange={(e) => setCompany(e.target.value)}
-                    placeholder="Firma oder Projekt"
+                    placeholder={t("workspace.placeholder")}
                     autoFocus
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
@@ -124,7 +126,7 @@ export function WorkspaceSwitcher({
                   />
                   <div className="flex gap-1">
                     <Button size="sm" className="h-8 flex-1" disabled={busy} onClick={() => void create()}>
-                      {busy ? "…" : "Anlegen"}
+                      {busy ? t("common.loading") : t("common.create")}
                     </Button>
                     <Button
                       size="sm"
@@ -132,7 +134,7 @@ export function WorkspaceSwitcher({
                       className="h-8"
                       onClick={() => setCreating(false)}
                     >
-                      Abbrechen
+                      {t("common.cancel")}
                     </Button>
                   </div>
                 </div>
@@ -142,7 +144,7 @@ export function WorkspaceSwitcher({
                   className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-xs text-fg-muted hover:bg-bg-subtle hover:text-fg"
                   onClick={() => setCreating(true)}
                 >
-                  <Plus className="h-3.5 w-3.5" /> Weiteren Workspace
+                  <Plus className="h-3.5 w-3.5" /> {t("workspace.more")}
                 </button>
               )}
             </div>
