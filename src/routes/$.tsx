@@ -347,6 +347,8 @@ function GrantedView({
 }) {
   const { resource, settings, link, features } = data;
   const [chatOpen, setChatOpen] = useState(false);
+  const [askEmail, setAskEmail] = useState(false);
+  const [chatEmail, setChatEmail] = useState(data.visitor_email || "");
   const [messages, setMessages] = useState<
     { id: string; sender_type: string; sender_name: string; body: string }[]
   >([]);
@@ -426,7 +428,23 @@ function GrantedView({
             <Lock className="mr-1 h-3 w-3" /> Geschützt
           </Badge>
           {features.chat && (
-            <Button size="sm" variant="secondary" onClick={() => setChatOpen((v) => !v)}>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => {
+                const known =
+                  (data.visitor_email || "").trim() ||
+                  (typeof window !== "undefined"
+                    ? localStorage.getItem(`bestlink_chat_email_${resource.id}`) || ""
+                    : "");
+                if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(known)) {
+                  setChatEmail(known);
+                  setChatOpen((v) => !v);
+                  return;
+                }
+                setAskEmail(true);
+              }}
+            >
               <MessageSquare className="h-4 w-4" /> Chat
             </Button>
           )}
@@ -535,7 +553,7 @@ function GrantedView({
                     link_id: link?.id,
                     visitor_key: visitorKey,
                     sender_type: "visitor",
-                    sender_name: "Besucher",
+                    sender_name: chatEmail.trim() || "Besucher",
                     body: chatBody.trim(),
                   },
                 });
@@ -558,6 +576,44 @@ function GrantedView({
           </aside>
         )}
       </div>
+      {askEmail && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-fg/30 p-4">
+          <form
+            className="w-full max-w-sm space-y-3 rounded-lg border border-border bg-bg-elevated p-4 shadow-xl"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const mail = chatEmail.trim().toLowerCase();
+              if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) {
+                toast.error("E-Mail fehlt");
+                return;
+              }
+              localStorage.setItem(`bestlink_chat_email_${resource.id}`, mail);
+              setChatEmail(mail);
+              setAskEmail(false);
+              setChatOpen(true);
+            }}
+          >
+            <p className="text-sm font-medium">E-Mail für den Chat</p>
+            <p className="text-xs text-fg-muted">Damit das Team antworten kann.</p>
+            <Input
+              type="email"
+              required
+              autoFocus
+              value={chatEmail}
+              onChange={(e) => setChatEmail(e.target.value)}
+              placeholder="sarah.b@example.net"
+            />
+            <div className="flex justify-end gap-2">
+              <Button type="button" size="sm" variant="secondary" onClick={() => setAskEmail(false)}>
+                Abbrechen
+              </Button>
+              <Button type="submit" size="sm">
+                Chat starten
+              </Button>
+            </div>
+          </form>
+        </div>
+      )}
       <BrandFlag />
     </div>
   );

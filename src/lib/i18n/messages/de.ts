@@ -35,6 +35,7 @@ export const de = {
     links: "Links",
     parameters: "Parameter",
     requests: "Anfragen",
+    chat: "Chat",
     settings: "Einstellungen",
     workspace: "Workspace",
     customers: "Kunden",
@@ -297,6 +298,18 @@ export const de = {
     groupTitle: "Gruppe",
     groupName: "Name der Gruppe",
     groupColor: "Farbe der Gruppe",
+  },
+  chat: {
+    title: "Dokumenten-Chat",
+    hint: "Nachrichten zu Dokumenten, die Besucher im Viewer schreiben.",
+    empty: "Noch keine Chats.",
+    pick: "Einen Chat wählen",
+    reply: "Antworten…",
+    visitor: "Besucher",
+    needEmail: "E-Mail für den Chat",
+    needEmailHint: "Damit das Team antworten kann.",
+    start: "Chat starten",
+    emailPh: "sarah.b@example.net",
   },
 };
 

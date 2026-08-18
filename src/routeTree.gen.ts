@@ -18,6 +18,7 @@ import { Route as SignupRouteImport } from './routes/signup'
 import { Route as ApiUploadsRouteImport } from './routes/api/uploads'
 import { Route as ControlIndexRouteImport } from './routes/control/index'
 import { Route as ControlAuditRouteImport } from './routes/control/audit'
+import { Route as ControlChatRouteImport } from './routes/control/chat'
 import { Route as ControlCustomersRouteImport } from './routes/control/customers'
 import { Route as ControlDomainRouteImport } from './routes/control/domain'
 import { Route as ControlEmailRouteImport } from './routes/control/email'
@@ -77,6 +78,11 @@ const ControlIndexRoute = ControlIndexRouteImport.update({
 const ControlAuditRoute = ControlAuditRouteImport.update({
   id: '/audit',
   path: '/audit',
+  getParentRoute: () => ControlRoute,
+} as any)
+const ControlChatRoute = ControlChatRouteImport.update({
+  id: '/chat',
+  path: '/chat',
   getParentRoute: () => ControlRoute,
 } as any)
 const ControlCustomersRoute = ControlCustomersRouteImport.update({
@@ -164,6 +170,7 @@ export interface FileRoutesByFullPath {
   '/signup': typeof SignupRoute
   '/api/uploads': typeof ApiUploadsRoute
   '/control/audit': typeof ControlAuditRoute
+  '/control/chat': typeof ControlChatRoute
   '/control/customers': typeof ControlCustomersRoute
   '/control/domain': typeof ControlDomainRoute
   '/control/email': typeof ControlEmailRoute
@@ -189,6 +196,7 @@ export interface FileRoutesByTo {
   '/signup': typeof SignupRoute
   '/api/uploads': typeof ApiUploadsRoute
   '/control/audit': typeof ControlAuditRoute
+  '/control/chat': typeof ControlChatRoute
   '/control/customers': typeof ControlCustomersRoute
   '/control/domain': typeof ControlDomainRoute
   '/control/email': typeof ControlEmailRoute
@@ -216,6 +224,7 @@ export interface FileRoutesById {
   '/signup': typeof SignupRoute
   '/api/uploads': typeof ApiUploadsRoute
   '/control/audit': typeof ControlAuditRoute
+  '/control/chat': typeof ControlChatRoute
   '/control/customers': typeof ControlCustomersRoute
   '/control/domain': typeof ControlDomainRoute
   '/control/email': typeof ControlEmailRoute
@@ -244,6 +253,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/api/uploads'
     | '/control/audit'
+    | '/control/chat'
     | '/control/customers'
     | '/control/domain'
     | '/control/email'
@@ -269,6 +279,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/api/uploads'
     | '/control/audit'
+    | '/control/chat'
     | '/control/customers'
     | '/control/domain'
     | '/control/email'
@@ -295,6 +306,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/api/uploads'
     | '/control/audit'
+    | '/control/chat'
     | '/control/customers'
     | '/control/domain'
     | '/control/email'
@@ -390,6 +402,13 @@ declare module '@tanstack/react-router' {
       path: '/audit'
       fullPath: '/control/audit'
       preLoaderRoute: typeof ControlAuditRouteImport
+      parentRoute: typeof ControlRoute
+    }
+    '/control/chat': {
+      id: '/control/chat'
+      path: '/chat'
+      fullPath: '/control/chat'
+      preLoaderRoute: typeof ControlChatRouteImport
       parentRoute: typeof ControlRoute
     }
     '/control/customers': {
@@ -502,6 +521,7 @@ declare module '@tanstack/react-router' {
 
 interface ControlRouteChildren {
   ControlAuditRoute: typeof ControlAuditRoute
+  ControlChatRoute: typeof ControlChatRoute
   ControlCustomersRoute: typeof ControlCustomersRoute
   ControlDomainRoute: typeof ControlDomainRoute
   ControlEmailRoute: typeof ControlEmailRoute
@@ -518,6 +538,7 @@ interface ControlRouteChildren {
 
 const ControlRouteChildren: ControlRouteChildren = {
   ControlAuditRoute: ControlAuditRoute,
+  ControlChatRoute: ControlChatRoute,
   ControlCustomersRoute: ControlCustomersRoute,
   ControlDomainRoute: ControlDomainRoute,
   ControlEmailRoute: ControlEmailRoute,

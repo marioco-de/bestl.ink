@@ -1427,6 +1427,7 @@ export const resolveAccess = createServerFn({ method: "POST" })
       content_data_url: null as string | null,
       target_url: null as string | null,
       download_url: null as string | null,
+      visitor_email: null as string | null,
       link: null as null | {
         id: string;
         token: string;
@@ -1543,12 +1544,23 @@ export const resolveAccess = createServerFn({ method: "POST" })
         ? Boolean(link.allow_download)
         : Boolean(resource.allow_download);
 
+    const ndaRow = (
+      await sql`
+        select email from db_nda_acceptances
+        where link_id = ${String(link.id)}
+        order by created_at desc
+        limit 1
+      `
+    )[0] as { email?: string } | undefined;
+    const visitorEmail = ndaRow?.email ? String(ndaRow.email).trim().toLowerCase() : null;
+
     return {
       ...base,
       access: "granted" as const,
       content_data_url,
       target_url,
       download_url,
+      visitor_email: visitorEmail,
       link: {
         id: String(link.id),
         token: String(link.token),
@@ -1667,17 +1679,113 @@ export const postChat = createServerFn({ method: "POST" })
       await sql`select tenant_id from db_resources where id = ${data.resource_id}`
     )[0] as { tenant_id: string } | undefined;
     if (!res) throw new Error("NOT_FOUND");
+    const body = data.body.trim();
+    if (!body) throw new Error("Leere Nachricht");
+    if (data.sender_type === "visitor" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.sender_name.trim())) {
+      throw new Error("E-Mail erforderlich");
+    }
     const id = uid("chat");
     await sql`
       insert into db_chat_messages (
         id, tenant_id, resource_id, link_id, visitor_key, sender_type, sender_name, body
       ) values (
         ${id}, ${res.tenant_id}, ${data.resource_id}, ${data.link_id ?? null},
-        ${data.visitor_key ?? null}, ${data.sender_type}, ${data.sender_name}, ${data.body}
+        ${data.visitor_key ?? null}, ${data.sender_type}, ${data.sender_name.trim()}, ${body}
       )
     `;
+    if (data.sender_type === "visitor") {
+      const staff = await sql`
+        select user_id from db_tenant_members
+        where tenant_id = ${res.tenant_id} and role in ('owner', 'admin')
+      `;
+      const title = (
+        await sql`select title from db_resources where id = ${data.resource_id} limit 1`
+      )[0] as { title?: string } | undefined;
+      for (const s of staff as { user_id: string }[]) {
+        await notify(
+          res.tenant_id,
+          s.user_id,
+          `Chat: ${title?.title || "Dokument"}`,
+          `${data.sender_name.trim()}: ${body.slice(0, 120)}`,
+          "/control/chat",
+        );
+      }
+    }
     return { ok: true, id };
   });
+
+export const listChatInbox = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .inputValidator((d: { tenant_id?: string } | undefined) => d ?? {})
+  .handler(async ({ context, data }) => {
+    const mem = await getMembership(context.userId, data?.tenant_id);
+    if (!mem || mem.tenant.id === "platform") throw new Error("Kein Workspace");
+    const sql = await getSql();
+    const rows = await sql`
+      select
+        c.resource_id,
+        r.title as resource_title,
+        r.slug as resource_slug,
+        (select m.body from db_chat_messages m
+          where m.resource_id = c.resource_id
+          order by m.created_at desc limit 1) as last_body,
+        (select m.sender_name from db_chat_messages m
+          where m.resource_id = c.resource_id and m.sender_type = 'visitor'
+          order by m.created_at desc limit 1) as last_visitor,
+        max(c.created_at) as last_at,
+        count(*)::int as n
+      from db_chat_messages c
+      join db_resources r on r.id = c.resource_id
+      where c.tenant_id = ${mem.tenant.id}
+      group by c.resource_id, r.title, r.slug
+      order by last_at desc
+    `;
+    return rows.map((r) => {
+      const row = r as Record<string, unknown>;
+      return {
+        resource_id: String(row.resource_id),
+        resource_title: String(row.resource_title || ""),
+        resource_slug: String(row.resource_slug || ""),
+        last_body: String(row.last_body || ""),
+        last_visitor: String(row.last_visitor || ""),
+        last_at: new Date(row.last_at as string).toISOString(),
+        n: Number(row.n || 0),
+      };
+    });
+  });
+
+export const replyChat = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .inputValidator((d: { resource_id: string; body: string; tenant_id?: string }) => d)
+  .handler(async ({ context, data }) => {
+    const mem = await getMembership(context.userId, data.tenant_id);
+    if (!mem || mem.tenant.id === "platform") throw new Error("Kein Workspace");
+    const sql = await getSql();
+    const res = (
+      await sql`
+        select id from db_resources
+        where id = ${data.resource_id} and tenant_id = ${mem.tenant.id}
+        limit 1
+      `
+    )[0] as { id?: string } | undefined;
+    if (!res?.id) throw new Error("NOT_FOUND");
+    const body = data.body.trim();
+    if (!body) throw new Error("Leere Nachricht");
+    const u = (
+      await sql`select name, email from "user" where id = ${context.userId} limit 1`
+    )[0] as { name?: string; email?: string } | undefined;
+    const name = (u?.name || u?.email || "Team").trim();
+    const id = uid("chat");
+    await sql`
+      insert into db_chat_messages (
+        id, tenant_id, resource_id, sender_type, sender_name, body
+      ) values (
+        ${id}, ${mem.tenant.id}, ${data.resource_id}, ${"staff"}, ${name}, ${body}
+      )
+    `;
+    return listChat({ data: { resource_id: data.resource_id } });
+  });
+
 
 export const getLinkAnalytics = createServerFn({ method: "POST" })
   .middleware([authMiddleware])

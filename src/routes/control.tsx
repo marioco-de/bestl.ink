@@ -17,6 +17,7 @@ import {
   Globe2,
   Inbox,
   Mail,
+  MessageSquare,
   Menu,
   X,
   Webhook,
@@ -72,7 +73,7 @@ export const Route = createFileRoute("/control")({
 });
 
 const primaryNav: {
-  to: "/control" | "/control/stats" | "/control/links" | "/control/parameters" | "/control/requests";
+  to: "/control" | "/control/stats" | "/control/links" | "/control/parameters" | "/control/requests" | "/control/chat";
   labelKey: string;
   icon: typeof LayoutDashboard;
   exact?: boolean;
@@ -83,6 +84,7 @@ const primaryNav: {
   { to: "/control/links", labelKey: "nav.links", icon: Link2, hue: "azure" },
   { to: "/control/parameters", labelKey: "nav.parameters", icon: GitBranch, hue: "amber" },
   { to: "/control/requests", labelKey: "nav.requests", icon: Inbox, hue: "ruby" },
+  { to: "/control/chat", labelKey: "nav.chat", icon: MessageSquare, hue: "violet" },
 ];
 
 const settingsNav: {

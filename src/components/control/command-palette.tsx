@@ -8,6 +8,7 @@ import {
   LayoutDashboard,
   GitBranch,
   Inbox,
+  MessageSquare,
   Settings,
   Sun,
   LogOut,
@@ -113,6 +114,7 @@ export function CommandPalette({
             <Row icon={Link2} label={t("nav.shared")} onSelect={() => go("/control/links", { tab: "shared" })} />
             <Row icon={GitBranch} label={t("nav.parameters")} onSelect={() => go("/control/parameters")} />
             <Row icon={Inbox} label={t("nav.requests")} onSelect={() => go("/control/requests")} />
+            <Row icon={MessageSquare} label={t("nav.chat")} onSelect={() => go("/control/chat")} />
             <Row icon={Building2} label={t("nav.workspace")} onSelect={() => go("/control/workspace")} />
             <Row icon={Settings} label={t("nav.domains")} onSelect={() => go("/control/domain")} />
               {isSuper && (
