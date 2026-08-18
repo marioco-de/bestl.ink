@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import {
   FileText,
   Globe,
+  Pencil,
   Plus,
   Trash2,
   Link2,
@@ -54,7 +55,7 @@ export function ResourcesWorkspace({
   const setGlobal = useSetControlData();
   const t = useT();
   const [state, setState] = useState<FullState>(data);
-  const [showForm, setShowForm] = useState(false);
+  const [formFor, setFormFor] = useState<Resource | "new" | null>(null);
   const [generateFor, setGenerateFor] = useState<Resource | null>(null);
 
   useEffect(() => {
@@ -82,7 +83,7 @@ export function ResourcesWorkspace({
             Dokumente und Webseiten – ohne Token nur „Zugriff anfragen“.
           </p>
         </div>
-        <Button onClick={() => setShowForm(true)}>
+        <Button onClick={() => setFormFor("new")}>
           <Plus className="h-4 w-4" /> Inhalt hinzufügen
         </Button>
       </div>
@@ -92,7 +93,7 @@ export function ResourcesWorkspace({
           <HueButton
             hue={typeFilter === "page" ? "lime" : "violet"}
             size="sm"
-            onClick={() => setShowForm(true)}
+            onClick={() => setFormFor("new")}
           >
             <Plus className="h-4 w-4" />{" "}
             {typeFilter === "page" ? "Seite" : "Dokument"}
@@ -100,15 +101,16 @@ export function ResourcesWorkspace({
         </div>
       )}
 
-      {showForm && (
+      {formFor && (
         <ResourceForm
           tenantId={state.tenant.id}
           defaultType={typeFilter === "page" ? "page" : "document"}
-          onCancel={() => setShowForm(false)}
+          initial={formFor === "new" ? undefined : formFor}
+          onCancel={() => setFormFor(null)}
           onCreated={async (s) => {
             await refresh(s as FullState);
-            setShowForm(false);
-            toast.success("Inhalt angelegt");
+            setFormFor(null);
+            toast.success(formFor === "new" ? "Inhalt angelegt" : t("common.saved"));
           }}
         />
       )}
@@ -148,59 +150,6 @@ export function ResourcesWorkspace({
                       ))}
                     </div>
                   )}
-                  <div className="mt-2">
-                    <TagPicker
-                      iconOnly
-                      catalog={state.tags}
-                      value={r.tags ?? []}
-                      onChange={(tags) => {
-                        void updateResource({
-                          data: { id: r.id, tags, tenant_id: state.tenant.id },
-                        }).then((s) => refresh(s as FullState));
-                      }}
-                      onCreate={async (name, color) => {
-                        const s = (await createTag({
-                          data: { name, color, tenant_id: state.tenant.id },
-                        })) as FullState;
-                        await refresh(s);
-                      }}
-                    />
-                  </div>
-                  {r.type === "document" && (
-                    <div className="mt-3 space-y-2">
-                      <p className="mb-1 text-xs font-medium">{t("doc.actions")}</p>
-                      <DocActionPicker
-                        value={parseDocActions(r.payload)}
-                        onChange={(actions) => {
-                          void updateResource({
-                            data: {
-                              id: r.id,
-                              payload: actionsPayload(actions, r.payload),
-                              tenant_id: state.tenant.id,
-                            },
-                          }).then((s) => refresh(s as FullState));
-                        }}
-                      />
-                      <label className="block text-xs font-medium">{t("doc.chatMode")}</label>
-                      <select
-                        className="h-8 w-full max-w-xs rounded-md border border-border bg-bg px-2 text-xs"
-                        value={parseChatMode(r.payload)}
-                        onChange={(e) => {
-                          void updateResource({
-                            data: {
-                              id: r.id,
-                              payload: withChatMode(e.target.value as ChatMode, r.payload),
-                              tenant_id: state.tenant.id,
-                            },
-                          }).then((s) => refresh(s as FullState));
-                        }}
-                      >
-                        <option value="off">{t("doc.chatOff")}</option>
-                        <option value="shared">{t("doc.chatShared")}</option>
-                        <option value="per_email">{t("doc.chatPerEmail")}</option>
-                      </select>
-                    </div>
-                  )}
                   {r.type === "document" && (
                     <p className="mt-1 text-xs text-fg-subtle">
                       {r.file_name || "Datei"} · {formatBytes(r.file_size)}
@@ -214,6 +163,9 @@ export function ResourcesWorkspace({
                 </div>
               </div>
               <div className="flex shrink-0 gap-2">
+                <Button size="sm" variant="secondary" onClick={() => setFormFor(r)}>
+                  <Pencil className="h-4 w-4" /> {t("common.edit")}
+                </Button>
                 <Button size="sm" onClick={() => setGenerateFor(r)}>
                   <Link2 className="h-4 w-4" /> Link generieren
                 </Button>
@@ -254,25 +206,28 @@ export function ResourcesWorkspace({
 function ResourceForm({
   tenantId,
   defaultType = "document",
+  initial,
   onCancel,
   onCreated,
 }: {
   tenantId: string;
   defaultType?: "document" | "page";
+  initial?: Resource;
   onCancel: () => void;
   onCreated: (s: FullState) => void;
 }) {
   const catalog = useControlData().tags;
   const t = useT();
-  const [type, setType] = useState<"document" | "page">(defaultType);
-  const [title, setTitle] = useState("");
-  const [slug, setSlug] = useState("");
-  const [slugTouched, setSlugTouched] = useState(false);
-  const [description, setDescription] = useState("");
-  const [pageUrl, setPageUrl] = useState("");
-  const [tags, setTags] = useState<string[]>([]);
-  const [actions, setActions] = useState<DocAction[]>([]);
-  const [chatMode, setChatMode] = useState<ChatMode>("shared");
+  const editing = Boolean(initial);
+  const [type, setType] = useState<"document" | "page">(initial?.type === "page" ? "page" : defaultType);
+  const [title, setTitle] = useState(initial?.title ?? "");
+  const [slug, setSlug] = useState(initial?.slug ?? "");
+  const [slugTouched, setSlugTouched] = useState(Boolean(initial));
+  const [description, setDescription] = useState(initial?.description ?? "");
+  const [pageUrl, setPageUrl] = useState(initial?.content_url ?? "");
+  const [tags, setTags] = useState<string[]>(initial?.tags ?? []);
+  const [actions, setActions] = useState<DocAction[]>(() => parseDocActions(initial?.payload));
+  const [chatMode, setChatMode] = useState<ChatMode>(() => parseChatMode(initial?.payload));
   const [file, setFile] = useState<{
     raw: File;
     name: string;
@@ -356,7 +311,7 @@ function ResourceForm({
       toast.error("Ziel-URL erforderlich");
       return;
     }
-    if (type === "document" && !file) {
+    if (type === "document" && !file && !editing) {
       toast.error("Bitte Datei hochladen");
       return;
     }
@@ -372,22 +327,35 @@ function ResourceForm({
         const uploaded = await uploadFile(file.raw);
         uploadId = uploaded;
       }
-      const s = await createResource({
-        data: {
-          type,
-          title: title.trim(),
-          slug: slug.trim().replace(/^\//, ""),
-          description: description.trim(),
-          content_url: type === "page" ? pageUrl.trim() : undefined,
-          upload_id: uploadId,
-          mime_type: type === "document" ? file!.mime : undefined,
-          file_name: type === "document" ? file!.name : undefined,
-          file_size: type === "document" ? file!.size : undefined,
-          tags,
-          payload: type === "document" ? withChatMode(chatMode, actionsPayload(actions)) : undefined,
-          tenant_id: tenantId,
-        },
-      });
+      const payload = type === "document" ? withChatMode(chatMode, actionsPayload(actions, initial?.payload)) : initial?.payload;
+      const s = editing
+        ? await updateResource({
+            data: {
+              id: initial!.id,
+              title: title.trim(),
+              slug: slug.trim().replace(/^\//, ""),
+              description: description.trim(),
+              tags,
+              payload,
+              tenant_id: tenantId,
+            },
+          })
+        : await createResource({
+            data: {
+              type,
+              title: title.trim(),
+              slug: slug.trim().replace(/^\//, ""),
+              description: description.trim(),
+              content_url: type === "page" ? pageUrl.trim() : undefined,
+              upload_id: uploadId,
+              mime_type: type === "document" ? file!.mime : undefined,
+              file_name: type === "document" ? file!.name : undefined,
+              file_size: type === "document" ? file!.size : undefined,
+              tags,
+              payload,
+              tenant_id: tenantId,
+            },
+          });
       onCreated(s as FullState);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Speichern fehlgeschlagen");
@@ -399,8 +367,8 @@ function ResourceForm({
 
   return (
     <FullScreenModal
-      title="Inhalt hinzufügen"
-      description="Dokument hochladen oder interne Seite hinter einer geschützten URL."
+      title={editing ? t("common.edit") : "Inhalt hinzufügen"}
+      description={editing ? initial?.title : "Dokument hochladen oder interne Seite hinter einer geschützten URL."}
       onClose={onCancel}
       footer={
         <>
@@ -413,11 +381,12 @@ function ResourceForm({
             disabled={busy}
             onClick={() => void submit()}
           >
-            {busy ? "Speichern…" : "Anlegen"}
+            {busy ? t("common.loading") : editing ? t("common.save") : "Anlegen"}
           </Button>
         </>
       }
     >
+      {!editing && (
       <div className="flex gap-2">
         {(
           [
@@ -439,6 +408,7 @@ function ResourceForm({
           </button>
         ))}
       </div>
+      )}
       <div>
         <Label>Titel</Label>
         <Input
@@ -481,6 +451,8 @@ function ResourceForm({
       </div>
       {type === "document" ? (
         <div>
+          {!editing && (
+            <>
           <Label>Datei hochladen</Label>
           <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-md border border-dashed border-border bg-bg-elevated px-4 py-10 text-center hover:border-border-strong">
             <Upload className="h-6 w-6 text-fg-subtle" />
@@ -506,6 +478,8 @@ function ResourceForm({
               </div>
               <p className="mt-1 text-xs text-fg-subtle">Upload {progress}%</p>
             </div>
+          )}
+            </>
           )}
           <div className="mt-4">
             <Label>{t("doc.actions")}</Label>
