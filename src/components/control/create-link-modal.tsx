@@ -28,18 +28,31 @@ import { cn } from "@/lib/utils";
 import type { FullState } from "@/lib/docbay/types";
 import { QrDrawer } from "./qr-drawer";
 import { TagPicker } from "./tag-picker";
-import { createTag } from "@/lib/docbay/api";
+import { createTag, createResource, generateLink, createParamNode } from "@/lib/docbay/api";
+import { slugify } from "@/lib/utils";
 import { pinShortDash } from "@/lib/docbay/dashboard-api";
 import { upsertShort } from "@/lib/docbay/state-patch";
 import { useT } from "@/lib/i18n";
 
 type Extra = "campaign" | "device" | "lock" | "ttl" | null;
 
+function slugFromPageUrl(raw: string) {
+  try {
+    const href = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+    const u = new URL(href);
+    const last = u.pathname.split("/").filter(Boolean).pop() || u.hostname.split(".")[0] || "";
+    const clean = slugify(last.replace(/\.[a-z0-9]{1,8}$/i, "")).slice(0, 40);
+    return clean || "";
+  } catch {
+    return "";
+  }
+}
+
 export function CreateLinkModal() {
   const { data, setData, createOpen, createSeed, createKind, setCreateKind, closeCreate } =
     useControl();
   if (!createOpen) return null;
-  if (createKind === "document" || createKind === "page") {
+  if (createKind === "document") {
     return (
       <ResourceForm
         tenantId={data.tenant.id}
@@ -182,6 +195,12 @@ function Editor({
     } as never);
   }
 
+  useEffect(() => {
+    if (kind !== "page") return;
+    const next = slugFromPageUrl(destination);
+    if (next) setSlug(next);
+  }, [destination, kind]);
+
   async function save() {
     const dest = withHttp(destination);
     if (!dest) {
@@ -191,6 +210,47 @@ function Editor({
     const withProto = /^https?:\/\//i.test(dest) ? dest : `https://${dest}`;
     setBusy(true);
     try {
+      if (kind === "page") {
+        const pageSlug = (slug || slugFromPageUrl(withProto) || genToken(5))
+          .replace(/^\//, "")
+          .replace(/\/$/, "");
+        const title = shareTitle.trim() || note.trim() || pageSlug;
+        let state = data;
+        let buttonId = state.params.find((p) => p.kind === "button")?.id;
+        if (!buttonId) {
+          state = (await createParamNode({
+            data: { name: "Direkt", kind: "button" },
+          })) as FullState;
+          buttonId = state.params.find((p) => p.kind === "button")?.id;
+        }
+        if (!buttonId) throw new Error("Kein Button");
+        state = (await createResource({
+          data: {
+            type: "page",
+            title,
+            slug: pageSlug,
+            content_url: withProto,
+            tags,
+            tenant_id: data.tenant.id,
+          },
+        })) as FullState;
+        const resource = state.resources.find((r) => r.slug === pageSlug);
+        if (!resource) throw new Error("Seite nicht angelegt");
+        const made = await generateLink({
+          data: {
+            resource_id: resource.id,
+            button_id: buttonId,
+            note: note.trim(),
+            tags,
+            expires_hours: expiresHours ? Number(expiresHours) : null,
+            password: password || undefined,
+          },
+        });
+        if (made.state) state = made.state as FullState;
+        toast.success(t("short.ready", { path: `${host}/${pageSlug}?access=${made.token}` }));
+        onSaved(state);
+        return;
+      }
       const created = await createShort({
         data: {
           destination: withProto,
@@ -259,9 +319,11 @@ function Editor({
           <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
             <div>
               <h2 className="font-display text-base font-semibold tracking-tight">
-                {t("short.createTitle")}
+                {kind === "page" ? t("create.page") : t("short.createTitle")}
               </h2>
-              <p className="text-[12px] text-fg-subtle">{t("short.createHint")}</p>
+              <p className="text-[12px] text-fg-subtle">
+                {kind === "page" ? t("create.pageHint") : t("short.createHint")}
+              </p>
             </div>
             <button
               type="button"

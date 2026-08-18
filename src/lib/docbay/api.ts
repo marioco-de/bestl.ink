@@ -624,6 +624,7 @@ export const updateResource = createServerFn({ method: "POST" })
       payload?: JsonObject;
       tags?: string[];
       file_name?: string;
+      content_url?: string;
       tenant_id?: string;
     }) => d,
   )
@@ -645,7 +646,8 @@ export const updateResource = createServerFn({ method: "POST" })
         description = ${data.description ?? String(existing.description ?? "")},
         payload = ${JSON.stringify(data.payload ?? parseJsonObj(existing.payload))},
         tags = ${JSON.stringify(data.tags ?? parseJsonArray(existing.tags))},
-        file_name = ${data.file_name ?? (existing.file_name as string | null)}
+        file_name = ${data.file_name ?? (existing.file_name as string | null)},
+        content_url = ${data.content_url ?? (existing.content_url as string | null)}
       where id = ${data.id} and tenant_id = ${mem.tenant.id}
     `;
     await audit(mem.tenant.id, context.userId, "resource.updated", { id: data.id, slug });

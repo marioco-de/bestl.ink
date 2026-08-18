@@ -206,6 +206,7 @@ export const de = {
     url: "Link",
     doc: "Dokument",
     page: "Seite",
+    pageHint: "Ziel-URL hinter deiner Domain, nur mit Token erreichbar.",
     event: "Termin",
     contact: "Kontakt",
     new: "+ {kind}",

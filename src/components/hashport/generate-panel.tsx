@@ -251,7 +251,7 @@ export function GeneratePanel({
                 Einmal-Link
               </label>
             )}
-            {state.features.download_control && (
+            {state.features.download_control && resource.type !== "page" && (
               <label className="flex items-center gap-2">
                 <input
                   type="checkbox"

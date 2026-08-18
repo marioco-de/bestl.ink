@@ -208,6 +208,7 @@ export const en: Messages = {
     url: "Link",
     doc: "Document",
     page: "Page",
+    pageHint: "Target URL behind your domain, token required.",
     event: "Event",
     contact: "Contact",
     new: "+ {kind}",

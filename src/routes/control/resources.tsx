@@ -17,7 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FullScreenModal } from "@/components/ui/fullscreen-modal";
 import { GeneratePanel } from "@/components/hashport/generate-panel";
-import { useControlData, useSetControlData } from "@/lib/docbay/use-control";
+import { useControlData, useSetControlData, useOpenCreate } from "@/lib/docbay/use-control";
 import { createResource, deleteResource, updateResource, uploadBegin, uploadChunk, createTag } from "@/lib/docbay/api";
 import { formatBytes, slugify, cn, formatDateDe } from "@/lib/utils";
 import { MAX_UPLOAD_BYTES, MAX_UPLOAD_LABEL } from "@/lib/docbay/upload";
@@ -56,6 +56,7 @@ export function ResourcesWorkspace({
   const data = useControlData();
   const setGlobal = useSetControlData();
   const t = useT();
+  const openCreate = useOpenCreate();
   const [state, setState] = useState<FullState>(data);
   const [formFor, setFormFor] = useState<Resource | "new" | null>(null);
   const [generateFor, setGenerateFor] = useState<Resource | null>(null);
@@ -95,7 +96,7 @@ export function ResourcesWorkspace({
           <HueButton
             hue={typeFilter === "page" ? "lime" : "violet"}
             size="sm"
-            onClick={() => setFormFor("new")}
+            onClick={() => openCreate("", typeFilter === "page" ? "page" : "document")}
           >
             <Plus className="h-4 w-4" />{" "}
             {typeFilter === "page" ? "Seite" : "Dokument"}
@@ -125,6 +126,7 @@ export function ResourcesWorkspace({
             i={i}
             tags={state.tags}
             links={state.links}
+            host={state.tenant.public_host}
             onEdit={() => setFormFor(r)}
             onGenerate={() => setGenerateFor(r)}
             onDelete={async () => {
@@ -158,6 +160,7 @@ function ResourceRow({
   i,
   tags,
   links,
+  host,
   onEdit,
   onGenerate,
   onDelete,
@@ -166,6 +169,7 @@ function ResourceRow({
   i: number;
   tags: FullState["tags"];
   links: GeneratedLink[];
+  host: string;
   onEdit: () => void;
   onGenerate: () => void;
   onDelete: () => void;
@@ -241,7 +245,40 @@ function ResourceRow({
           {r.type === "document" && (
             <p>{r.file_name || "Datei"} · {formatBytes(r.file_size)}</p>
           )}
-          {r.type === "page" && r.content_url && <p>Frame → {r.content_url}</p>}
+          {r.type === "page" && r.content_url && <p>→ {r.content_url}</p>}
+          {mine.length > 0 && (
+            <ul className="space-y-1.5">
+              {mine.map((l) => {
+                const url = `https://${host}/${r.slug}${r.type === "page" ? "/" : ""}?access=${l.token}`;
+                return (
+                  <li key={l.id} className="flex items-center justify-between gap-2 rounded-md bg-bg-subtle/70 px-2 py-1.5">
+                    <div className="min-w-0">
+                      <p className="truncate font-mono text-[11px] text-fg">{url}</p>
+                      <p className="text-[10px] text-fg-subtle">
+                        {l.button_name || "Link"}
+                        {l.note ? ` · ${l.note}` : ""}
+                        {` · ${l.human_click_count}`}
+                        {l.last_clicked_at ? ` · ${t("links.lastVisit")} ${formatDateDe(l.last_clicked_at)}` : ""}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      className="shrink-0 text-[11px] text-primary"
+                      onClick={() => {
+                        void navigator.clipboard.writeText(url);
+                        toast.success("Kopiert");
+                      }}
+                    >
+                      Kopieren
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          {mine.length === 0 && (
+            <p>{t("links.none")}</p>
+          )}
         </div>
       )}
     </div>
@@ -384,6 +421,7 @@ export function ResourceForm({
               description: description.trim(),
               tags,
               payload,
+              content_url: type === "page" ? pageUrl.trim() : undefined,
               tenant_id: tenantId,
             },
           })
@@ -434,7 +472,7 @@ export function ResourceForm({
         </>
       }
     >
-      {!editing && (
+      {!editing && !toolbar && (
       <div className="flex gap-2">
         {(
           [
