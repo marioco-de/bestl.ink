@@ -51,6 +51,7 @@ import { NotificationBell } from "@/components/control/notification-bell";
 import { useTheme } from "@/lib/theme";
 import { useI18n, useT } from "@/lib/i18n";
 import { brandVars, hueStyle, TAB_HUES } from "@/lib/docbay/palette";
+import { kindFromRoute, kindMeta } from "@/lib/docbay/create-kind";
 
 type ControlSearch = { tenant?: string };
 
@@ -176,10 +177,12 @@ function ControlShell() {
   const cycleRef = useRef(cycle);
   const navigateRef = useRef(navigate);
   const searchBagRef = useRef(searchBag);
+  const routeRef = useRef({ pathname, linksTab });
   openCreateRef.current = openCreate;
   cycleRef.current = cycle;
   navigateRef.current = navigate;
   searchBagRef.current = searchBag;
+  routeRef.current = { pathname, linksTab };
 
   useEffect(() => {
     const g = { pending: false, timer: 0 };
@@ -216,7 +219,8 @@ function ControlShell() {
       }
       if (e.key.toLowerCase() === "c" && !e.metaKey && !e.ctrlKey && !e.altKey) {
         e.preventDefault();
-        openCreateRef.current();
+        const { pathname: p, linksTab: tab } = routeRef.current;
+        openCreateRef.current("", kindFromRoute(p, tab));
         return;
       }
       if (e.key.toLowerCase() === "t" && !e.metaKey && !e.ctrlKey && !e.altKey) {
@@ -259,6 +263,9 @@ function ControlShell() {
   }, []);
 
   const ThemeIcon = pref === "light" ? Sun : pref === "dark" ? Moon : Monitor;
+  const createKind = kindFromRoute(pathname, linksTab);
+  const createMeta = kindMeta(createKind);
+  const createLabel = t("create.new", { kind: t(createMeta.labelKey) });
 
   const linkCounts: Record<LinksTab, number> = {
     urls: data.shorts.length,
@@ -290,10 +297,11 @@ function ControlShell() {
           <Button
             type="button"
             className="h-10 w-full justify-between text-xs"
-            onClick={() => openCreate()}
+            style={hueStyle(createMeta.hue)}
+            onClick={() => openCreate("", createKind)}
           >
             <span className="flex items-center gap-1.5">
-              <Plus className="h-3.5 w-3.5" /> {t("short.newLink")}
+              <Plus className="h-3.5 w-3.5" /> {createLabel}
             </span>
             <kbd className="rounded border border-primary-fg/20 px-1 font-mono text-[10px] opacity-70">
               C
@@ -479,9 +487,15 @@ function ControlShell() {
           </div>
           <div className="flex items-center gap-1.5">
             <NotificationBell />
-            <Button type="button" size="sm" className="h-10" onClick={() => openCreate()}>
+            <Button
+              type="button"
+              size="sm"
+              className="h-10"
+              style={hueStyle(createMeta.hue)}
+              onClick={() => openCreate("", createKind)}
+            >
               <Plus className="h-3.5 w-3.5" />
-              <span className="hidden @min-[24rem]/app:inline">{t("short.newLink")}</span>
+              <span className="hidden @min-[24rem]/app:inline">{createLabel}</span>
             </Button>
           </div>
         </header>

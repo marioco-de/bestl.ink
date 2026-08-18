@@ -1,5 +1,5 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   FileText,
   Globe,
@@ -248,18 +248,20 @@ function ResourceRow({
   );
 }
 
-function ResourceForm({
+export function ResourceForm({
   tenantId,
   defaultType = "document",
   initial,
   onCancel,
   onCreated,
+  toolbar,
 }: {
   tenantId: string;
   defaultType?: "document" | "page";
   initial?: Resource;
   onCancel: () => void;
   onCreated: (s: FullState) => void;
+  toolbar?: ReactNode;
 }) {
   const catalog = useControlData().tags;
   const t = useT();
@@ -415,6 +417,7 @@ function ResourceForm({
       title={editing ? t("common.edit") : "Inhalt hinzufügen"}
       description={editing ? initial?.title : "Dokument hochladen oder interne Seite hinter einer geschützten URL."}
       onClose={onCancel}
+      toolbar={toolbar}
       footer={
         <>
           <Button type="button" variant="ghost" className="min-h-11" onClick={onCancel}>

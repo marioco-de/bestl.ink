@@ -16,6 +16,10 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea, Label } from "@/components/ui/input";
 import { useControl } from "@/lib/docbay/control-store";
+import { CreateKindBar } from "./create-kind-bar";
+import { ResourceForm } from "@/routes/control/resources";
+import { CardForm } from "@/routes/control/-cards";
+import type { CreateKind } from "@/lib/docbay/create-kind";
 import { createShort } from "@/lib/docbay/shorts-api";
 import { genToken } from "@/lib/docbay/id";
 import { PLATFORM_LINK_HOST } from "@/lib/docbay/brand";
@@ -32,13 +36,45 @@ import { useT } from "@/lib/i18n";
 type Extra = "campaign" | "device" | "lock" | "ttl" | null;
 
 export function CreateLinkModal() {
-  const { data, setData, createOpen, createSeed, closeCreate } = useControl();
+  const { data, setData, createOpen, createSeed, createKind, setCreateKind, closeCreate } =
+    useControl();
   if (!createOpen) return null;
+  if (createKind === "document" || createKind === "page") {
+    return (
+      <ResourceForm
+        tenantId={data.tenant.id}
+        defaultType={createKind}
+        toolbar={<CreateKindBar value={createKind} onChange={setCreateKind} />}
+        onCancel={closeCreate}
+        onCreated={(s) => {
+          setData(s);
+          closeCreate();
+        }}
+      />
+    );
+  }
+  if (createKind === "event" || createKind === "contact") {
+    return (
+      <CardForm
+        kind={createKind}
+        tenantId={data.tenant.id}
+        existing={null}
+        toolbar={<CreateKindBar value={createKind} onChange={setCreateKind} />}
+        onClose={closeCreate}
+        onSaved={(s) => {
+          setData(s);
+          closeCreate();
+        }}
+      />
+    );
+  }
   return (
     <Editor
       key={createSeed}
       data={data}
       seed={createSeed}
+      kind={createKind}
+      onKind={setCreateKind}
       onClose={closeCreate}
       onSaved={(s) => {
         setData(s);
@@ -51,11 +87,15 @@ export function CreateLinkModal() {
 function Editor({
   data,
   seed,
+  kind,
+  onKind,
   onClose,
   onSaved,
 }: {
   data: FullState;
   seed: string;
+  kind: CreateKind;
+  onKind: (k: CreateKind) => void;
   onClose: () => void;
   onSaved: (s: FullState) => void;
 }) {
@@ -232,6 +272,9 @@ function Editor({
               <X className="h-5 w-5" />
             </button>
           </header>
+          <div className="px-4 pt-3">
+            <CreateKindBar value={kind} onChange={onKind} />
+          </div>
 
           <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5">
             <div className="space-y-6">

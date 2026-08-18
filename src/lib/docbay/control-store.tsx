@@ -10,11 +10,8 @@ import {
 } from "react";
 import { getState } from "./api";
 import type { FullState } from "./types";
-import {
-  cacheWorkspace,
-  readWorkspaceCache,
-  workspaceShell,
-} from "./workspace-cache";
+import { cacheWorkspace, readWorkspaceCache, workspaceShell } from "./workspace-cache";
+import type { CreateKind } from "./create-kind";
 
 const Ctx = createContext<{
   data: FullState;
@@ -24,8 +21,10 @@ const Ctx = createContext<{
   hydrating: boolean;
   createOpen: boolean;
   createSeed: string;
-  openCreate: (seed?: string) => void;
+  createKind: CreateKind;
+  openCreate: (seed?: string, kind?: CreateKind) => void;
   closeCreate: () => void;
+  setCreateKind: (k: CreateKind) => void;
 } | null>(null);
 
 export function ControlProvider({
@@ -39,6 +38,7 @@ export function ControlProvider({
   const [hydrating, setHydrating] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [createSeed, setCreateSeed] = useState("");
+  const [createKind, setCreateKind] = useState<CreateKind>("url");
   const tenantRef = useRef(initial.tenant.id);
   const dataRef = useRef(initial);
   const inflight = useRef(new Set<string>());
@@ -123,8 +123,9 @@ export function ControlProvider({
     return () => window.clearTimeout(t);
   }, [initial.workspaces, initial.tenant.id, prefetchWorkspace]);
 
-  const openCreate = useCallback((seed?: string) => {
+  const openCreate = useCallback((seed?: string, kind?: CreateKind) => {
     setCreateSeed(seed && seed !== "1" ? seed : "");
+    if (kind) setCreateKind(kind);
     setCreateOpen(true);
   }, []);
 
@@ -142,8 +143,10 @@ export function ControlProvider({
       hydrating,
       createOpen,
       createSeed,
+      createKind,
       openCreate,
       closeCreate,
+      setCreateKind,
     }),
     [
       data,
@@ -153,6 +156,7 @@ export function ControlProvider({
       hydrating,
       createOpen,
       createSeed,
+      createKind,
       openCreate,
       closeCreate,
     ],

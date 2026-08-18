@@ -1958,7 +1958,7 @@ export const listChatInbox = createServerFn({ method: "POST" })
       join db_resources r on r.id = t.resource_id
       order by t.last_at desc
     `;
-    return rows.map((r) => {
+    const mapped = rows.map((r) => {
       const row = r as Record<string, unknown>;
       return {
         resource_id: String(row.resource_id),
@@ -1970,11 +1970,98 @@ export const listChatInbox = createServerFn({ method: "POST" })
         last_sender: String(row.last_sender || ""),
         last_at: new Date(row.last_at as string).toISOString(),
         n: Number(row.n || 0),
+        priority: "none",
+        assigned_to: null as string | null,
+        status: "open",
+        tags: [] as string[],
       };
     });
+    try {
+      const metas = await sql`
+        select resource_id, visitor_key, priority, assigned_to, status, tags
+        from db_chat_threads where tenant_id = ${mem.tenant.id}
+      `;
+      const map = new Map<string, Record<string, unknown>>();
+      for (const raw of metas) {
+        const r = raw as Record<string, unknown>;
+        map.set(`${r.resource_id}:${r.visitor_key || ""}`, r);
+      }
+      return mapped
+        .map((th) => {
+          const m = map.get(`${th.resource_id}:${th.thread_key}`);
+          if (!m) return th;
+          return {
+            ...th,
+            priority: String(m.priority || "none"),
+            assigned_to: m.assigned_to ? String(m.assigned_to) : null,
+            status: String(m.status || "open"),
+            tags: Array.isArray(m.tags) ? (m.tags as string[]) : [],
+          };
+        })
+        .filter((th) => th.status !== "archived");
+    } catch {
+      return mapped;
+    }
     } catch {
       return [];
     }
+  });
+
+export const saveChatThread = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .inputValidator(
+    (d: {
+      resource_id: string;
+      visitor_key?: string;
+      priority?: string;
+      assigned_to?: string | null;
+      status?: string;
+      tags?: string[];
+      tenant_id?: string;
+    }) => d,
+  )
+  .handler(async ({ context, data }) => {
+    const mem = await getMembership(context.userId, data.tenant_id);
+    if (!mem || mem.tenant.id === "platform") throw new Error("Kein Workspace");
+    const sql = await getSql();
+    const key = data.visitor_key || "";
+    await sql`
+      insert into db_chat_threads (
+        tenant_id, resource_id, visitor_key, priority, assigned_to, status, tags, updated_at
+      ) values (
+        ${mem.tenant.id}, ${data.resource_id}, ${key},
+        ${data.priority || "none"}, ${data.assigned_to ?? null},
+        ${data.status || "open"}, ${JSON.stringify(data.tags ?? [])}, now()
+      )
+      on conflict (resource_id, visitor_key) do update set
+        priority = excluded.priority,
+        assigned_to = excluded.assigned_to,
+        status = excluded.status,
+        tags = excluded.tags,
+        updated_at = now()
+    `;
+    return { ok: true };
+  });
+
+export const deleteChatThread = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .inputValidator((d: { resource_id: string; visitor_key?: string; tenant_id?: string }) => d)
+  .handler(async ({ context, data }) => {
+    const mem = await getMembership(context.userId, data.tenant_id);
+    if (!mem || mem.tenant.id === "platform") throw new Error("Kein Workspace");
+    const sql = await getSql();
+    const key = data.visitor_key || "";
+    await sql`
+      delete from db_chat_messages
+      where tenant_id = ${mem.tenant.id} and resource_id = ${data.resource_id}
+        and coalesce(visitor_key, '') = ${key}
+    `;
+    await sql`
+      delete from db_chat_threads
+      where tenant_id = ${mem.tenant.id} and resource_id = ${data.resource_id}
+        and visitor_key = ${key}
+    `;
+    return { ok: true };
   });
 
 export const replyChat = createServerFn({ method: "POST" })

@@ -8,6 +8,7 @@ export function FullScreenModal({
   onClose,
   children,
   footer,
+  toolbar,
   className,
 }: {
   title: string;
@@ -15,6 +16,7 @@ export function FullScreenModal({
   onClose: () => void;
   children: ReactNode;
   footer?: ReactNode;
+  toolbar?: ReactNode;
   className?: string;
 }) {
   useEffect(() => {
@@ -62,6 +64,7 @@ export function FullScreenModal({
             <X className="h-5 w-5" />
           </button>
         </header>
+        {toolbar && <div className="shrink-0 border-b border-border px-4 pt-3">{toolbar}</div>}
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6">
           <div className={cn("mx-auto w-full space-y-4", className)}>
             {children}

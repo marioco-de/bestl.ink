@@ -65,7 +65,12 @@ export function QuickShorten() {
           <Settings className="h-4 w-4" />
           <span className="hidden @min-[24rem]/app:inline">{t("short.options")}</span>
         </button>
-        <Button type="submit" className="h-11" disabled={busy}>
+        <Button
+          type="submit"
+          variant="secondary"
+          className="h-11 bg-zinc-200 text-zinc-800 hover:bg-zinc-300 dark:bg-zinc-700 dark:text-zinc-100 dark:hover:bg-zinc-600"
+          disabled={busy}
+        >
           {busy ? t("common.loading") : t("short.quick")}
         </Button>
       </div>

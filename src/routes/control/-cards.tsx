@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   CalendarDays,
   Contact,
@@ -218,18 +218,20 @@ function DayBadge({ start }: { start: string }) {
   );
 }
 
-function CardForm({
+export function CardForm({
   kind,
   tenantId,
   existing,
   onClose,
   onSaved,
+  toolbar,
 }: {
   kind: "event" | "contact";
   tenantId: string;
   existing: Resource | null;
   onClose: () => void;
   onSaved: (s: FullState) => void;
+  toolbar?: ReactNode;
 }) {
   const [slug, setSlug] = useState(existing?.slug ?? "");
   const [slugTouched, setSlugTouched] = useState(Boolean(existing));
@@ -312,6 +314,7 @@ function CardForm({
           : "Der geteilte Link liefert eine .vcf-Datei."
       }
       onClose={onClose}
+      toolbar={toolbar}
       footer={
         <>
           <Button type="button" variant="ghost" className="min-h-11" onClick={onClose}>
