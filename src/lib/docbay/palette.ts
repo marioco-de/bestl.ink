@@ -10,6 +10,7 @@ export const PALETTE = [
 ] as const;
 
 export const DEFAULT_SWATCH = PALETTE[0];
+export const DEFAULT_BRAND = "#0f766e";
 
 export function normalizeHex(raw: string | undefined | null): string {
   const v = (raw || "").trim().toLowerCase();
@@ -27,6 +28,29 @@ export const HUE_VARS: Record<string, string> = {
   lime: "var(--color-hue-lime)",
 };
 
+export const TAB_HUES: Record<string, string> = {
+  urls: "azure",
+  docs: "violet",
+  pages: "lime",
+  events: "amber",
+  contacts: "ruby",
+  shared: "teal",
+};
+
+export function resolveHue(hue: string | undefined | null): string {
+  const v = (hue || "").trim();
+  if (!v) return "var(--brand)";
+  if (HUE_VARS[v]) return HUE_VARS[v];
+  if (v.startsWith("var(") || v.startsWith("#")) return v.startsWith("#") ? normalizeHex(v) : v;
+  if (/^[0-9a-f]{6}$/i.test(v)) return `#${v.toLowerCase()}`;
+  return v;
+}
+
 export function hueStyle(hue: string): CSSProperties {
-  return { ["--hue"]: HUE_VARS[hue] || HUE_VARS.teal } as CSSProperties;
+  return { ["--hue"]: resolveHue(hue) } as CSSProperties;
+}
+
+export function brandVars(hex: string | undefined | null): CSSProperties {
+  const c = hex && /^#?[0-9a-f]{6}$/i.test(hex.trim()) ? normalizeHex(hex) : DEFAULT_BRAND;
+  return { ["--brand"]: c, ["--hue"]: c } as CSSProperties;
 }

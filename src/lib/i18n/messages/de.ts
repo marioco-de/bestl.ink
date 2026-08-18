@@ -170,6 +170,9 @@ export const de = {
     nameRequired: "Name erforderlich",
     loadFail: "Workspace nicht geladen",
     more: "Weiteren Workspace",
+    brand: "Branding-Farbe",
+    brandHint: "Alle Standard-Buttons und Verläufe in diesem Workspace.",
+    brandPreview: "Vorschau",
   },
   links: {
     hint: "URL einfügen oder C drücken – der Rest ist optional.",

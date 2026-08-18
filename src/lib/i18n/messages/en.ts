@@ -172,6 +172,9 @@ export const en: Messages = {
     nameRequired: "Name required",
     loadFail: "Could not load workspace",
     more: "Another workspace",
+    brand: "Brand color",
+    brandHint: "All default buttons and gradients in this workspace.",
+    brandPreview: "Preview",
   },
   links: {
     hint: "Paste a URL or press C — the rest is optional.",

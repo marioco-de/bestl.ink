@@ -2,6 +2,7 @@ import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ColorPicker } from "@/components/control/color-picker";
 import { useControl } from "@/lib/docbay/control-store";
 import {
   addDashTeamMember,
@@ -11,8 +12,10 @@ import {
   removeDashTeamMember,
   saveDashSettings,
 } from "@/lib/docbay/dashboard-api";
+import { updateTenant } from "@/lib/docbay/api";
 import { useT } from "@/lib/i18n";
-import type { DashState } from "@/lib/docbay/types";
+import type { DashState, FullState } from "@/lib/docbay/types";
+import { normalizeHex } from "@/lib/docbay/palette";
 
 export function WorkspaceSettings() {
   const t = useT();
@@ -45,6 +48,27 @@ export function WorkspaceSettings() {
 
   return (
     <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle>{t("workspace.brand")}</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-fg-muted">{t("workspace.brandHint")}</p>
+          <ColorPicker
+            value={data.tenant.brand_color}
+            onChange={(hex) => {
+              const color = normalizeHex(hex);
+              setData({ ...data, tenant: { ...data.tenant, brand_color: color } });
+              void updateTenant({
+                data: { brand_color: color, tenant_id: data.tenant.id },
+              })
+                .then((s) => setData(s as FullState))
+                .catch((e) => toast.error(e instanceof Error ? e.message : t("common.error")));
+            }}
+          />
+          <Button size="sm">{t("workspace.brandPreview")}</Button>
+        </CardContent>
+      </Card>
       <Card>
         <CardHeader>
           <CardTitle>{t("dash.personal")}</CardTitle>

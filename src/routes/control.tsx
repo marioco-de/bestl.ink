@@ -49,6 +49,7 @@ import { WorkspaceSwitcher } from "@/components/control/workspace-switcher";
 import { NotificationBell } from "@/components/control/notification-bell";
 import { useTheme } from "@/lib/theme";
 import { useI18n, useT } from "@/lib/i18n";
+import { brandVars, hueStyle, TAB_HUES } from "@/lib/docbay/palette";
 
 type ControlSearch = { tenant?: string };
 
@@ -266,7 +267,7 @@ function ControlShell() {
   };
 
   return (
-    <div className="@container/app flex min-h-dvh bg-bg">
+    <div className="@container/app flex min-h-dvh bg-bg" style={brandVars(data.tenant.brand_color)}>
       <aside className="hidden w-52 shrink-0 flex-col border-r border-border bg-bg-elevated/80 @min-[52rem]/app:flex">
         <div className="flex items-center gap-2.5 px-4 py-4">
           <div className="metal flex h-8 w-8 items-center justify-center rounded-md">
@@ -454,7 +455,15 @@ function ControlShell() {
             </Button>
           </div>
         </header>
-        <main key={pathname} className="page-in flex-1 px-4 py-6 @min-[52rem]/app:px-8 @min-[52rem]/app:py-8">
+        <main
+          key={pathname}
+          className="page-in flex-1 px-4 py-6 @min-[52rem]/app:px-8 @min-[52rem]/app:py-8"
+          style={
+            pathname.startsWith("/control/links")
+              ? hueStyle(TAB_HUES[linksTab] || "azure")
+              : undefined
+          }
+        >
           <Outlet />
         </main>
       </div>
