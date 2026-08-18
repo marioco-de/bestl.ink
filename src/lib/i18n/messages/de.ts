@@ -311,6 +311,18 @@ export const de = {
     start: "Chat starten",
     emailPh: "sarah.b@example.net",
   },
+  doc: {
+    actions: "Aktionen",
+    actionsHint: "Bis zu drei Buttons in der Viewer-Leiste.",
+    actAccept: "Akzeptieren",
+    actReject: "Ablehnen",
+    actSign: "Unterzeichnen",
+    actCall: "Anrufen",
+    actEmail: "E-Mail schreiben",
+    phonePh: "+49 …",
+    emailPh: "team@firma.de",
+    thanks: "Danke, wir haben das notiert.",
+  },
 };
 
 export type Messages = typeof de;

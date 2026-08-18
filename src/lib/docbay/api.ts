@@ -1821,3 +1821,45 @@ export const getLinkAnalytics = createServerFn({ method: "POST" })
     });
     return { views, clicks };
   });
+
+export const recordDocAction = createServerFn({ method: "POST" })
+  .inputValidator(
+    (d: {
+      resource_id: string;
+      kind: string;
+      link_id?: string;
+      visitor?: string;
+    }) => d,
+  )
+  .handler(async ({ data }) => {
+    const sql = await getSql();
+    const res = (
+      await sql`
+        select id, tenant_id, title from db_resources where id = ${data.resource_id} limit 1
+      `
+    )[0] as { id?: string; tenant_id?: string; title?: string } | undefined;
+    if (!res?.id) throw new Error("NOT_FOUND");
+    const id = uid("dact");
+    await sql`
+      insert into db_doc_actions (id, tenant_id, resource_id, link_id, kind, visitor)
+      values (
+        ${id}, ${String(res.tenant_id)}, ${data.resource_id}, ${data.link_id ?? null},
+        ${data.kind}, ${data.visitor ?? ""}
+      )
+    `;
+    const staff = await sql`
+      select user_id from db_tenant_members
+      where tenant_id = ${String(res.tenant_id)} and role in ('owner', 'admin')
+    `;
+    for (const s of staff as { user_id: string }[]) {
+      await notify(
+        String(res.tenant_id),
+        s.user_id,
+        `${res.title || "Dokument"}: ${data.kind}`,
+        data.visitor || "Besucher",
+        "/control/links",
+      );
+    }
+    return { ok: true };
+  });
+

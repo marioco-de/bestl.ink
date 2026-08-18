@@ -312,4 +312,16 @@ export const en: Messages = {
     start: "Start chat",
     emailPh: "you@company.com",
   },
+  doc: {
+    actions: "Actions",
+    actionsHint: "Up to three buttons in the viewer bar.",
+    actAccept: "Accept",
+    actReject: "Decline",
+    actSign: "Sign",
+    actCall: "Call",
+    actEmail: "Write email",
+    phonePh: "+49 …",
+    emailPh: "team@company.com",
+    thanks: "Thanks, we noted that.",
+  },
 };

@@ -6,22 +6,18 @@ import { useT } from "@/lib/i18n";
 export function BrandFlag({ dest }: { dest?: string }) {
   const t = useT();
   return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex justify-center">
-      <a
-        href={BRAND_HOME}
-        target="_blank"
-        rel="noreferrer"
-        className="pointer-events-auto flex h-9 items-center gap-2 rounded-t-md border border-b-0 border-border bg-bg-elevated px-3 text-xs leading-none text-fg-muted shadow-md transition-colors hover:bg-bg-subtle hover:text-fg"
-      >
-        <span className="metal flex h-5 w-5 items-center justify-center rounded-sm">
-          <Shield className="h-3 w-3" strokeWidth={2.2} />
-        </span>
-        <span className="whitespace-nowrap">
-          {t("brand.flag", { name: BRAND_NAME })}
-        </span>
-      </a>
+    <a
+      href={BRAND_HOME}
+      target="_blank"
+      rel="noreferrer"
+      className="flex h-8 w-full shrink-0 items-center justify-center gap-2 border-t border-border bg-bg-elevated text-[11px] text-fg-muted transition-colors hover:bg-bg-subtle hover:text-fg"
+    >
+      <span className="metal flex h-4 w-4 items-center justify-center rounded-sm">
+        <Shield className="h-2.5 w-2.5" strokeWidth={2.4} />
+      </span>
+      <span className="whitespace-nowrap">{t("brand.flag", { name: BRAND_NAME })}</span>
       {dest ? <span className="sr-only">{dest}</span> : null}
-    </div>
+    </a>
   );
 }
 

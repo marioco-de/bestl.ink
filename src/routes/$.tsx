@@ -1,5 +1,8 @@
 import { createFileRoute, redirect, isRedirect } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
+import { recordDocAction } from "@/lib/docbay/api";
+import { parseDocActions, type DocActionId } from "@/lib/docbay/doc-actions";
+import { useT } from "@/lib/i18n";
 import {
   resolveAccess,
   submitAccessRequest,
@@ -16,8 +19,11 @@ import {
   FileText,
   Globe,
   Lock,
-  Mail,
+  Check,
+  X,
+  PenLine,
   Phone,
+  Mail,
   MessageSquare,
   ShieldAlert,
   CheckCircle2,
@@ -410,6 +416,57 @@ function GrantedView({
   }, [resource.id, link?.id, features.chat]);
 
   const allowDl = link?.allow_download !== false;
+  const t = useT();
+  const docActions = resource.type === "document" ? parseDocActions(resource.payload) : [];
+  const [acted, setActed] = useState<string | null>(null);
+
+  async function runAction(id: DocActionId, target: string) {
+    if (acted === id) return;
+    if (id === "call" && target) {
+      window.location.href = `tel:${target.replace(/\s+/g, "")}`;
+    }
+    if (id === "email" && target) {
+      window.location.href = `mailto:${target}`;
+    }
+    try {
+      await recordDocAction({
+        data: {
+          resource_id: resource.id,
+          kind: id,
+          link_id: link?.id,
+          visitor: chatEmail || data.visitor_email || "",
+        },
+      });
+      setActed(id);
+      if (id === "accept" || id === "reject" || id === "sign") {
+        toast.success(t("doc.thanks"));
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t("common.error"));
+    }
+  }
+
+  const actionStyle: Record<DocActionId, string> = {
+    accept: "bg-emerald-600 text-white hover:bg-emerald-500",
+    reject: "bg-red-600 text-white hover:bg-red-500",
+    sign: "bg-blue-600 text-white hover:bg-blue-500",
+    call: "bg-zinc-200 text-zinc-800 hover:bg-zinc-300",
+    email: "bg-zinc-200 text-zinc-800 hover:bg-zinc-300",
+  };
+  const actionIcon: Record<DocActionId, typeof Check> = {
+    accept: Check,
+    reject: X,
+    sign: PenLine,
+    call: Phone,
+    email: Mail,
+  };
+  const actionLabel: Record<DocActionId, string> = {
+    accept: t("doc.actAccept"),
+    reject: t("doc.actReject"),
+    sign: t("doc.actSign"),
+    call: t("doc.actCall"),
+    email: t("doc.actEmail"),
+  };
 
   return (
     <div className="relative flex min-h-dvh flex-col bg-bg">
@@ -427,6 +484,21 @@ function GrantedView({
           <Badge variant="secondary">
             <Lock className="mr-1 h-3 w-3" /> Geschützt
           </Badge>
+          {docActions.map((a) => {
+            const Icon = actionIcon[a.id];
+            return (
+              <Button
+                key={a.id}
+                size="sm"
+                className={actionStyle[a.id]}
+                disabled={acted === a.id}
+                onClick={() => void runAction(a.id, a.target)}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">{actionLabel[a.id]}</span>
+              </Button>
+            );
+          })}
           {features.chat && (
             <Button
               size="sm"
@@ -452,7 +524,7 @@ function GrantedView({
       </header>
 
       <div className="relative flex flex-1">
-        <div className="relative min-w-0 flex-1">
+        <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
           {features.watermarks && link && (
             <div className="pointer-events-none absolute inset-0 z-10 overflow-hidden opacity-[0.07]">
               {Array.from({ length: 12 }).map((_, i) => (
@@ -481,11 +553,11 @@ function GrantedView({
                   ? data.content_data_url
                   : `${data.content_data_url}#toolbar=0`
               }
-              className="h-[calc(100dvh-57px)] w-full border-0 bg-white"
+              className="h-full min-h-[50dvh] w-full flex-1 border-0 bg-white"
             />
           )}
           {resource.type === "page" && data.target_url && features.page_proxy && (
-            <div className="relative h-[calc(100dvh-57px)]">
+            <div className="relative h-full min-h-[50dvh] flex-1">
               <iframe
                 title={resource.title}
                 src={data.target_url}
@@ -502,23 +574,6 @@ function GrantedView({
             <p className="absolute bottom-3 right-3 rounded-lg bg-bg/90 px-2 py-1 text-xs text-fg-subtle">
               Download deaktiviert
             </p>
-          )}
-          {features.pdf_analytics && (
-            <div className="absolute bottom-3 left-3 z-20 flex gap-1">
-              {[1, 2, 3].map((p) => (
-                <button
-                  key={p}
-                  type="button"
-                  className="rounded bg-bg/90 px-2 py-1 text-xs text-fg-muted"
-                  onClick={() => {
-                    pageRef.current = p;
-                    toast.message(`Seite ${p}`);
-                  }}
-                >
-                  S{p}
-                </button>
-              ))}
-            </div>
           )}
         </div>
 

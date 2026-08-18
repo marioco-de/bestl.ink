@@ -23,6 +23,9 @@ import { MAX_UPLOAD_BYTES, MAX_UPLOAD_LABEL } from "@/lib/docbay/upload";
 import type { FullState, Resource } from "@/lib/docbay/types";
 import { TagChip, TagPicker } from "@/components/control/tag-picker";
 import { tagColor } from "@/lib/docbay/tags";
+import { DocActionPicker } from "@/components/control/doc-action-picker";
+import { actionsPayload, parseDocActions, type DocAction } from "@/lib/docbay/doc-actions";
+import { useT } from "@/lib/i18n";
 
 export const Route = createFileRoute("/control/resources")({
   validateSearch: (s: Record<string, unknown>) => ({
@@ -49,6 +52,7 @@ export function ResourcesWorkspace({
 }) {
   const data = useControlData();
   const setGlobal = useSetControlData();
+  const t = useT();
   const [state, setState] = useState<FullState>(data);
   const [showForm, setShowForm] = useState(false);
   const [generateFor, setGenerateFor] = useState<Resource | null>(null);
@@ -162,6 +166,23 @@ export function ResourcesWorkspace({
                     />
                   </div>
                   {r.type === "document" && (
+                    <div className="mt-3">
+                      <p className="mb-1 text-xs font-medium">{t("doc.actions")}</p>
+                      <DocActionPicker
+                        value={parseDocActions(r.payload)}
+                        onChange={(actions) => {
+                          void updateResource({
+                            data: {
+                              id: r.id,
+                              payload: actionsPayload(actions, r.payload),
+                              tenant_id: state.tenant.id,
+                            },
+                          }).then((s) => refresh(s as FullState));
+                        }}
+                      />
+                    </div>
+                  )}
+                  {r.type === "document" && (
                     <p className="mt-1 text-xs text-fg-subtle">
                       {r.file_name || "Datei"} · {formatBytes(r.file_size)}
                     </p>
@@ -223,6 +244,7 @@ function ResourceForm({
   onCreated: (s: FullState) => void;
 }) {
   const catalog = useControlData().tags;
+  const t = useT();
   const [type, setType] = useState<"document" | "page">(defaultType);
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
@@ -230,6 +252,7 @@ function ResourceForm({
   const [description, setDescription] = useState("");
   const [pageUrl, setPageUrl] = useState("");
   const [tags, setTags] = useState<string[]>([]);
+  const [actions, setActions] = useState<DocAction[]>([]);
   const [file, setFile] = useState<{
     raw: File;
     name: string;
@@ -341,6 +364,7 @@ function ResourceForm({
           file_name: type === "document" ? file!.name : undefined,
           file_size: type === "document" ? file!.size : undefined,
           tags,
+          payload: type === "document" ? actionsPayload(actions) : undefined,
           tenant_id: tenantId,
         },
       });
@@ -463,6 +487,10 @@ function ResourceForm({
               <p className="mt-1 text-xs text-fg-subtle">Upload {progress}%</p>
             </div>
           )}
+          <div className="mt-4">
+            <Label>{t("doc.actions")}</Label>
+            <DocActionPicker value={actions} onChange={setActions} />
+          </div>
         </div>
       ) : (
         <div>
