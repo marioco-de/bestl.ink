@@ -287,5 +287,11 @@ export const en: Messages = {
     noTeam: "No team",
     members: "Team",
     addMember: "Member",
+    clickCopy: "Copy the existing link",
+    clickMint: "Create a new personal link",
+    mintNote: "Note for this link",
+    mintSave: "Save and create link",
+    mintReady: "Link copied to the clipboard",
+    settingsTitle: "Button",
   },
 };

@@ -327,6 +327,7 @@ export interface DashWidget {
   image_url: string | null;
   show_clicks: boolean;
   show_last_click: boolean;
+  click_mode: "copy" | "mint";
   x: number;
   y: number;
   w: number;

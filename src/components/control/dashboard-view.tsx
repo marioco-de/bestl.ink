@@ -3,17 +3,18 @@ import {
   ArrowDown,
   ArrowUp,
   Frame,
-  GripVertical,
   Link2,
   MousePointerClick,
   Plus,
-  Settings2,
   Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { HueButton } from "@/components/ui/hue-button";
 import { useControl } from "@/lib/docbay/control-store";
+import { createShort } from "@/lib/docbay/shorts-api";
+import { upsertShort } from "@/lib/docbay/state-patch";
+import { Input, Textarea, Label } from "@/components/ui/input";
 import {
   deleteDashGroup,
   deleteDashWidget,
@@ -528,6 +529,7 @@ function WidgetCard({
   onDelete: () => void;
 }) {
   const t = useT();
+  const { data, setData } = useControl();
   const drag = useRef<{
     px: number;
     py: number;
@@ -537,28 +539,64 @@ function WidgetCard({
     h: number;
     mode: "move" | "resize";
   } | null>(null);
+  const hold = useRef<number>(0);
+  const moved = useRef(false);
   const [geom, setGeom] = useState({ x: w.x, y: w.y, w: w.w, h: w.h });
-  const [cfg, setCfg] = useState(false);
+  const [settings, setSettings] = useState(false);
+  const [draft, setDraft] = useState(w);
+  const [mint, setMint] = useState<"form" | { url: string } | null>(null);
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
   const cells = geom.w * geom.h;
   const url = short ? `https://${host}/${short.slug}` : "";
+  const mode = w.click_mode === "mint" ? "mint" : "copy";
 
   useEffect(() => {
     setGeom({ x: w.x, y: w.y, w: w.w, h: w.h });
-  }, [w.x, w.y, w.w, w.h]);
+    setDraft(w);
+  }, [w]);
 
-  function start(e: React.PointerEvent, mode: "move" | "resize") {
+  function clearHold() {
+    if (hold.current) window.clearTimeout(hold.current);
+    hold.current = 0;
+  }
+
+  function start(e: React.PointerEvent, kind: "move" | "resize") {
     e.stopPropagation();
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    drag.current = { px: e.clientX, py: e.clientY, x: geom.x, y: geom.y, w: geom.w, h: geom.h, mode };
+    moved.current = false;
+    drag.current = {
+      px: e.clientX,
+      py: e.clientY,
+      x: geom.x,
+      y: geom.y,
+      w: geom.w,
+      h: geom.h,
+      mode: kind,
+    };
+    if (kind === "move") {
+      clearHold();
+      hold.current = window.setTimeout(() => {
+        if (!moved.current) {
+          drag.current = null;
+          setSettings(true);
+        }
+      }, 480);
+    }
   }
 
   function move(e: React.PointerEvent) {
     if (!drag.current) return;
     const parent = (e.currentTarget as HTMLElement).offsetParent as HTMLElement | null;
     if (!parent) return;
+    const dxPx = e.clientX - drag.current.px;
+    const dyPx = e.clientY - drag.current.py;
+    if (!moved.current && Math.hypot(dxPx, dyPx) < 7) return;
+    moved.current = true;
+    clearHold();
     const cw = parent.getBoundingClientRect().width / COLS;
-    const dx = (e.clientX - drag.current.px) / cw;
-    const dy = (e.clientY - drag.current.py) / ROW;
+    const dx = dxPx / cw;
+    const dy = dyPx / ROW;
     if (drag.current.mode === "move") {
       setGeom((g) => ({
         ...g,
@@ -575,86 +613,92 @@ function WidgetCard({
   }
 
   function end() {
-    if (!drag.current) return;
+    clearHold();
+    const wasDrag = Boolean(drag.current) && moved.current;
+    const wasClick = Boolean(drag.current) && !moved.current && drag.current?.mode === "move";
     drag.current = null;
-    onChange({ ...w, ...geom });
+    if (wasDrag) onChange({ ...w, ...geom });
+    if (wasClick) void onActivate();
+  }
+
+  async function onActivate() {
+    if (mode === "mint") {
+      setNote("");
+      setMint("form");
+      return;
+    }
+    if (!url) return;
+    await navigator.clipboard.writeText(url);
+    toast.success(t("dash.copied"));
+  }
+
+  async function mintLink() {
+    if (!short) return;
+    setBusy(true);
+    try {
+      const created = await createShort({
+        data: {
+          destination: short.destination,
+          title: short.title || w.label,
+          note: note.trim(),
+          tags: short.tags,
+          ios_url: short.ios_url || undefined,
+          android_url: short.android_url || undefined,
+          og_title: short.og_title || undefined,
+          og_description: short.og_description || undefined,
+          og_image: short.og_image || undefined,
+          button_id: short.button_id,
+          utm_source: short.utm_source || undefined,
+          utm_medium: short.utm_medium || undefined,
+          utm_campaign: short.utm_campaign || undefined,
+          tenant_id: data.tenant.id,
+        },
+      });
+      setData(upsertShort(data, created.short));
+      const next = `https://${host}/${created.short.slug}`;
+      await navigator.clipboard.writeText(next);
+      setMint({ url: next });
+      toast.success(t("dash.mintReady"));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t("common.error"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function saveSettings() {
+    onChange({ ...draft, ...geom });
+    setSettings(false);
   }
 
   return (
-    <div
-      className="absolute flex flex-col overflow-hidden rounded-lg border border-border bg-bg-elevated shadow-sm"
-      style={{
-        left: `${(geom.x / COLS) * 100}%`,
-        top: geom.y * ROW,
-        width: `${(geom.w / COLS) * 100}%`,
-        height: geom.h * ROW - 6,
-      }}
-      onPointerMove={move}
-      onPointerUp={end}
-    >
+    <>
       <div
-        className="flex cursor-grab items-center gap-1 border-b border-border px-2 py-1 text-[11px] text-fg-muted active:cursor-grabbing"
+        className="absolute flex flex-col overflow-hidden rounded-lg border border-border bg-bg-elevated shadow-sm"
+        style={{
+          left: `${(geom.x / COLS) * 100}%`,
+          top: geom.y * ROW,
+          width: `${(geom.w / COLS) * 100}%`,
+          height: geom.h * ROW - 6,
+        }}
         onPointerDown={(e) => start(e, "move")}
+        onPointerMove={move}
+        onPointerUp={end}
+        onPointerCancel={clearHold}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          clearHold();
+          drag.current = null;
+          setDraft(w);
+          setSettings(true);
+        }}
       >
-        <GripVertical className="h-3 w-3" />
-        <span className="min-w-0 flex-1 truncate">{w.label || short?.slug || "Button"}</span>
-        <button type="button" onPointerDown={(e) => e.stopPropagation()} onClick={() => setCfg((v) => !v)}>
-          <Settings2 className="h-3 w-3" />
-        </button>
-        <button type="button" onPointerDown={(e) => e.stopPropagation()} onClick={onDelete}>
-          <Trash2 className="h-3 w-3" />
-        </button>
-      </div>
-      {cfg ? (
-        <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-auto p-2 text-[11px]" onPointerDown={(e) => e.stopPropagation()}>
-          <input
-            className="h-7 rounded border border-border bg-bg px-1.5"
-            value={w.label}
-            onChange={(e) => onChange({ ...w, label: e.target.value })}
-          />
-          <select
-            className="h-7 rounded border border-border bg-bg px-1"
-            value={w.display}
-            onChange={(e) =>
-              onChange({ ...w, display: e.target.value as DashWidget["display"] })
-            }
-          >
-            <option value="text">{t("dash.asText")}</option>
-            <option value="icon">{t("dash.asIcon")}</option>
-            <option value="preview">{t("dash.asPreview")}</option>
-          </select>
-          <label className="flex items-center gap-1">
-            <input
-              type="checkbox"
-              checked={w.show_clicks}
-              onChange={(e) => onChange({ ...w, show_clicks: e.target.checked })}
-            />
-            {t("dash.showClicks")}
-          </label>
-          <label className="flex items-center gap-1">
-            <input
-              type="checkbox"
-              checked={w.show_last_click}
-              onChange={(e) => onChange({ ...w, show_last_click: e.target.checked })}
-            />
-            {t("dash.showLast")}
-          </label>
-        </div>
-      ) : (
-        <button
-          type="button"
-          className="flex min-h-0 flex-1 flex-col items-start justify-center gap-1 p-2 text-left"
-          onClick={() => {
-            if (!url) return;
-            void navigator.clipboard.writeText(url);
-            toast.success(t("dash.copied"));
-          }}
-        >
+        <div className="flex min-h-0 flex-1 flex-col items-start justify-center gap-1 p-2 text-left">
           {w.display === "preview" && (w.image_url || short?.og_image) && cells >= 4 && (
             <img
               src={w.image_url || short?.og_image || ""}
               alt=""
-              className="mb-1 h-12 w-full rounded object-cover"
+              className="pointer-events-none mb-1 h-12 w-full rounded object-cover"
             />
           )}
           <span className="inline-flex items-center gap-1 text-sm font-medium">
@@ -673,13 +717,116 @@ function WidgetCard({
               {t("dash.lastClick")} {short.last_clicked_at.slice(0, 16)}
             </span>
           )}
-        </button>
+        </div>
+        <button
+          type="button"
+          aria-label="resize"
+          className="absolute bottom-0.5 right-0.5 h-1.5 w-1.5 cursor-se-resize rounded-full bg-fg/35"
+          onPointerDown={(e) => start(e, "resize")}
+        />
+      </div>
+
+      {settings && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-fg/30 p-4">
+          <div className="w-full max-w-sm space-y-3 rounded-lg border border-border bg-bg-elevated p-4 shadow-xl">
+            <p className="text-sm font-medium">{t("dash.settingsTitle")}</p>
+            <div>
+              <Label>{t("common.name")}</Label>
+              <Input value={draft.label} onChange={(e) => setDraft({ ...draft, label: e.target.value })} />
+            </div>
+            <div>
+              <Label>{t("dash.settings")}</Label>
+              <select
+                className="mt-1 h-10 w-full rounded-md border border-border bg-bg px-2 text-sm"
+                value={draft.display}
+                onChange={(e) =>
+                  setDraft({ ...draft, display: e.target.value as DashWidget["display"] })
+                }
+              >
+                <option value="text">{t("dash.asText")}</option>
+                <option value="icon">{t("dash.asIcon")}</option>
+                <option value="preview">{t("dash.asPreview")}</option>
+              </select>
+            </div>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={draft.show_clicks}
+                onChange={(e) => setDraft({ ...draft, show_clicks: e.target.checked })}
+              />
+              {t("dash.showClicks")}
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={draft.show_last_click}
+                onChange={(e) => setDraft({ ...draft, show_last_click: e.target.checked })}
+              />
+              {t("dash.showLast")}
+            </label>
+            <div>
+              <Label>{t("dash.settingsTitle")}</Label>
+              <select
+                className="mt-1 h-10 w-full rounded-md border border-border bg-bg px-2 text-sm"
+                value={draft.click_mode || "copy"}
+                onChange={(e) =>
+                  setDraft({ ...draft, click_mode: e.target.value as DashWidget["click_mode"] })
+                }
+              >
+                <option value="copy">{t("dash.clickCopy")}</option>
+                <option value="mint">{t("dash.clickMint")}</option>
+              </select>
+            </div>
+            <div className="flex justify-between gap-2 pt-1">
+              <Button size="sm" variant="danger" onClick={() => { onDelete(); setSettings(false); }}>
+                <Trash2 className="h-3.5 w-3.5" /> {t("common.delete")}
+              </Button>
+              <div className="flex gap-2">
+                <Button size="sm" variant="secondary" onClick={() => setSettings(false)}>
+                  {t("common.cancel")}
+                </Button>
+                <Button size="sm" onClick={saveSettings}>
+                  {t("common.save")}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
-      <button
-        type="button"
-        className="absolute bottom-0.5 right-0.5 h-3 w-3 cursor-se-resize rounded-sm bg-border"
-        onPointerDown={(e) => start(e, "resize")}
-      />
-    </div>
+
+      {mint && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-fg/30 p-4">
+          <div className="w-full max-w-sm space-y-3 rounded-lg border border-border bg-bg-elevated p-4 shadow-xl">
+            {mint === "form" ? (
+              <>
+                <p className="text-sm font-medium">{t("dash.clickMint")}</p>
+                <div>
+                  <Label>{t("dash.mintNote")}</Label>
+                  <Textarea value={note} onChange={(e) => setNote(e.target.value)} autoFocus />
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button size="sm" variant="secondary" onClick={() => setMint(null)}>
+                    {t("common.cancel")}
+                  </Button>
+                  <Button size="sm" disabled={busy} onClick={() => void mintLink()}>
+                    {busy ? t("common.loading") : t("dash.mintSave")}
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-sm font-medium">{t("dash.mintReady")}</p>
+                <p className="break-all font-mono text-sm">{mint.url}</p>
+                <div className="flex justify-end">
+                  <Button size="sm" onClick={() => setMint(null)}>
+                    {t("common.close")}
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </>
   );
 }

@@ -286,6 +286,12 @@ export const de = {
     noTeam: "Kein Team",
     members: "Team",
     addMember: "Mitglied",
+    clickCopy: "Bestehenden Link kopieren",
+    clickMint: "Neuen individuellen Link erstellen",
+    mintNote: "Notiz zum Link",
+    mintSave: "Speichern und Link erstellen",
+    mintReady: "Link liegt in der Zwischenablage",
+    settingsTitle: "Button",
   },
 };
 
