@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   FileStack,
   Link2,
@@ -12,7 +12,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatDateDe, cn } from "@/lib/utils";
 import { useControlData } from "@/lib/docbay/use-control";
-import { markNotificationsRead } from "@/lib/docbay/api";
 import { toast } from "sonner";
 import { QuickShorten } from "@/components/control/quick-shorten";
 
@@ -22,7 +21,6 @@ export const Route = createFileRoute("/control/")({
 
 function Dashboard() {
   const data = useControlData();
-  const router = useRouter();
 
   const stats = [
     { label: "URLs", value: data.stats.shorts, icon: Link2, hue: "text-hue-azure" },
@@ -50,19 +48,6 @@ function Dashboard() {
             {data.tenant.public_host}
           </p>
         </div>
-        {data.tenant.id !== "platform" && (
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={async () => {
-              await markNotificationsRead();
-              await router.invalidate();
-              toast.success("Benachrichtigungen gelesen");
-            }}
-          >
-            Notifs als gelesen
-          </Button>
-        )}
       </div>
 
       <QuickShorten />

@@ -241,6 +241,13 @@ export const de = {
     generic: "Etwas ist schiefgelaufen",
     unexpected: "Unerwarteter Fehler. Seite neu laden.",
   },
+  notif: {
+    label: "Hinweise",
+    empty: "Alles ruhig.",
+    dnsTitle: "{host}",
+    dnsPending: "DNS zeigt noch nicht auf bestl.ink.",
+    dnsConnected: "Domain ist aktiv, DNS aber ungültig.",
+  },
 };
 
 export type Messages = typeof de;

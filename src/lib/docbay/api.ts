@@ -1125,8 +1125,9 @@ export const deleteWebhook = createServerFn({ method: "POST" })
 
 export const markNotificationsRead = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .handler(async ({ context }) => {
-    const mem = await getMembership(context.userId);
+  .inputValidator((d: { tenant_id?: string } | undefined) => d ?? {})
+  .handler(async ({ context, data }) => {
+    const mem = await getMembership(context.userId, data.tenant_id);
     if (!mem) throw new Error("Kein Workspace");
     const sql = await getSql();
     await sql`

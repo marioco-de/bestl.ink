@@ -242,4 +242,11 @@ export const en: Messages = {
     generic: "Something went wrong",
     unexpected: "Unexpected error. Try reloading.",
   },
+  notif: {
+    label: "Alerts",
+    empty: "All quiet.",
+    dnsTitle: "{host}",
+    dnsPending: "DNS does not point to bestl.ink yet.",
+    dnsConnected: "Domain is active, but DNS is invalid.",
+  },
 };

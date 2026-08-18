@@ -43,6 +43,7 @@ import { CommandPalette } from "@/components/control/command-palette";
 import { ShortcutsHelp } from "@/components/control/shortcuts-help";
 import { CreateLinkModal } from "@/components/control/create-link-modal";
 import { WorkspaceSwitcher } from "@/components/control/workspace-switcher";
+import { NotificationBell } from "@/components/control/notification-bell";
 import { useTheme } from "@/lib/theme";
 import { useI18n, useT } from "@/lib/i18n";
 
@@ -427,10 +428,13 @@ function ControlShell() {
               </kbd>
             </button>
           </div>
-          <Button type="button" size="sm" className="h-10" onClick={() => openCreate()}>
-            <Plus className="h-3.5 w-3.5" />
-            <span className="hidden @min-[24rem]/app:inline">{t("short.newLink")}</span>
-          </Button>
+          <div className="flex items-center gap-1.5">
+            <NotificationBell />
+            <Button type="button" size="sm" className="h-10" onClick={() => openCreate()}>
+              <Plus className="h-3.5 w-3.5" />
+              <span className="hidden @min-[24rem]/app:inline">{t("short.newLink")}</span>
+            </Button>
+          </div>
         </header>
         <main key={pathname} className="page-in flex-1 px-4 py-6 @min-[52rem]/app:px-8 @min-[52rem]/app:py-8">
           <Outlet />
