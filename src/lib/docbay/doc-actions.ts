@@ -48,3 +48,14 @@ export function parseChatMode(payload: JsonObject | undefined | null): ChatMode 
 export function withChatMode(mode: ChatMode, prev?: JsonObject): JsonObject {
   return { ...(prev || {}), chat: mode };
 }
+
+export const WITHDRAWAL_DAYS = 14;
+export const WITHDRAWAL_MS = WITHDRAWAL_DAYS * 24 * 60 * 60 * 1000;
+
+export function withdrawalUntil(firstAt: Date | string): Date {
+  return new Date(new Date(firstAt).getTime() + WITHDRAWAL_MS);
+}
+
+export function withdrawalLocked(firstAt: Date | string, now = Date.now()): boolean {
+  return now >= withdrawalUntil(firstAt).getTime();
+}

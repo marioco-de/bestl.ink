@@ -1,7 +1,8 @@
 import { createFileRoute, redirect, isRedirect } from "@tanstack/react-router";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { recordDocAction } from "@/lib/docbay/api";
-import { parseDocActions, parseChatMode, type DocActionId } from "@/lib/docbay/doc-actions";
+import { parseDocActions, parseChatMode, WITHDRAWAL_DAYS, type DocActionId } from "@/lib/docbay/doc-actions";
+import { formatDateDe } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 import {
   resolveAccess,
@@ -455,7 +456,9 @@ function GrantedView({
   });
   const startRef = useRef(Date.now());
   const pageRef = useRef(1);
-  const [acted, setActed] = useState<string | null>(null);
+  const [acted, setActed] = useState<string | null>(data.decision?.kind || null);
+  const [decisionLocked, setDecisionLocked] = useState(Boolean(data.decision?.locked));
+  const [changeUntil, setChangeUntil] = useState(data.decision?.change_until || null);
   const chatMode = parseChatMode(resource.payload);
   const chatOn = Boolean(features.chat && chatMode !== "off");
   const threadKey = chatEmail.trim().toLowerCase();
@@ -540,13 +543,17 @@ function GrantedView({
   }, [resource.id, link?.id, chatOn, threadKey]);
 
   async function runAction(id: DocActionId, target: string) {
-    if (acted === id) return;
     if (id === "call" && target) {
       window.location.href = `tel:${target.replace(/\s+/g, "")}`;
     }
     if (id === "email" && target) {
       window.location.href = `mailto:${target}`;
     }
+    if ((id === "accept" || id === "reject") && decisionLocked && acted && acted !== id) {
+      toast.error(t("doc.locked"));
+      return;
+    }
+    if (acted === id && (id === "accept" || id === "reject" || id === "sign")) return;
     try {
       await recordDocAction({
         data: {
@@ -556,12 +563,25 @@ function GrantedView({
           visitor: chatEmail || data.visitor_email || "",
         },
       });
+      const wasDecided = acted === "accept" || acted === "reject";
       setActed(id);
-      if (id === "accept" || id === "reject" || id === "sign") {
+      if (id === "accept" || id === "reject") {
+        if (!changeUntil) {
+          const until = new Date(Date.now() + WITHDRAWAL_DAYS * 24 * 60 * 60 * 1000).toISOString();
+          setChangeUntil(until);
+        }
+        toast.success(wasDecided ? t("doc.changed") : t("doc.thanks"));
+      } else if (id === "sign") {
         toast.success(t("doc.thanks"));
       }
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : t("common.error"));
+      const msg = e instanceof Error ? e.message : "";
+      if (msg === "LOCKED") {
+        setDecisionLocked(true);
+        toast.error(t("doc.locked"));
+      } else {
+        toast.error(e instanceof Error ? e.message : t("common.error"));
+      }
     }
   }
 
@@ -594,6 +614,8 @@ function GrantedView({
     email: "border-zinc-400 bg-transparent text-zinc-600 hover:bg-zinc-100",
   };
   const decided = acted === "accept" || acted === "reject";
+  const decisionFrozen =
+    decisionLocked || (changeUntil ? Date.now() >= new Date(changeUntil).getTime() : false);
 
   return (
     <div className="relative flex min-h-dvh flex-col bg-bg">
@@ -615,7 +637,7 @@ function GrantedView({
             const Icon = actionIcon[a.id];
             const chosen = acted === a.id && (a.id === "accept" || a.id === "reject" || a.id === "sign");
             const dimmed =
-              decided && (a.id === "accept" || a.id === "reject") && acted !== a.id;
+              decisionFrozen && decided && (a.id === "accept" || a.id === "reject") && acted !== a.id;
             return (
               <Button
                 key={a.id}
@@ -658,6 +680,16 @@ function GrantedView({
           )}
         </div>
       </header>
+      {decided && changeUntil && (
+        <p className="border-b border-border bg-bg-subtle px-4 py-1.5 text-center text-[11px] text-fg-muted sm:px-6">
+          {decisionFrozen
+            ? t("doc.lockedSince")
+            : t("doc.changeUntil", {
+                date: formatDateDe(changeUntil),
+                days: WITHDRAWAL_DAYS,
+              })}
+        </p>
+      )}
 
       <div className="relative flex flex-1">
         <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">

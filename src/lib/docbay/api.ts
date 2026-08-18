@@ -1490,6 +1490,12 @@ export const resolveAccess = createServerFn({ method: "POST" })
       assigned_email: null as string | null,
       assigned_name: null as string | null,
       allow_identity_edit: true,
+      decision: null as null | {
+        kind: string;
+        at: string;
+        change_until: string;
+        locked: boolean;
+      },
       link: null as null | {
         id: string;
         token: string;
@@ -1661,6 +1667,40 @@ export const resolveAccess = createServerFn({ method: "POST" })
       ? requestEmail || assignedEmail || null
       : assignedEmail || requestEmail || null;
 
+    let decision: {
+      kind: string;
+      at: string;
+      change_until: string;
+      locked: boolean;
+    } | null = null;
+    try {
+      const acts = await sql`
+        select kind, created_at, visitor from db_doc_actions
+        where resource_id = ${String(resource.id)}
+          and kind in ('accept', 'reject')
+          and (link_id = ${String(link.id)} or link_id is null)
+        order by created_at asc
+      `;
+      const mine = (acts as { kind: string; created_at: string; visitor?: string }[]).filter((a) => {
+        if (!visitorEmail) return true;
+        const v = String(a.visitor || "").trim().toLowerCase();
+        return !v || v === visitorEmail;
+      });
+      if (mine.length > 0) {
+        const first = mine[0];
+        const last = mine[mine.length - 1];
+        const until = new Date(new Date(first.created_at).getTime() + 14 * 24 * 60 * 60 * 1000);
+        decision = {
+          kind: String(last.kind),
+          at: new Date(last.created_at).toISOString(),
+          change_until: until.toISOString(),
+          locked: Date.now() >= until.getTime(),
+        };
+      }
+    } catch {
+      /* table may be missing */
+    }
+
     return {
       ...base,
       access: "granted" as const,
@@ -1671,6 +1711,7 @@ export const resolveAccess = createServerFn({ method: "POST" })
       assigned_email: assignedEmail || null,
       assigned_name: assignedName || null,
       allow_identity_edit: allowEdit,
+      decision,
       link: {
         id: String(link.id),
         token: String(link.token),
@@ -2151,6 +2192,29 @@ export const recordDocAction = createServerFn({ method: "POST" })
       `
     )[0] as { id?: string; tenant_id?: string; title?: string } | undefined;
     if (!res?.id) throw new Error("NOT_FOUND");
+    const visitor = (data.visitor || "").trim().toLowerCase();
+    if (data.kind === "accept" || data.kind === "reject") {
+      try {
+        const acts = await sql`
+          select kind, created_at from db_doc_actions
+          where resource_id = ${data.resource_id}
+            and kind in ('accept', 'reject')
+            and (${data.link_id || ""} = '' or link_id = ${data.link_id ?? null})
+            and (${visitor} = '' or lower(visitor) = ${visitor} or visitor = '')
+          order by created_at asc
+        `;
+        if (acts.length > 0) {
+          const first = acts[0] as { created_at: string; kind: string };
+          const last = acts[acts.length - 1] as { kind: string };
+          const until = new Date(new Date(first.created_at).getTime() + 14 * 24 * 60 * 60 * 1000);
+          if (Date.now() >= until.getTime() && last.kind !== data.kind) {
+            throw new Error("LOCKED");
+          }
+        }
+      } catch (e) {
+        if (e instanceof Error && e.message === "LOCKED") throw e;
+      }
+    }
     const id = uid("dact");
     await sql`
       insert into db_doc_actions (id, tenant_id, resource_id, link_id, kind, visitor)
