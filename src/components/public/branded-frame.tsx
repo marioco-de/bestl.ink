@@ -1,91 +1,76 @@
 import { useEffect } from "react";
-import { BRAND_NAME } from "@/lib/docbay/brand";
+import { Shield } from "lucide-react";
+import { BRAND_HOME, BRAND_NAME } from "@/lib/docbay/brand";
+import { useT } from "@/lib/i18n";
 
-const HOME = "https://www.bestl.ink";
-
-function Flag({ dest }: { dest?: string }) {
+export function BrandFlag({ dest }: { dest?: string }) {
+  const t = useT();
   return (
     <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex justify-center">
       <a
-        href={HOME}
+        href={BRAND_HOME}
         target="_blank"
         rel="noreferrer"
-        className="pointer-events-auto flex h-8 items-center gap-2 rounded-t-md border border-b-0 border-border bg-bg-elevated px-2.5 text-[11px] leading-none text-fg-muted shadow-md transition-colors hover:bg-bg-subtle hover:text-fg"
+        className="pointer-events-auto flex h-9 items-center gap-2 rounded-t-md border border-b-0 border-border bg-bg-elevated px-3 text-xs leading-none text-fg-muted shadow-md transition-colors hover:bg-bg-subtle hover:text-fg"
       >
-        <span className="metal flex h-4 w-4 items-center justify-center rounded-sm font-display text-[8px] font-semibold text-primary-fg">
-          bl
+        <span className="metal flex h-5 w-5 items-center justify-center rounded-sm">
+          <Shield className="h-3 w-3" strokeWidth={2.2} />
         </span>
         <span className="whitespace-nowrap">
-          shortened & secured with{" "}
-          <span className="font-medium text-fg">{BRAND_NAME}</span>
+          {t("brand.flag", { name: BRAND_NAME })}
         </span>
       </a>
-      {dest ? (
-        <span className="sr-only">{dest}</span>
-      ) : null}
+      {dest ? <span className="sr-only">{dest}</span> : null}
     </div>
   );
-}
-
-function hostOf(url: string): string {
-  try {
-    return new URL(url).host;
-  } catch {
-    return url;
-  }
 }
 
 export function BrandedFrame({
   url,
   title,
-  showFlag = true,
-  frameable = false,
 }: {
   url: string;
   title?: string;
   showFlag?: boolean;
   frameable?: boolean;
 }) {
-  const canFrame = Boolean(frameable);
-
+  const t = useT();
   useEffect(() => {
-    if (canFrame) return;
-    const t = window.setTimeout(() => {
+    const tmr = window.setTimeout(() => {
       window.location.replace(url);
-    }, 1100);
-    return () => window.clearTimeout(t);
-  }, [canFrame, url]);
+    }, 1450);
+    return () => window.clearTimeout(tmr);
+  }, [url]);
 
-  if (canFrame) {
-    return (
-      <div className="relative h-dvh w-full overflow-hidden bg-bg">
-        <iframe
-          title={title || "link"}
-          src={url}
-          className="h-full w-full border-0 bg-bg"
-          referrerPolicy="no-referrer"
-        />
-        {showFlag && <Flag dest={url} />}
-      </div>
-    );
+  let host = url;
+  try {
+    host = new URL(url, "https://bestl.ink").host;
+  } catch {
+    /* keep raw */
   }
 
   return (
-    <div className="relative flex min-h-dvh flex-col items-center justify-center bg-bg px-6">
-      <p className="text-[11px] uppercase tracking-wider text-fg-subtle">
-        Weiterleitung
-      </p>
-      <p className="mt-2 max-w-md truncate text-center font-display text-lg font-semibold">
-        {title || hostOf(url)}
-      </p>
-      <p className="mt-1 font-mono text-xs text-fg-muted">{hostOf(url)}</p>
+    <div className="hop-wash relative flex min-h-dvh flex-col items-center justify-center px-6">
+      <a
+        href={BRAND_HOME}
+        target="_blank"
+        rel="noreferrer"
+        className="badge-shine metal inline-flex items-center gap-3 rounded-xl px-5 py-3.5 text-sm font-medium shadow-lg"
+      >
+        <span className="flex h-8 w-8 items-center justify-center rounded-md bg-white/15">
+          <Shield className="h-5 w-5" strokeWidth={2.2} />
+        </span>
+        <span>{t("brand.flag", { name: BRAND_NAME })}</span>
+      </a>
+      {title ? (
+        <p className="mt-5 max-w-md truncate text-center text-sm text-white/75">{title}</p>
+      ) : null}
       <a
         href={url}
-        className="mt-6 text-sm text-primary underline-offset-2 hover:underline"
+        className="mt-3 text-xs text-white/60 underline-offset-2 hover:text-white hover:underline"
       >
-        Weiter zur Seite
+        {host}
       </a>
-      {showFlag && <Flag dest={url} />}
     </div>
   );
 }

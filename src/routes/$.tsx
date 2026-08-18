@@ -34,7 +34,7 @@ import {
   parseContactPayload,
   parseEventPayload,
 } from "@/lib/docbay/cards";
-import { BrandedFrame } from "@/components/public/branded-frame";
+import { BrandedFrame, BrandFlag } from "@/components/public/branded-frame";
 
 type Search = {
   access?: string;
@@ -233,8 +233,6 @@ function ShortHit({
       <BrandedFrame
         url={data.destination}
         title={data.short.title || data.short.slug}
-        showFlag={Boolean(data.branded)}
-        frameable={Boolean(data.frameable)}
       />
     );
   }
@@ -412,7 +410,7 @@ function GrantedView({
   const allowDl = link?.allow_download !== false;
 
   return (
-    <div className="flex min-h-dvh flex-col bg-bg">
+    <div className="relative flex min-h-dvh flex-col bg-bg">
       <header className="flex items-center justify-between gap-3 border-b border-border px-4 py-3 sm:px-6">
         <div className="min-w-0">
           <p className="truncate text-xs text-fg-subtle">{settings.company_name}</p>
@@ -560,6 +558,7 @@ function GrantedView({
           </aside>
         )}
       </div>
+      <BrandFlag />
     </div>
   );
 }

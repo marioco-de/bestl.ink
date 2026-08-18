@@ -202,6 +202,35 @@
     );
   }
 
+  .hop-wash {
+    --hue: var(--color-hue-teal);
+    background-image: linear-gradient(
+      145deg,
+      color-mix(in oklab, var(--hue) 78%, white) 0%,
+      var(--hue) 46%,
+      color-mix(in oklab, var(--hue) 42%, #243056) 100%
+    );
+    color: #fff;
+  }
+
+  .badge-shine {
+    position: relative;
+    overflow: hidden;
+  }
+  .badge-shine::after {
+    content: "";
+    position: absolute;
+    inset: -20% -40%;
+    background: linear-gradient(
+      105deg,
+      transparent 36%,
+      color-mix(in oklab, white 62%, transparent) 50%,
+      transparent 64%
+    );
+    transform: translateX(-80%) rotate(8deg);
+    animation: badge-shine 1.15s cubic-bezier(0.22, 1, 0.36, 1) 0.12s both;
+  }
+
   .nav-fold {
     display: grid;
     grid-template-rows: 0fr;
@@ -219,6 +248,15 @@
   .nav-fold-inner {
     min-height: 0;
     overflow: hidden;
+  }
+}
+
+@keyframes badge-shine {
+  from {
+    transform: translateX(-80%) rotate(8deg);
+  }
+  to {
+    transform: translateX(80%) rotate(8deg);
   }
 }
 
