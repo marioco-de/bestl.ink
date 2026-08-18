@@ -255,19 +255,28 @@ function GatedResource({ initial }: { initial: any }) {
   const [data, setData] = useState(initial);
   const [password, setPassword] = useState("");
   const [ndaEmail, setNdaEmail] = useState("");
+  const [busy, setBusy] = useState(false);
 
   async function retry(extra: { password?: string; nda_email?: string }) {
     const slug = data.resource.slug;
-    const next = await resolveAccess({
-      data: {
-        slug,
-        token: search.access ?? null,
-        password: extra.password,
-        nda_email: extra.nda_email,
-        user_agent: navigator.userAgent,
-      },
-    });
-    setData(next);
+    setBusy(true);
+    try {
+      const next = await resolveAccess({
+        data: {
+          slug,
+          token: search.access ?? null,
+          password: extra.password,
+          nda_email: extra.nda_email,
+          user_agent: navigator.userAgent,
+          host: typeof window !== "undefined" ? window.location.host : undefined,
+        },
+      });
+      setData(next);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Fehler");
+    } finally {
+      setBusy(false);
+    }
   }
 
   if (data.access === "granted") {
@@ -289,7 +298,7 @@ function GatedResource({ initial }: { initial: any }) {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
-          <Button type="submit" className="w-full">
+          <Button type="submit" className="w-full" disabled={busy}>
             Entsperren
           </Button>
         </form>
@@ -314,8 +323,8 @@ function GatedResource({ initial }: { initial: any }) {
             value={ndaEmail}
             onChange={(e) => setNdaEmail(e.target.value)}
           />
-          <Button type="submit" className="w-full">
-            NDA akzeptieren & öffnen
+          <Button type="submit" className="w-full" disabled={busy}>
+            {busy ? "…" : "NDA akzeptieren & öffnen"}
           </Button>
         </form>
       </GateShell>

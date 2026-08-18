@@ -84,6 +84,7 @@ async function fireWebhooks(
           ...(w.secret ? { "X-Bestlink-Secret": w.secret } : {}),
         },
         body: JSON.stringify({ event, ...payload, at: new Date().toISOString() }),
+        signal: AbortSignal.timeout(2500),
       });
     } catch {
       /* ignore */
@@ -1548,7 +1549,7 @@ export const resolveAccess = createServerFn({ method: "POST" })
       await sql`
         select email from db_nda_acceptances
         where link_id = ${String(link.id)}
-        order by created_at desc
+        order by accepted_at desc
         limit 1
       `
     )[0] as { email?: string } | undefined;
