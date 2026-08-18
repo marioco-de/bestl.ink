@@ -1326,10 +1326,24 @@ export const resolveAccess = createServerFn({ method: "POST" })
     await ensurePlatformSeeded();
     const sql = await getSql();
     const slug = data.slug.replace(/^\//, "").replace(/\/$/, "");
+    const host = (data.host || requestHostHeader()).toLowerCase().replace(/:\d+$/, "");
+    const token = (data.token || "").trim();
+    const slugKey = slug.toLowerCase();
+    const slugBare = slugKey.replace(/\.[a-z0-9]{1,8}$/i, "");
+    const slugDash = slugKey.replace(/\./g, "-");
 
     let resRows: unknown[] = [];
-    const host = (data.host || "").toLowerCase().replace(/:\d+$/, "");
-    if (host) {
+    if (token) {
+      resRows = await sql`
+        select r.*, t.name as tenant_name, t.domain, t.brand_color, t.brand_company, t.id as tenant_id
+        from db_links l
+        join db_resources r on r.id = l.resource_id
+        join db_tenants t on t.id = r.tenant_id
+        where l.token = ${token}
+        limit 1
+      `;
+    }
+    if (resRows.length === 0) {
       const sub =
         host.endsWith(`.${PLATFORM_LINK_HOST}`)
           ? host.slice(0, -(PLATFORM_LINK_HOST.length + 1))
@@ -1338,9 +1352,16 @@ export const resolveAccess = createServerFn({ method: "POST" })
         select r.*, t.name as tenant_name, t.domain, t.brand_color, t.brand_company, t.id as tenant_id
         from db_resources r
         join db_tenants t on t.id = r.tenant_id
-        where r.slug = ${slug}
+        where (
+            lower(r.slug) = ${slugKey}
+            or lower(r.slug) = ${slugBare}
+            or lower(r.slug) = ${slugDash}
+            or lower(r.slug) = ${`${slugBare}.pdf`}
+            or lower(coalesce(r.file_name, '')) = ${slugKey}
+          )
           and (
-            lower(t.custom_domain) = ${host}
+            ${host} = ''
+            or lower(t.custom_domain) = ${host}
             or lower(t.domain) = ${host}
             or (${sub} is not null and t.subdomain = ${sub})
             or exists (
@@ -1348,6 +1369,7 @@ export const resolveAccess = createServerFn({ method: "POST" })
               where d.tenant_id = t.id and lower(d.host) = ${host}
             )
           )
+        order by t.created_at desc
         limit 1
       `;
     }
@@ -1356,7 +1378,11 @@ export const resolveAccess = createServerFn({ method: "POST" })
         select r.*, t.name as tenant_name, t.domain, t.brand_color, t.brand_company, t.id as tenant_id
         from db_resources r
         join db_tenants t on t.id = r.tenant_id
-        where r.slug = ${slug}
+        where lower(r.slug) = ${slugKey}
+           or lower(r.slug) = ${slugBare}
+           or lower(r.slug) = ${slugDash}
+           or lower(r.slug) = ${`${slugBare}.pdf`}
+           or lower(coalesce(r.file_name, '')) = ${slugKey}
         order by t.created_at desc
         limit 1
       `;
