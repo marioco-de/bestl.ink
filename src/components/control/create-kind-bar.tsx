@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { CREATE_KINDS, type CreateKind } from "@/lib/docbay/create-kind";
 import { hueStyle } from "@/lib/docbay/palette";
 import { useT } from "@/lib/i18n";
@@ -14,6 +15,17 @@ export function CreateKindBar({
   const idx = Math.max(0, CREATE_KINDS.findIndex((k) => k.id === value));
   const n = CREATE_KINDS.length;
   const active = CREATE_KINDS[idx]!;
+  const prev = useRef(idx);
+  const [stretch, setStretch] = useState(1);
+
+  useEffect(() => {
+    const dist = Math.abs(idx - prev.current);
+    prev.current = idx;
+    if (!dist) return;
+    setStretch(1 + Math.min(dist, 4) * 0.16);
+    const id = window.setTimeout(() => setStretch(1), 340);
+    return () => window.clearTimeout(id);
+  }, [idx]);
 
   return (
     <div
@@ -23,10 +35,13 @@ export function CreateKindBar({
     >
       <span
         aria-hidden
-        className="pointer-events-none absolute top-0.5 bottom-0.5 rounded-md hue-action shadow-sm transition-[left] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]"
+        className="pointer-events-none absolute top-0.5 bottom-0.5 left-0.5 rounded-md hue-action shadow-sm will-change-transform"
         style={{
           width: `calc((100% - 4px) / ${n})`,
-          left: `calc(2px + ${idx} * ((100% - 4px) / ${n}))`,
+          transform: `translateX(${idx * 100}%) scaleX(${stretch})`,
+          transformOrigin: "center",
+          transition:
+            "transform 520ms cubic-bezier(0.22, 1.45, 0.36, 1), --hue 480ms cubic-bezier(0.4, 0.05, 0.2, 1)",
           ...hueStyle(active.hue),
         }}
       />
@@ -42,7 +57,7 @@ export function CreateKindBar({
             title={t(k.labelKey)}
             onClick={() => onChange(k.id)}
             className={cn(
-              "relative z-10 flex flex-1 items-center justify-center rounded-md transition-colors",
+              "relative z-10 flex flex-1 items-center justify-center rounded-md transition-colors duration-500 ease-out",
               on ? "text-white" : "text-fg-muted hover:text-fg",
             )}
           >

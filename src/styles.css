@@ -1,6 +1,12 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+@property --hue {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #0f766e;
+}
+
 @theme {
   --font-sans: "DM Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
   --font-display: "Instrument Sans", "DM Sans", system-ui, sans-serif;
