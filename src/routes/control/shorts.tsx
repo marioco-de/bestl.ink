@@ -116,7 +116,7 @@ export function ShortsWorkspace({
         </div>
       )}
 
-      <div className="overflow-hidden rounded-lg border border-border">
+      <div className="overflow-visible rounded-lg border border-border">
         {state.shorts.length === 0 && (
           <p className="p-5 text-sm text-fg-muted">
             Noch keine URLs. Oben einfügen und kürzen – fertig.

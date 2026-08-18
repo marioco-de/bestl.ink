@@ -192,7 +192,7 @@ function SharedPanel() {
           Noch keine Token-Links. Unter Dokumente, Termine oder Kontakte „Link generieren“.
         </p>
       )}
-      <div className="overflow-hidden rounded-lg border border-border">
+      <div className="overflow-visible rounded-lg border border-border">
         {filtered.map((l, i) => (
           <DocLinkRow
             key={l.id}

@@ -117,7 +117,7 @@ export function ResourcesWorkspace({
         />
       )}
 
-      <div className="overflow-hidden rounded-lg border border-border">
+      <div className="overflow-visible rounded-lg border border-border">
         {items.map((r, i) => (
           <ResourceRow
             key={r.id}
