@@ -183,6 +183,15 @@ export const en: Messages = {
     ndaLog: "NDA signatures",
     ndaNone: "No NDA signed yet.",
   },
+  eye: {
+    live: "Currently being viewed by {email} from {country}",
+    liveNoCountry: "Currently being viewed by {email}",
+    agoMin: "Viewed within the last {n} minutes",
+    agoHours: "Viewed within the last {n} hours",
+    visitor: "a visitor",
+    none: "No activity yet.",
+    activity: "Activity",
+  },
   overview: {
     title: "Overview",
     customers: "Customers",

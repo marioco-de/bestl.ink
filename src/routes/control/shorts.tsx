@@ -36,6 +36,7 @@ import { upsertShort, removeShort } from "@/lib/docbay/state-patch";
 import { formatDateDe, cn } from "@/lib/utils";
 import { TagChip } from "@/components/control/tag-picker";
 import { tagColor } from "@/lib/docbay/tags";
+import { ActivityList, PresenceEye } from "@/components/control/presence-eye";
 
 export const Route = createFileRoute("/control/shorts")({
   validateSearch: (s: Record<string, unknown>) => ({
@@ -120,107 +121,19 @@ export function ShortsWorkspace({
             Noch keine URLs. Oben einfügen und kürzen – fertig.
           </p>
         )}
-        {state.shorts.map((s, i) => {
-          const url = `https://${host}/${s.slug}`;
-          return (
-            <div
-              key={s.id}
-              className={cn(
-                "flex flex-col gap-2 px-3 py-2.5 @min-[40rem]/hub:flex-row @min-[40rem]/hub:items-center @min-[40rem]/hub:justify-between",
-                i > 0 && "border-t border-border",
-                s.disabled && "opacity-60",
-              )}
-            >
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <p className="truncate text-sm font-medium">{s.title || s.slug}</p>
-                  {s.disabled && <Badge variant="danger">aus</Badge>}
-                  {s.cloak && <Badge variant="secondary">Cloak</Badge>}
-                  {s.has_password && <Badge variant="outline">Passwort</Badge>}
-                  {s.button_name && (
-                    <Badge variant="secondary">{s.button_name}</Badge>
-                  )}
-                </div>
-                <p className="mt-0.5 truncate font-mono text-xs text-fg-muted">
-                  {url}
-                  <span className="text-fg-subtle"> → {s.destination}</span>
-                </p>
-                {(s.tags?.length ?? 0) > 0 && (
-                  <div className="mt-1.5 flex flex-wrap gap-1">
-                    {s.tags.map((n) => (
-                      <TagChip key={n} name={n} color={tagColor(n, state.tags)} on />
-                    ))}
-                  </div>
-                )}
-              </div>
-              <div className="flex shrink-0 items-center gap-3">
-                <span className="hidden tabular text-xs text-fg-subtle @min-[40rem]/hub:inline">
-                  {s.human_click_count}
-                  {s.last_clicked_at ? ` · ${formatDateDe(s.last_clicked_at)}` : ""}
-                </span>
-                <div className="flex flex-wrap gap-1">
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => {
-                        void navigator.clipboard.writeText(url);
-                        toast.success("Kopiert");
-                      }}
-                    >
-                      <Copy className="h-3.5 w-3.5" />
-                    </Button>
-                    {state.features.qr_codes && (
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        onClick={async () => {
-                          try {
-                            const res = await qrForUrl({ data: { url } });
-                            setQr({ url, svg: res.svg });
-                          } catch (e) {
-                            toast.error(e instanceof Error ? e.message : "QR-Fehler");
-                          }
-                        }}
-                      >
-                        <QrCode className="h-3.5 w-3.5" />
-                      </Button>
-                    )}
-                    <Button size="sm" variant="secondary" onClick={() => setStatsFor(s)}>
-                      <BarChart3 className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button size="sm" variant="ghost" onClick={() => setEditor(s)}>
-                      <Pencil className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={async () => {
-                        const next = await toggleShort({
-                          data: { id: s.id, disabled: !s.disabled, tenant_id: state.tenant.id },
-                        });
-                        await refresh(upsertShort(state, next.short));
-                      }}
-                    >
-                      <Ban className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={async () => {
-                        if (!confirm("Kurzlink löschen?")) return;
-                        const next = await deleteShort({
-                          data: { id: s.id, tenant_id: state.tenant.id },
-                        });
-                        await refresh(removeShort(state, next.id));
-                      }}
-                    >
-                      <Trash2 className="h-3.5 w-3.5 text-danger" />
-                    </Button>
-                </div>
-              </div>
-            </div>
-          );
-        })}
+        {state.shorts.map((s, i) => (
+          <ShortRow
+            key={s.id}
+            s={s}
+            i={i}
+            host={host}
+            state={state}
+            refresh={refresh}
+            onQr={setQr}
+            onStats={setStatsFor}
+            onEdit={setEditor}
+          />
+        ))}
       </div>
 
       {state.features.public_api && (
@@ -345,6 +258,132 @@ export function ShortsWorkspace({
             dangerouslySetInnerHTML={{ __html: qr.svg }}
           />
         </FullScreenModal>
+      )}
+    </div>
+  );
+}
+
+function ShortRow({
+  s,
+  i,
+  host,
+  state,
+  refresh,
+  onQr,
+  onStats,
+  onEdit,
+}: {
+  s: ShortLink;
+  i: number;
+  host: string;
+  state: FullState;
+  refresh: (s: FullState) => Promise<void>;
+  onQr: (v: { url: string; svg: string }) => void;
+  onStats: (s: ShortLink) => void;
+  onEdit: (s: ShortLink) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const t = useT();
+  const url = `https://${host}/${s.slug}`;
+  return (
+    <div className={cn("px-3 py-2.5", i > 0 && "border-t border-border", s.disabled && "opacity-60")}>
+      <div
+        className="flex cursor-pointer flex-col gap-2 @min-[40rem]/hub:flex-row @min-[40rem]/hub:items-center @min-[40rem]/hub:justify-between"
+        onClick={() => setOpen((v) => !v)}
+      >
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <PresenceEye presence={s.presence} />
+            <p className="truncate text-sm font-medium">{s.title || s.slug}</p>
+            {s.disabled && <Badge variant="danger">aus</Badge>}
+            {s.cloak && <Badge variant="secondary">Cloak</Badge>}
+            {s.has_password && <Badge variant="outline">Passwort</Badge>}
+            {s.button_name && <Badge variant="secondary">{s.button_name}</Badge>}
+          </div>
+          <p className="mt-0.5 truncate font-mono text-xs text-fg-muted">
+            {url}
+            <span className="text-fg-subtle"> → {s.destination}</span>
+          </p>
+        </div>
+        <div className="flex shrink-0 items-center gap-3" onClick={(e) => e.stopPropagation()}>
+          <span className="hidden tabular text-xs text-fg-subtle @min-[40rem]/hub:inline">
+            {s.human_click_count}
+            {s.last_clicked_at ? ` · ${formatDateDe(s.last_clicked_at)}` : ""}
+          </span>
+          <div className="flex flex-wrap gap-1">
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => {
+                void navigator.clipboard.writeText(url);
+                toast.success("Kopiert");
+              }}
+            >
+              <Copy className="h-3.5 w-3.5" />
+            </Button>
+            {state.features.qr_codes && (
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={async () => {
+                  try {
+                    const res = await qrForUrl({ data: { url } });
+                    onQr({ url, svg: res.svg });
+                  } catch (e) {
+                    toast.error(e instanceof Error ? e.message : "QR-Fehler");
+                  }
+                }}
+              >
+                <QrCode className="h-3.5 w-3.5" />
+              </Button>
+            )}
+            <Button size="sm" variant="secondary" onClick={() => onStats(s)}>
+              <BarChart3 className="h-3.5 w-3.5" />
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => onEdit(s)}>
+              <Pencil className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={async () => {
+                const next = await toggleShort({
+                  data: { id: s.id, disabled: !s.disabled, tenant_id: state.tenant.id },
+                });
+                await refresh(upsertShort(state, next.short));
+              }}
+            >
+              <Ban className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={async () => {
+                if (!confirm("Kurzlink löschen?")) return;
+                const next = await deleteShort({
+                  data: { id: s.id, tenant_id: state.tenant.id },
+                });
+                await refresh(removeShort(state, next.id));
+              }}
+            >
+              <Trash2 className="h-3.5 w-3.5 text-danger" />
+            </Button>
+          </div>
+        </div>
+      </div>
+      {open && (
+        <div className="mt-2 space-y-2 border-t border-border/70 pt-2" onClick={(e) => e.stopPropagation()}>
+          {(s.tags?.length ?? 0) > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {s.tags.map((n) => (
+                <TagChip key={n} name={n} color={tagColor(n, state.tags)} on />
+              ))}
+            </div>
+          )}
+          {s.note && <p className="text-xs text-fg-muted">{s.note}</p>}
+          <p className="text-[11px] font-medium text-fg">{t("eye.activity")}</p>
+          <ActivityList tenantId={state.tenant.id} shortId={s.id} />
+        </div>
       )}
     </div>
   );

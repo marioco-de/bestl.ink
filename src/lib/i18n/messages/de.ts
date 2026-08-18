@@ -181,6 +181,15 @@ export const de = {
     ndaLog: "NDA-Unterschriften",
     ndaNone: "Noch keine NDA-Unterschrift.",
   },
+  eye: {
+    live: "Wird gerade angesehen von {email} aus {country}",
+    liveNoCountry: "Wird gerade angesehen von {email}",
+    agoMin: "Innerhalb der letzten {n} Minuten angesehen",
+    agoHours: "Innerhalb der letzten {n} Stunden angesehen",
+    visitor: "einem Besucher",
+    none: "Noch keine Aktivität.",
+    activity: "Aktivität",
+  },
   overview: {
     title: "Übersicht",
     customers: "Kundenverwaltung",

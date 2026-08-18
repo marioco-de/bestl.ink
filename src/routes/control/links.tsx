@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Ban, Copy, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { useControlData, useSetControlData } from "@/lib/docbay/use-control";
-import { revokeLink } from "@/lib/docbay/api";
+import { revokeLink, getPresence } from "@/lib/docbay/api";
 import { formatDateDe, cn } from "@/lib/utils";
 import type { FullState } from "@/lib/docbay/types";
 import { ShortsWorkspace } from "./shorts";
@@ -18,6 +18,8 @@ import { TagChip } from "@/components/control/tag-picker";
 import { tagColor } from "@/lib/docbay/tags";
 import { useT } from "@/lib/i18n";
 import { QuickShorten } from "@/components/control/quick-shorten";
+import { ActivityList, PresenceEye } from "@/components/control/presence-eye";
+import { useControl } from "@/lib/docbay/control-store";
 
 type Tab = "urls" | "docs" | "pages" | "events" | "contacts" | "shared";
 
@@ -44,6 +46,24 @@ function LinksHub() {
   const navigate = useNavigate();
   const t = useT();
   const tab = search.tab || "urls";
+  const { setData } = useControl();
+  const dataRef = useRef(data);
+  dataRef.current = data;
+
+  useEffect(() => {
+    const tick = window.setInterval(() => {
+      const cur = dataRef.current;
+      void getPresence({ data: { tenant_id: cur.tenant.id } }).then((p) => {
+        const latest = dataRef.current;
+        setData({
+          ...latest,
+          shorts: latest.shorts.map((s) => ({ ...s, presence: p.shorts[s.id] || null })),
+          links: latest.links.map((l) => ({ ...l, presence: p.links[l.id] || null })),
+        });
+      });
+    }, 20000);
+    return () => window.clearInterval(tick);
+  }, [data.tenant.id, setData]);
 
   const counts = {
     urls: data.shorts.length,
@@ -206,12 +226,6 @@ function DocLinkRow({
   const t = useT();
   const [more, setMore] = useState(false);
   const ndas = l.ndas || [];
-  const extra =
-    ndas.length > 0 ||
-    (l.tags?.length ?? 0) > 0 ||
-    Boolean(l.note) ||
-    Boolean(l.expires_at) ||
-    Boolean(l.require_nda);
 
   return (
     <div
@@ -221,9 +235,13 @@ function DocLinkRow({
         l.revoked && "opacity-60",
       )}
     >
-      <div className="flex flex-col gap-2 @min-[40rem]/hub:flex-row @min-[40rem]/hub:items-center @min-[40rem]/hub:justify-between">
+      <div
+        className="flex cursor-pointer flex-col gap-2 @min-[40rem]/hub:flex-row @min-[40rem]/hub:items-center @min-[40rem]/hub:justify-between"
+        onClick={() => setMore((v) => !v)}
+      >
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-1.5">
+            <PresenceEye presence={l.presence} />
             <p className="truncate text-sm font-medium">{l.resource_title}</p>
             {l.revoked && <Badge variant="danger">Widerrufen</Badge>}
             {l.one_time && <Badge variant="outline">Einmal</Badge>}
@@ -232,18 +250,13 @@ function DocLinkRow({
           </div>
           <p className="mt-0.5 truncate font-mono text-xs text-fg-muted">{url}</p>
         </div>
-        <div className="flex shrink-0 items-center gap-3">
+        <div className="flex shrink-0 items-center gap-3" onClick={(e) => e.stopPropagation()}>
           <span className="hidden tabular text-xs text-fg-subtle @min-[40rem]/hub:inline">
             {l.human_click_count}
             {l.last_clicked_at ? ` · ${formatDateDe(l.last_clicked_at)}` : ""}
             {ndas.length ? ` · ${ndas.length} NDA` : ""}
           </span>
           <div className="flex flex-wrap gap-1">
-            {extra && (
-              <Button size="sm" variant="ghost" onClick={() => setMore((v) => !v)}>
-                {more ? t("links.less") : t("links.more")}
-              </Button>
-            )}
             <Button
               size="sm"
               variant="secondary"
@@ -295,6 +308,8 @@ function DocLinkRow({
               </ul>
             </div>
           )}
+          <p className="font-medium text-fg">{t("eye.activity")}</p>
+          <ActivityList tenantId={l.tenant_id} linkId={l.id} />
         </div>
       )}
     </div>

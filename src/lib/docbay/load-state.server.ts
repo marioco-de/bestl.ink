@@ -23,6 +23,7 @@ import { parseJsonArray, parseJsonObj } from "./id";
 import { ensurePlatformSeeded, PLATFORM_LINK_HOST } from "./seed.server";
 import { mapShortRow } from "./shorts.server";
 import { emptyDash, loadDashState } from "./dashboard.server";
+import { loadPresenceMap } from "./activity.server";
 
 function publicHost(subdomain: string, custom: string, customConnected: boolean): string {
   if (customConnected && custom) return custom;
@@ -656,6 +657,12 @@ export async function loadFullState(
   });
 
   const shorts = shortRows.map((r) => mapShortRow(r as Record<string, unknown>));
+  const presence = await loadPresenceMap(tid);
+  links = links.map((l) => ({ ...l, presence: presence.links.get(l.id) || null }));
+  const shortsWithPresence = shorts.map((s) => ({
+    ...s,
+    presence: presence.shorts.get(s.id) || null,
+  }));
   const apiKeys = apiKeyRows.map((r) => {
     const x = r as Record<string, unknown>;
     return {
@@ -697,7 +704,7 @@ export async function loadFullState(
     notifications,
     audit,
     members,
-    shorts,
+    shorts: shortsWithPresence,
     apiKeys,
     dash,
     demoResetsInMs: null,

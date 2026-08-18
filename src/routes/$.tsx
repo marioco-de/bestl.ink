@@ -9,6 +9,7 @@ import {
   listChat,
   postChat,
   trackView,
+  recordActivity,
 } from "@/lib/docbay/api";
 import { resolveShort, lookupMiss } from "@/lib/docbay/shorts-api";
 import { NotFoundSplash, type MissReason } from "@/components/public/not-found-splash";
@@ -417,6 +418,35 @@ function GrantedView({
       });
     };
   }, [link, features.pdf_analytics]);
+
+  useEffect(() => {
+    if (!link?.id) return;
+    const payload = {
+      link_id: link.id,
+      email: chatEmail || data.visitor_email || "",
+      user_agent: typeof navigator !== "undefined" ? navigator.userAgent : "",
+    };
+    void recordActivity({ data: { ...payload, event: "open" } });
+    const beat = window.setInterval(() => {
+      void recordActivity({ data: { ...payload, event: "heartbeat" } });
+    }, 25000);
+    const onVis = () => {
+      void recordActivity({
+        data: { ...payload, event: document.visibilityState === "hidden" ? "close" : "open" },
+      });
+    };
+    const onHide = () => {
+      void recordActivity({ data: { ...payload, event: "close" } });
+    };
+    document.addEventListener("visibilitychange", onVis);
+    window.addEventListener("pagehide", onHide);
+    return () => {
+      window.clearInterval(beat);
+      document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("pagehide", onHide);
+      void recordActivity({ data: { ...payload, event: "close" } });
+    };
+  }, [link?.id, chatEmail, data.visitor_email]);
 
   useEffect(() => {
     if (!chatOn) return;

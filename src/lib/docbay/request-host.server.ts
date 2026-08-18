@@ -30,3 +30,18 @@ export function requestClientIp(): string {
     return "";
   }
 }
+
+export function requestCountry(): string {
+  try {
+    const req = getRequest();
+    if (!req) return "";
+    const raw =
+      req.headers.get("x-vercel-ip-country") ||
+      req.headers.get("cf-ipcountry") ||
+      req.headers.get("x-country") ||
+      "";
+    return raw.trim().toUpperCase().slice(0, 2);
+  } catch {
+    return "";
+  }
+}

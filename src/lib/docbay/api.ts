@@ -25,6 +25,7 @@ import { sendTenantEmail, renderTemplate } from "./email.server";
 import { MAX_UPLOAD_BYTES, MAX_UPLOAD_LABEL } from "./upload";
 import { getGoogleClientId, getGoogleClientSecret } from "./secrets.server";
 import { requestHostHeader, requestClientIp } from "./request-host.server";
+import { writeActivity, listActivityEvents, loadPresenceMap } from "./activity.server";
 import { findTenantBrandByHost } from "./shorts.server";
 import { isMarketingHost } from "./brand";
 import { probeDomainDns } from "./dns-check.server";
@@ -1481,6 +1482,13 @@ export const resolveAccess = createServerFn({ method: "POST" })
             ${(data.user_agent || "").slice(0, 400)}
           )
         `;
+        await writeActivity({
+          tenant_id: String(resource.tenant_id),
+          link_id: String(link.id),
+          event: "nda",
+          email,
+          ua: data.user_agent,
+        });
       }
     }
 
@@ -1503,6 +1511,13 @@ export const resolveAccess = createServerFn({ method: "POST" })
           used_at = case when one_time and used_at is null then now() else used_at end
         where id = ${String(link.id)}
       `;
+      await writeActivity({
+        tenant_id: tenantId,
+        link_id: String(link.id),
+        event: "click",
+        email: (data.nda_email || "").trim().toLowerCase(),
+        ua,
+      });
 
       if (!bot && features.notifications) {
         const creator = link.created_by ? String(link.created_by) : null;
@@ -1600,7 +1615,82 @@ export const trackView = createServerFn({ method: "POST" })
         ${data.page ?? 1}, ${data.duration_ms ?? 0}, ${data.scroll_pct ?? 0}
       )
     `;
+    await writeActivity({
+      tenant_id: link.tenant_id,
+      link_id: data.link_id,
+      event: "heartbeat",
+    });
     return { ok: true };
+  });
+
+export const recordActivity = createServerFn({ method: "POST" })
+  .inputValidator(
+    (d: {
+      short_id?: string;
+      link_id?: string;
+      event: string;
+      email?: string;
+      user_agent?: string;
+    }) => d,
+  )
+  .handler(async ({ data }) => {
+    const sql = await getSql();
+    let tenantId = "";
+    if (data.link_id) {
+      const row = (
+        await sql`select tenant_id from db_links where id = ${data.link_id} limit 1`
+      )[0] as { tenant_id?: string } | undefined;
+      tenantId = row?.tenant_id || "";
+    } else if (data.short_id) {
+      const row = (
+        await sql`select tenant_id from db_short_links where id = ${data.short_id} limit 1`
+      )[0] as { tenant_id?: string } | undefined;
+      tenantId = row?.tenant_id || "";
+    }
+    if (!tenantId) return { ok: false };
+    try {
+      await writeActivity({
+        tenant_id: tenantId,
+        short_id: data.short_id,
+        link_id: data.link_id,
+        event: data.event,
+        email: data.email,
+        ua: data.user_agent,
+      });
+    } catch {
+      return { ok: false };
+    }
+    return { ok: true };
+  });
+
+export const listActivity = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .inputValidator((d: { short_id?: string; link_id?: string; tenant_id?: string }) => d)
+  .handler(async ({ context, data }) => {
+    const mem = await getMembership(context.userId, data.tenant_id);
+    if (!mem) return [];
+    try {
+      return await listActivityEvents({
+        tenant_id: mem.tenant.id,
+        short_id: data.short_id,
+        link_id: data.link_id,
+      });
+    } catch {
+      return [];
+    }
+  });
+
+export const getPresence = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .inputValidator((d: { tenant_id?: string } | undefined) => d ?? {})
+  .handler(async ({ context, data }) => {
+    const mem = await getMembership(context.userId, data.tenant_id);
+    if (!mem) return { shorts: {} as Record<string, never>, links: {} as Record<string, never> };
+    const map = await loadPresenceMap(mem.tenant.id);
+    return {
+      shorts: Object.fromEntries(map.shorts),
+      links: Object.fromEntries(map.links),
+    };
   });
 
 export const submitAccessRequest = createServerFn({ method: "POST" })
@@ -1880,6 +1970,14 @@ export const recordDocAction = createServerFn({ method: "POST" })
         data.visitor || "Besucher",
         "/control/links",
       );
+    }
+    if (data.link_id) {
+      await writeActivity({
+        tenant_id: String(res.tenant_id),
+        link_id: data.link_id,
+        event: data.kind,
+        email: data.visitor,
+      });
     }
     return { ok: true };
   });

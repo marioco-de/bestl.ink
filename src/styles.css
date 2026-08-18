@@ -287,6 +287,23 @@
   transform-origin: top center;
 }
 
+.eye-live {
+  filter: drop-shadow(0 0 6px currentColor);
+  animation: eye-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes eye-pulse {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 4px currentColor);
+    opacity: 1;
+  }
+  50% {
+    filter: drop-shadow(0 0 10px currentColor);
+    opacity: 0.85;
+  }
+}
+
 @keyframes page-in {
   from {
     opacity: 0;

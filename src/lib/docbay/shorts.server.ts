@@ -1,3 +1,4 @@
+import { writeActivity } from "./activity.server";
 import { getSql } from "@/lib/db";
 import type { ApiKeyRow, ShortLink } from "./types";
 import {
@@ -294,6 +295,16 @@ export async function recordShortVisit(input: {
       last_clicked_at = now()
     where id = ${input.short.id}
   `;
+  try {
+    await writeActivity({
+      tenant_id: input.short.tenant_id,
+      short_id: input.short.id,
+      event: "click",
+      ua: input.ua,
+    });
+  } catch {
+    /* activity table may lag a deploy */
+  }
 }
 
 export async function createApiKey(

@@ -19,7 +19,7 @@ import { FullScreenModal } from "@/components/ui/fullscreen-modal";
 import { GeneratePanel } from "@/components/hashport/generate-panel";
 import { useControlData, useSetControlData } from "@/lib/docbay/use-control";
 import { createResource, deleteResource, updateResource, uploadBegin, uploadChunk, createTag } from "@/lib/docbay/api";
-import { formatBytes, slugify } from "@/lib/utils";
+import { formatBytes, slugify, cn } from "@/lib/utils";
 import { MAX_UPLOAD_BYTES, MAX_UPLOAD_LABEL } from "@/lib/docbay/upload";
 import type { FullState, Resource } from "@/lib/docbay/types";
 import { TagChip, TagPicker } from "@/components/control/tag-picker";
@@ -115,75 +115,22 @@ export function ResourcesWorkspace({
         />
       )}
 
-      <div className="space-y-3">
-        {items.map((r) => (
-          <Card key={r.id}>
-            <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex min-w-0 items-start gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-bg-muted text-fg-muted">
-                  {r.type === "document" ? (
-                    <FileText className="h-5 w-5" />
-                  ) : (
-                    <Globe className="h-5 w-5" />
-                  )}
-                </div>
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="font-medium">{r.title}</p>
-                    <Badge variant="secondary">
-                      {r.type === "document" ? "Dokument" : "Webseite"}
-                    </Badge>
-                  </div>
-                  <p className="mt-0.5 font-mono text-xs text-fg-subtle">
-                    /{r.slug}
-                    {r.type === "page" ? "/" : ""}
-                  </p>
-                  {r.description && (
-                    <p className="mt-1 text-sm text-fg-muted line-clamp-2">
-                      {r.description}
-                    </p>
-                  )}
-                  {(r.tags?.length ?? 0) > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-1">
-                      {r.tags.map((n) => (
-                        <TagChip key={n} name={n} color={tagColor(n, state.tags)} on />
-                      ))}
-                    </div>
-                  )}
-                  {r.type === "document" && (
-                    <p className="mt-1 text-xs text-fg-subtle">
-                      {r.file_name || "Datei"} · {formatBytes(r.file_size)}
-                    </p>
-                  )}
-                  {r.type === "page" && r.content_url && (
-                    <p className="mt-1 truncate text-xs text-fg-subtle">
-                      Frame → {r.content_url}
-                    </p>
-                  )}
-                </div>
-              </div>
-              <div className="flex shrink-0 gap-2">
-                <Button size="sm" variant="secondary" onClick={() => setFormFor(r)}>
-                  <Pencil className="h-4 w-4" /> {t("common.edit")}
-                </Button>
-                <Button size="sm" onClick={() => setGenerateFor(r)}>
-                  <Link2 className="h-4 w-4" /> Link generieren
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={async () => {
-                    if (!confirm("Inhalt wirklich löschen?")) return;
-                    const s = await deleteResource({ data: { id: r.id } });
-                    await refresh(s as FullState);
-                    toast.success("Gelöscht");
-                  }}
-                >
-                  <Trash2 className="h-4 w-4 text-danger" />
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+      <div className="overflow-hidden rounded-lg border border-border">
+        {items.map((r, i) => (
+          <ResourceRow
+            key={r.id}
+            r={r}
+            i={i}
+            tags={state.tags}
+            onEdit={() => setFormFor(r)}
+            onGenerate={() => setGenerateFor(r)}
+            onDelete={async () => {
+              if (!confirm("Inhalt wirklich löschen?")) return;
+              const s = await deleteResource({ data: { id: r.id } });
+              await refresh(s as FullState);
+              toast.success("Gelöscht");
+            }}
+          />
         ))}
       </div>
 
@@ -198,6 +145,77 @@ export function ResourcesWorkspace({
             void refresh(s);
           }}
         />
+      )}
+    </div>
+  );
+}
+
+function ResourceRow({
+  r,
+  i,
+  tags,
+  onEdit,
+  onGenerate,
+  onDelete,
+}: {
+  r: Resource;
+  i: number;
+  tags: FullState["tags"];
+  onEdit: () => void;
+  onGenerate: () => void;
+  onDelete: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className={cn("px-3 py-2.5", i > 0 && "border-t border-border")}>
+      <div
+        className="flex cursor-pointer flex-col gap-2 @min-[40rem]/hub:flex-row @min-[40rem]/hub:items-center @min-[40rem]/hub:justify-between"
+        onClick={() => setOpen((v) => !v)}
+      >
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-1.5">
+            {r.type === "document" ? (
+              <FileText className="h-3.5 w-3.5 text-fg-muted" />
+            ) : (
+              <Globe className="h-3.5 w-3.5 text-fg-muted" />
+            )}
+            <p className="truncate text-sm font-medium">{r.title}</p>
+            <Badge variant="secondary">
+              {r.type === "document" ? "Dokument" : "Webseite"}
+            </Badge>
+          </div>
+          <p className="mt-0.5 truncate font-mono text-xs text-fg-muted">
+            /{r.slug}
+            {r.type === "page" ? "/" : ""}
+          </p>
+        </div>
+        <div className="flex shrink-0 gap-1" onClick={(e) => e.stopPropagation()}>
+          <Button size="sm" variant="secondary" onClick={onEdit}>
+            <Pencil className="h-3.5 w-3.5" />
+          </Button>
+          <Button size="sm" onClick={onGenerate}>
+            <Link2 className="h-3.5 w-3.5" />
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => void onDelete()}>
+            <Trash2 className="h-3.5 w-3.5 text-danger" />
+          </Button>
+        </div>
+      </div>
+      {open && (
+        <div className="mt-2 space-y-2 border-t border-border/70 pt-2 text-xs text-fg-muted">
+          {r.description && <p>{r.description}</p>}
+          {(r.tags?.length ?? 0) > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {r.tags.map((n) => (
+                <TagChip key={n} name={n} color={tagColor(n, tags)} on />
+              ))}
+            </div>
+          )}
+          {r.type === "document" && (
+            <p>{r.file_name || "Datei"} · {formatBytes(r.file_size)}</p>
+          )}
+          {r.type === "page" && r.content_url && <p>Frame → {r.content_url}</p>}
+        </div>
       )}
     </div>
   );

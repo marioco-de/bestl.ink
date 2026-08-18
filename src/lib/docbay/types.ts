@@ -157,6 +157,7 @@ export interface GeneratedLink {
   unique_ips?: number;
   share_suspected?: boolean;
   ndas?: NdaRecord[];
+  presence?: LinkPresence | null;
 }
 
 export interface NdaRecord {
@@ -264,6 +265,25 @@ export interface ShortLink {
   click_count: number;
   human_click_count: number;
   last_clicked_at: string | null;
+  created_at: string;
+  presence?: LinkPresence | null;
+}
+
+export interface LinkPresence {
+  event: string;
+  email: string;
+  country: string;
+  at: string;
+  open: boolean;
+}
+
+export interface ActivityEvent {
+  id: string;
+  event: string;
+  email: string;
+  country: string;
+  ip: string;
+  user_agent: string;
   created_at: string;
 }
 
