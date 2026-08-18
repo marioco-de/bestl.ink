@@ -148,14 +148,14 @@ function OgPreviewDrawer({
       >
         <div
           className={cn(
-            "flex items-stretch transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
+            "flex items-center transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
             open ? "-translate-x-full" : "-translate-x-8",
           )}
         >
           <button
             type="button"
             onClick={() => setOpen((v) => !v)}
-            className="pointer-events-auto flex w-8 flex-col items-center justify-center gap-1.5 self-stretch rounded-l-md border border-r-0 border-border bg-bg-elevated py-4 text-[10px] font-medium tracking-wide text-fg-muted shadow-sm hover:text-fg"
+            className="pointer-events-auto flex h-36 w-8 flex-col items-center justify-center gap-1.5 rounded-l-md border border-r-0 border-border bg-bg-elevated py-4 text-[10px] font-medium tracking-wide text-fg-muted shadow-sm hover:text-fg"
             aria-expanded={open}
           >
             <ImageIcon className="h-3.5 w-3.5" />

@@ -5,7 +5,8 @@ import { Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea, Label } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { FullScreenModal } from "@/components/ui/fullscreen-modal";
+import { LinkEditorShell } from "@/components/control/link-editor-shell";
+import { defaultHost } from "@/lib/docbay/hosts";
 import { generateLink, bulkGenerateLinks, createParamNode, createTag, saveNdaTemplate, uploadBegin, uploadChunk, updateResource } from "@/lib/docbay/api";
 import type { FullState, ParamNode, Resource } from "@/lib/docbay/types";
 import { buildPublicUrl, resourceRestricted } from "@/lib/docbay/public-url";
@@ -198,11 +199,20 @@ export function GeneratePanel({
 
   if (result) {
     return (
-      <FullScreenModal title="Link bereit" description={resource.title} onClose={onClose} wide>
-        <div className="flex flex-col items-stretch gap-4 py-4 @min-[640px]/fs:flex-row @min-[640px]/fs:items-center">
-          <p className="min-w-0 flex-1 break-all font-mono text-sm">{result.url}</p>
+      <LinkEditorShell
+        title="Link bereit"
+        onClose={onClose}
+        url={result.url}
+        slug={resource.slug}
+        preview={{
+          title: resource.title,
+          text: note,
+          image: "",
+          host: state.tenant.public_host || "",
+        }}
+        footer={
           <Button
-            className="shrink-0"
+            className="w-full"
             onClick={() => {
               void navigator.clipboard.writeText(result.url);
               toast.success("Kopiert");
@@ -210,16 +220,34 @@ export function GeneratePanel({
           >
             <Copy className="h-4 w-4" /> Kopieren
           </Button>
-        </div>
-      </FullScreenModal>
+        }
+      >
+        <p className="break-all font-mono text-sm">{result.url}</p>
+      </LinkEditorShell>
     );
   }
 
+  const host = defaultHost(state);
+  const previewUrl = buildPublicUrl({
+    host,
+    type: resource.type,
+    slug: resource.slug,
+    token: "",
+    restricted: false,
+  });
+
   return (
-    <FullScreenModal
+    <LinkEditorShell
       title="Link generieren"
-      description={resource.title}
       onClose={onClose}
+      url={previewUrl}
+      slug={resource.slug}
+      preview={{
+        title: resource.title,
+        text: note,
+        image: "",
+        host,
+      }}
     >
       <div>
         <Label>Notiz</Label>
@@ -399,6 +427,6 @@ export function GeneratePanel({
               ))}
             </div>
           </div>
-    </FullScreenModal>
+    </LinkEditorShell>
   );
 }

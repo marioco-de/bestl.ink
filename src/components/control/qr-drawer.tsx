@@ -72,7 +72,7 @@ export function QrDrawer({ url, slug }: { url: string; slug: string }) {
       >
         <div
           className={cn(
-            "flex items-stretch transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
+            "flex items-center transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
             open ? "translate-x-full" : "translate-x-8",
           )}
         >
@@ -126,7 +126,7 @@ function Flag({
         "flex items-center justify-center gap-1.5 border border-border bg-bg-elevated text-[10px] font-medium tracking-wide text-fg-muted shadow-sm hover:text-fg",
         vertical
           ? cn(
-              "pointer-events-auto w-8 flex-col self-stretch border-l-0 py-4",
+              "pointer-events-auto h-36 w-8 flex-col border-l-0 py-4",
               "rounded-r-md",
             )
           : "h-8 rounded-t-md border-b-0 px-3",
