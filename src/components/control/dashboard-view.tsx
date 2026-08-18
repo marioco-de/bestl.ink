@@ -370,11 +370,13 @@ function SectionBoard({
 
 function GroupFrame({
   g,
+  widgets,
   tenantId,
   onApply,
   onDelete,
 }: {
   g: DashGroup;
+  widgets: DashWidget[];
   tenantId: string;
   onApply: (s: DashState) => void;
   onDelete: () => void;
@@ -383,12 +385,24 @@ function GroupFrame({
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState(g.title);
   const [color, setColor] = useState(g.color);
+  const [geom, setGeom] = useState({ x: g.x, y: g.y, w: g.w, h: g.h });
   const hold = useRef(0);
+  const moved = useRef(false);
+  const drag = useRef<{
+    px: number;
+    py: number;
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+    mode: "move" | "resize";
+  } | null>(null);
 
   useEffect(() => {
     setTitle(g.title);
     setColor(g.color);
-  }, [g.title, g.color]);
+    setGeom({ x: g.x, y: g.y, w: g.w, h: g.h });
+  }, [g]);
 
   function clearHold() {
     if (hold.current) window.clearTimeout(hold.current);
@@ -397,9 +411,99 @@ function GroupFrame({
 
   function openModal() {
     clearHold();
+    drag.current = null;
     setTitle(g.title);
     setColor(g.color);
     setOpen(true);
+  }
+
+  function start(e: PointerEvent, kind: "move" | "resize") {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    moved.current = false;
+    drag.current = {
+      px: e.clientX,
+      py: e.clientY,
+      x: geom.x,
+      y: geom.y,
+      w: geom.w,
+      h: geom.h,
+      mode: kind,
+    };
+    if (kind === "move") {
+      clearHold();
+      hold.current = window.setTimeout(() => {
+        if (!moved.current) openModal();
+      }, 480);
+    }
+  }
+
+  function move(e: PointerEvent) {
+    if (!drag.current) return;
+    const parent = (e.currentTarget as HTMLElement).offsetParent as HTMLElement | null;
+    if (!parent) return;
+    const dxPx = e.clientX - drag.current.px;
+    const dyPx = e.clientY - drag.current.py;
+    if (!moved.current && Math.hypot(dxPx, dyPx) < 7) return;
+    moved.current = true;
+    clearHold();
+    const cw = parent.getBoundingClientRect().width / COLS;
+    const dx = dxPx / cw;
+    const dy = dyPx / ROW;
+    if (drag.current.mode === "move") {
+      setGeom((cur) => ({
+        ...cur,
+        x: snap(drag.current!.x + dx, COLS - cur.w),
+        y: snap(drag.current!.y + dy, 40),
+      }));
+    } else {
+      setGeom((cur) => ({
+        ...cur,
+        w: Math.max(1, snap(drag.current!.w + dx, COLS - cur.x)),
+        h: Math.max(1, snap(drag.current!.h + dy, 20)),
+      }));
+    }
+  }
+
+  async function persist(next: { x: number; y: number; w: number; h: number }) {
+    const dx = next.x - g.x;
+    const dy = next.y - g.y;
+    const inside = widgets.filter(
+      (w) =>
+        w.section_id === g.section_id &&
+        w.x >= g.x &&
+        w.y >= g.y &&
+        w.x + w.w <= g.x + g.w &&
+        w.y + w.h <= g.y + g.h,
+    );
+    await saveDashGroup({
+      data: {
+        id: g.id,
+        section_id: g.section_id,
+        title: g.title,
+        color: g.color,
+        ...next,
+        tenant_id: tenantId,
+      },
+    });
+    if (dx || dy) {
+      await Promise.all(
+        inside.map((w) =>
+          saveDashWidget({
+            data: { ...w, x: w.x + dx, y: w.y + dy, tenant_id: tenantId },
+          }),
+        ),
+      );
+    }
+    onApply(await getDash({ data: { tenant_id: tenantId } }));
+  }
+
+  function end() {
+    clearHold();
+    const wasDrag = Boolean(drag.current) && moved.current;
+    drag.current = null;
+    if (wasDrag) void persist(geom);
   }
 
   async function save() {
@@ -410,10 +514,7 @@ function GroupFrame({
           section_id: g.section_id,
           title,
           color,
-          x: g.x,
-          y: g.y,
-          w: g.w,
-          h: g.h,
+          ...geom,
           tenant_id: tenantId,
         },
       }),
@@ -426,7 +527,7 @@ function GroupFrame({
       <div
         className="dash-group absolute rounded-xl border-2"
         style={{
-          ...cellStyle(g.x, g.y, g.w, g.h, 0),
+          ...cellStyle(geom.x, geom.y, geom.w, geom.h, 0),
           borderColor: g.color,
           ["--hue"]: g.color,
         } as CSSProperties}
@@ -435,13 +536,9 @@ function GroupFrame({
           e.stopPropagation();
           openModal();
         }}
-        onPointerDown={(e) => {
-          if (e.button !== 0) return;
-          clearHold();
-          hold.current = window.setTimeout(openModal, 480);
-        }}
-        onPointerUp={clearHold}
-        onPointerLeave={clearHold}
+        onPointerDown={(e) => start(e, "move")}
+        onPointerMove={move}
+        onPointerUp={end}
         onPointerCancel={clearHold}
       >
         {g.title ? (
@@ -452,6 +549,13 @@ function GroupFrame({
             {g.title}
           </span>
         ) : null}
+        <button
+          type="button"
+          aria-label="resize"
+          className="absolute bottom-0.5 right-0.5 z-20 h-2 w-2 cursor-se-resize rounded-full bg-current/50"
+          style={{ color: g.color }}
+          onPointerDown={(e) => start(e, "resize")}
+        />
       </div>
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-fg/30 p-4">
@@ -560,6 +664,7 @@ function Grid({
         <GroupFrame
           key={g.id}
           g={g}
+          widgets={widgets}
           tenantId={data.tenant.id}
           onApply={onApply}
           onDelete={() => onDeleteGroup(g.id)}
