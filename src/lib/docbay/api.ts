@@ -25,7 +25,7 @@ import { sendTenantEmail, renderTemplate } from "./email.server";
 import { MAX_UPLOAD_BYTES, MAX_UPLOAD_LABEL } from "./upload";
 import { getGoogleClientId, getGoogleClientSecret } from "./secrets.server";
 import { requestHostHeader, requestClientIp } from "./request-host.server";
-import { writeActivity, listActivityEvents, loadPresenceMap } from "./activity.server";
+import { writeActivity, listActivityEvents, loadPresenceMap, listRecentActivity } from "./activity.server";
 import { findTenantBrandByHost } from "./shorts.server";
 import { isMarketingHost } from "./brand";
 import { probeDomainDns } from "./dns-check.server";
@@ -1663,6 +1663,15 @@ export const recordActivity = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const listRecentActivityFeed = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .inputValidator((d: { tenant_id?: string } | undefined) => d ?? {})
+  .handler(async ({ context, data }) => {
+    const mem = await getMembership(context.userId, data.tenant_id);
+    if (!mem) return [];
+    return listRecentActivity(mem.tenant.id);
+  });
+
 export const listActivity = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .inputValidator((d: { short_id?: string; link_id?: string; tenant_id?: string }) => d)
@@ -1842,6 +1851,10 @@ export const listChatInbox = createServerFn({ method: "POST" })
           where m.resource_id = c.resource_id and m.sender_type = 'visitor'
             and coalesce(m.visitor_key, '') = coalesce(nullif(c.visitor_key, ''), '')
           order by m.created_at desc limit 1) as last_visitor,
+        (select m.sender_type from db_chat_messages m
+          where m.resource_id = c.resource_id
+            and coalesce(m.visitor_key, '') = coalesce(nullif(c.visitor_key, ''), '')
+          order by m.created_at desc limit 1) as last_sender,
         max(c.created_at) as last_at,
         count(*)::int as n
       from db_chat_messages c
@@ -1859,6 +1872,7 @@ export const listChatInbox = createServerFn({ method: "POST" })
         resource_slug: String(row.resource_slug || ""),
         last_body: String(row.last_body || ""),
         last_visitor: String(row.last_visitor || ""),
+        last_sender: String(row.last_sender || ""),
         last_at: new Date(row.last_at as string).toISOString(),
         n: Number(row.n || 0),
       };

@@ -327,6 +327,7 @@ export async function loadFullState(
         unread_notifications: 0,
         shorts: 0,
         short_clicks: 0,
+        unread_chat: 0,
       },
       teamGoals: [],
       emailSettings: null,
@@ -372,6 +373,7 @@ export async function loadFullState(
         unread_notifications: 0,
         shorts: 0,
         short_clicks: 0,
+        unread_chat: 0,
       },
       teamGoals: [],
       emailSettings: null,
@@ -444,7 +446,13 @@ export async function loadFullState(
         (select count(*)::int from db_param_nodes where tenant_id = ${tid} and kind = 'button') as buttons,
         (select count(*)::int from db_notifications where user_id = ${userId} and tenant_id = ${tid} and read = false) as unread_notifications,
         (select count(*)::int from db_short_links where tenant_id = ${tid}) as shorts,
-        (select coalesce(sum(click_count),0)::int from db_short_links where tenant_id = ${tid}) as short_clicks
+        (select coalesce(sum(click_count),0)::int from db_short_links where tenant_id = ${tid}) as short_clicks,
+        (select count(*)::int from (
+          select distinct on (c.resource_id, coalesce(c.visitor_key, '')) c.sender_type
+          from db_chat_messages c
+          where c.tenant_id = ${tid}
+          order by c.resource_id, coalesce(c.visitor_key, ''), c.created_at desc
+        ) waiting where waiting.sender_type = 'visitor') as unread_chat
     `,
     sql`
       select p.id as button_id, p.name,
@@ -696,6 +704,7 @@ export async function loadFullState(
       unread_notifications: Number(counts.unread_notifications ?? 0),
       shorts: Number(counts.shorts ?? 0),
       short_clicks: Number(counts.short_clicks ?? 0),
+      unread_chat: Number(counts.unread_chat ?? 0),
     },
     teamGoals,
     emailSettings,

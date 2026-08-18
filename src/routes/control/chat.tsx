@@ -34,6 +34,10 @@ function ChatInboxPage() {
 
   useEffect(() => {
     void loadInbox().catch((e) => toast.error(e instanceof Error ? e.message : t("common.error")));
+    const tick = window.setInterval(() => {
+      void loadInbox().catch(() => undefined);
+    }, 8000);
+    return () => window.clearInterval(tick);
   }, [data.tenant.id]);
 
   useEffect(() => {
@@ -92,13 +96,16 @@ function ChatInboxPage() {
               type="button"
               onClick={() => setActive({ resource_id: th.resource_id, thread_key: th.thread_key })}
               className={cn(
-                "flex w-full flex-col gap-0.5 border-b border-border px-3 py-2.5 text-left",
+                "relative flex w-full flex-col gap-0.5 border-b border-border px-3 py-2.5 text-left",
                 active?.resource_id === th.resource_id && active.thread_key === th.thread_key
-                  ? "bg-hue-teal/10"
+                  ? "bg-hue-violet/10"
                   : "hover:bg-bg-subtle",
               )}
             >
-              <span className="truncate text-sm font-medium">{th.resource_title}</span>
+              {th.last_sender === "visitor" && (
+                <span className="absolute right-2.5 top-3 h-2 w-2 rounded-full bg-hue-violet" />
+              )}
+              <span className="truncate pr-4 text-sm font-medium">{th.resource_title}</span>
               <span className="truncate text-[11px] text-fg-muted">
                 {th.last_visitor || th.thread_key || t("chat.visitor")} · {th.n}
               </span>

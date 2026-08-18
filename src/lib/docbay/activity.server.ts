@@ -158,3 +158,40 @@ export async function listActivityEvents(input: {
     };
   });
 }
+
+export async function listRecentActivity(
+  tenantId: string,
+  limit = 16,
+): Promise<(ActivityEvent & { target: string })[]> {
+  const sql = await getSql();
+  try {
+    const rows = await sql`
+      select
+        a.id, a.event, a.email, a.country, a.ip, a.user_agent, a.created_at,
+        coalesce(s.slug, r.title, '') as target
+      from db_activity a
+      left join db_short_links s on s.id = nullif(a.short_id, '')
+      left join db_links l on l.id = nullif(a.link_id, '')
+      left join db_resources r on r.id = l.resource_id
+      where a.tenant_id = ${tenantId}
+        and a.event <> 'heartbeat'
+      order by a.created_at desc
+      limit ${limit}
+    `;
+    return rows.map((raw) => {
+      const r = raw as Record<string, unknown>;
+      return {
+        id: String(r.id),
+        event: String(r.event),
+        email: String(r.email || ""),
+        country: String(r.country || ""),
+        ip: String(r.ip || ""),
+        user_agent: String(r.user_agent || ""),
+        created_at: new Date(r.created_at as string).toISOString(),
+        target: String(r.target || ""),
+      };
+    });
+  } catch {
+    return [];
+  }
+}

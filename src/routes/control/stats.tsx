@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import {
   FileStack,
   Link2,
@@ -14,6 +15,9 @@ import { formatDateDe, cn } from "@/lib/utils";
 import { useControlData } from "@/lib/docbay/use-control";
 import { toast } from "sonner";
 import { QuickShorten } from "@/components/control/quick-shorten";
+import { listRecentActivityFeed } from "@/lib/docbay/api";
+import { eventLabel } from "@/lib/docbay/activity";
+import { useT } from "@/lib/i18n";
 
 export const Route = createFileRoute("/control/stats")({
   component: Dashboard,
@@ -21,6 +25,12 @@ export const Route = createFileRoute("/control/stats")({
 
 function Dashboard() {
   const data = useControlData();
+  const t = useT();
+  const [feed, setFeed] = useState<Awaited<ReturnType<typeof listRecentActivityFeed>>>([]);
+
+  useEffect(() => {
+    void listRecentActivityFeed({ data: { tenant_id: data.tenant.id } }).then(setFeed);
+  }, [data.tenant.id]);
 
   const stats = [
     { label: "URLs", value: data.stats.shorts, icon: Link2, hue: "text-hue-azure" },
@@ -133,43 +143,28 @@ function Dashboard() {
           <div className="grid gap-6 lg:grid-cols-2">
             <Card>
               <CardHeader>
-                <CardTitle>Link erzeugen</CardTitle>
+                <CardTitle>{t("overview.activity")}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                {data.resources.length === 0 && (
-                  <p className="text-sm text-fg-muted">
-                    Noch keine Inhalte – unter „Inhalte“ anlegen.
-                  </p>
+                {feed.length === 0 && (
+                  <p className="text-sm text-fg-muted">{t("eye.none")}</p>
                 )}
-                {data.resources.map((r) => (
-                  <Link
-                    key={r.id}
-                    to="/control/links"
-                    search={
-                      {
-                        tab:
-                          r.type === "page"
-                            ? "pages"
-                            : r.type === "event"
-                              ? "events"
-                              : r.type === "contact"
-                                ? "contacts"
-                                : "docs",
-                      } as never
-                    }
-                    className="flex items-center justify-between rounded-md border border-border bg-bg px-3 py-3 text-sm hover:border-border-strong"
+                {feed.map((a) => (
+                  <div
+                    key={a.id}
+                    className="rounded-md border border-border bg-bg px-3 py-2.5"
                   >
-                    <span className="truncate font-medium">{r.title}</span>
-                    <Badge variant="secondary">
-                      {r.type === "document"
-                        ? "Doc"
-                        : r.type === "page"
-                          ? "Seite"
-                          : r.type === "event"
-                            ? "Termin"
-                            : "Kontakt"}
-                    </Badge>
-                  </Link>
+                    <p className="truncate text-sm font-medium">
+                      {eventLabel(a.event)}
+                      {a.target ? ` · ${a.target}` : ""}
+                    </p>
+                    <p className="mt-0.5 truncate text-xs text-fg-muted">
+                      {a.email || t("eye.visitor")}
+                      {a.country ? ` · ${a.country}` : ""}
+                      {" · "}
+                      {formatDateDe(a.created_at)}
+                    </p>
+                  </div>
                 ))}
               </CardContent>
             </Card>

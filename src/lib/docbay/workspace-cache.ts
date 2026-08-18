@@ -88,6 +88,7 @@ export function workspaceShell(
       unread_notifications: 0,
       shorts: 0,
       short_clicks: 0,
+      unread_chat: 0,
     },
     teamGoals: [],
     emailSettings: null,

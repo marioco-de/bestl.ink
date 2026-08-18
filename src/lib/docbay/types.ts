@@ -411,6 +411,7 @@ export interface FullState {
     unread_notifications: number;
     shorts: number;
     short_clicks: number;
+    unread_chat: number;
   };
   teamGoals: TeamGoalRow[];
   emailSettings: EmailSettings | null;

@@ -326,7 +326,12 @@ function ControlShell() {
                     : "text-fg-muted hover:bg-bg-subtle/70 hover:text-fg",
                 )}
               >
-                <Icon className="h-4 w-4 shrink-0" />
+                <span className="relative">
+                  <Icon className="h-4 w-4 shrink-0" />
+                  {item.to === "/control/chat" && data.stats.unread_chat > 0 && (
+                    <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-hue-violet" />
+                  )}
+                </span>
                 <span className="flex-1">{t(item.labelKey)}</span>
                 {item.to === "/control/requests" &&
                   data.stats.pending_requests > 0 && (
@@ -334,6 +339,11 @@ function ControlShell() {
                       {data.stats.pending_requests}
                     </span>
                   )}
+                {item.to === "/control/chat" && data.stats.unread_chat > 0 && (
+                  <span className="rounded-full bg-hue-violet/20 px-1.5 text-[10px] text-hue-violet tabular">
+                    {data.stats.unread_chat}
+                  </span>
+                )}
               </Link>
             );
           })}
@@ -490,7 +500,12 @@ function ControlShell() {
                     onClick={() => setDrawer(false)}
                     className="flex min-h-11 items-center gap-2.5 rounded-md px-3 py-3 text-sm text-fg-muted"
                   >
-                    <Icon className="h-4 w-4" />
+                    <span className="relative">
+                      <Icon className="h-4 w-4" />
+                      {item.to === "/control/chat" && data.stats.unread_chat > 0 && (
+                        <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-hue-violet" />
+                      )}
+                    </span>
                     {t(item.labelKey)}
                   </Link>
                 );
