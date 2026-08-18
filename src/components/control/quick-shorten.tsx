@@ -1,3 +1,47 @@
+import { useState } from "react";
+import { Settings } from "lucide-react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useControl } from "@/lib/docbay/control-store";
+import { createShort } from "@/lib/docbay/shorts-api";
+import { upsertShort } from "@/lib/docbay/state-patch";
+import { defaultHost, withHttp } from "@/lib/docbay/hosts";
+import { useT } from "@/lib/i18n";
+
+export function QuickShorten() {
+  const t = useT();
+  const { data, setData, openCreate } = useControl();
+  const [url, setUrl] = useState("");
+  const [busy, setBusy] = useState(false);
+  const host = defaultHost(data);
+
+  async function quick(e: React.FormEvent) {
+    e.preventDefault();
+    const dest = withHttp(url);
+    if (!dest) {
+      toast.error(t("short.destMissing"));
+      return;
+    }
+    if (data.tenant.id === "platform") {
+      toast.error(t("domain.pick"));
+      return;
+    }
+    setBusy(true);
+    try {
+      const created = await createShort({
+        data: { destination: dest, tenant_id: data.tenant.id },
+      });
+      setData(upsertShort(data, created.short));
+      toast.success(t("short.ready", { path: `${host}/${created.short.slug}` }));
+      setUrl("");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("common.error"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <form
       onSubmit={(e) => void quick(e)}
@@ -27,3 +71,4 @@
       </div>
     </form>
   );
+}
