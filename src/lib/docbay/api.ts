@@ -1484,6 +1484,7 @@ export const resolveAccess = createServerFn({ method: "POST" })
         download_control: features.download_control,
       },
       access: "missing" as "missing" | "denied" | "password" | "nda" | "granted",
+      deny_reason: null as null | "expired" | "revoked",
       content_data_url: null as string | null,
       target_url: null as string | null,
       download_url: null as string | null,
@@ -1517,12 +1518,13 @@ export const resolveAccess = createServerFn({ method: "POST" })
         where l.token = ${data.token} and l.resource_id = ${String(resource.id)}
       `;
       const row = (linkRows[0] as Record<string, unknown> | undefined) ?? null;
-      const bad =
-        !row ||
-        Boolean(row.revoked) ||
-        Boolean(row.expires_at && new Date(row.expires_at as string).getTime() < Date.now()) ||
-        Boolean(row.one_time && row.used_at);
-      if (bad) {
+      if (!row) {
+        if (needsRequest) return { ...base, access: "denied" as const };
+      } else if (row.revoked) {
+        if (needsRequest) return { ...base, access: "denied" as const, deny_reason: "revoked" as const };
+      } else if (row.expires_at && new Date(row.expires_at as string).getTime() < Date.now()) {
+        if (needsRequest) return { ...base, access: "denied" as const, deny_reason: "expired" as const };
+      } else if (row.one_time && row.used_at) {
         if (needsRequest) return { ...base, access: "denied" as const };
       } else {
         link = row;

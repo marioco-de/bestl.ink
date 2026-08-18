@@ -911,9 +911,11 @@ function AccessRequestView({
           </p>
           <h1 className="mt-2 font-display text-2xl font-semibold">Zugriff anfragen</h1>
           <p className="mt-2 text-sm text-fg-muted">
-            {reason === "denied"
-              ? "Token ungültig, abgelaufen oder widerrufen."
-              : "Nur mit gültigem Access-Link erreichbar."}
+            {data.deny_reason === "revoked"
+              ? "Dieser Link wurde widerrufen."
+              : data.deny_reason === "expired"
+                ? "Dieser Link ist abgelaufen."
+                : "Nur mit gültigem Access-Link erreichbar."}
           </p>
         </div>
         <div className="mb-6 flex items-start gap-3 rounded-md border border-border bg-card p-4">
