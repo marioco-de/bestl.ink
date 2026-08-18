@@ -1,5 +1,6 @@
 import { PLATFORM_LINK_HOST } from "./brand";
 import { defaultFeatures } from "./features";
+import { emptyDash } from "./dashboard";
 import type { FullState, WorkspaceSummary } from "./types";
 
 const PREFIX = "bestl.ws.";
@@ -97,6 +98,7 @@ export function workspaceShell(
     members: [],
     shorts: [],
     apiKeys: [],
+    dash: emptyDash(),
     demoResetsInMs: null,
     workspaces: from.workspaces,
     isSuperAdmin: from.isSuperAdmin,

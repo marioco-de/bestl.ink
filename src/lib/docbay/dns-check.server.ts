@@ -29,7 +29,7 @@ export async function probeDomainDns(
 
   try {
     let cnames = await dns.resolveCname(h).catch(() => [] as string[]);
-    let hop = first;
+    let hop = cnames[0] ? norm(cnames[0]) : "";
     for (let i = 0; i < 4 && hop; i++) {
       if (accepted(hop)) {
         return { ok: true, detail: `CNAME → ${hop}` };
