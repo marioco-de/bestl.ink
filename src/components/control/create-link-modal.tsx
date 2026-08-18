@@ -785,6 +785,7 @@ function Editor({
       <ExtraModal title={extras.find((e) => e.id === extra)?.label || ""} onClose={() => setExtra(null)}>
         {extra === "tags" && (
           <TagPicker
+            alwaysOpen
             catalog={data.tags}
             value={tags}
             onChange={setTags}

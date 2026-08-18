@@ -62,16 +62,18 @@ export function TagPicker({
   value,
   onChange,
   onCreate,
+  alwaysOpen,
 }: {
   catalog: { id: string; name: string; color: string }[];
   value: string[];
   onChange: (next: string[]) => void;
   onCreate?: (name: string, color: string) => Promise<void> | void;
+  alwaysOpen?: boolean;
 }) {
   const [draft, setDraft] = useState("");
   const [color, setColor] = useState<string>(DEFAULT_TAG_COLOR);
   const [busy, setBusy] = useState(false);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(Boolean(alwaysOpen));
 
   function toggle(name: string) {
     onChange(value.includes(name) ? value.filter((x) => x !== name) : [...value, name]);
@@ -103,6 +105,45 @@ export function TagPicker({
           onRemove={() => onChange(value.filter((x) => x !== n))}
         />
       ))}
+      {alwaysOpen ? (
+        <div className="w-full space-y-2">
+          <div className="flex flex-wrap gap-1.5">
+            {catalog.map((t) => (
+              <TagChip
+                key={t.id}
+                name={t.name}
+                color={t.color}
+                on={value.includes(t.name)}
+                onClick={() => toggle(t.name)}
+              />
+            ))}
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              autoFocus
+              className="min-w-0 flex-1 rounded-md border border-border bg-bg px-2 py-1.5 text-sm outline-none"
+              placeholder="Neues Tag…"
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  void addDraft();
+                }
+              }}
+            />
+            <button
+              type="button"
+              disabled={busy || !draft.trim()}
+              onClick={() => void addDraft()}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border text-fg-muted hover:text-fg disabled:opacity-40"
+            >
+              <Plus className="h-3 w-3" />
+            </button>
+          </div>
+          {draft.trim() && <ColorDots value={color} onChange={setColor} />}
+        </div>
+      ) : (
       <div className="relative inline-flex">
         <button
           type="button"
@@ -162,6 +203,7 @@ export function TagPicker({
           </>
         )}
       </div>
+      )}
     </div>
   );
 }
