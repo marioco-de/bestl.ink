@@ -36,6 +36,7 @@ import {
   Contact,
   Share2,
   ChevronDown,
+  Shield,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
@@ -269,7 +270,7 @@ function ControlShell() {
       <aside className="hidden w-52 shrink-0 flex-col border-r border-border bg-bg-elevated/80 @min-[52rem]/app:flex">
         <div className="flex items-center gap-2.5 px-4 py-4">
           <div className="metal flex h-8 w-8 items-center justify-center rounded-md">
-            <span className="font-display text-xs font-semibold">bl</span>
+            <Shield className="h-3.5 w-3.5" strokeWidth={2.2} />
           </div>
           <div className="min-w-0">
             <p className="font-display text-sm font-semibold tracking-tight">

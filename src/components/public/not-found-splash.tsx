@@ -106,8 +106,8 @@ export function NotFoundSplash({
         href={BRAND_HOME}
         className="absolute bottom-0 left-1/2 z-10 flex h-8 -translate-x-1/2 items-center gap-2 rounded-t-md border border-b-0 border-border bg-bg-elevated px-2.5 text-[11px] text-fg-muted shadow-md hover:text-fg"
       >
-        <span className="metal flex h-4 w-4 items-center justify-center rounded-sm font-display text-[8px] font-semibold text-primary-fg">
-          bl
+        <span className="metal flex h-4 w-4 items-center justify-center rounded-sm">
+          <Shield className="h-2.5 w-2.5" strokeWidth={2.4} />
         </span>
         {t("brand.flag", { name: BRAND_NAME })}
       </a>
