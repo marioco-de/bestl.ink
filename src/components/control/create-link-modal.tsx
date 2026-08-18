@@ -36,6 +36,8 @@ import { useT } from "@/lib/i18n";
 import { RequestAccessToggle } from "@/components/ui/toggle";
 import { EventFields, ContactFields } from "@/routes/control/-cards";
 import { emptyContact, emptyEvent } from "@/lib/docbay/cards";
+import { emptySplitRule, packSplitRules, type SplitRule } from "@/lib/docbay/device-split";
+import { DeviceSplitFields } from "./device-split";
 import { suggestCardSlug, cardKindPath } from "@/lib/docbay/public-url";
 import { DocActionPicker } from "./doc-action-picker";
 import { actionsPayload, withChatMode, withRequireRequest, type ChatMode, type DocAction } from "@/lib/docbay/doc-actions";
@@ -123,8 +125,7 @@ function Editor({
   const [tags, setTags] = useState<string[]>([]);
   const [password, setPassword] = useState("");
   const [expiresAt, setExpiresAt] = useState("");
-  const [ios, setIos] = useState("");
-  const [android, setAndroid] = useState("");
+  const [splits, setSplits] = useState<SplitRule[]>(() => [emptySplitRule()]);
   const [utmS, setUtmS] = useState("");
   const [utmM, setUtmM] = useState("");
   const [utmC, setUtmC] = useState("");
@@ -432,8 +433,7 @@ function Editor({
           tags,
           password: password || undefined,
           expires_at: fromDatetimeLocal(expiresAt),
-          ios_url: ios || undefined,
-          android_url: android || undefined,
+          ...packSplitRules(splits),
           og_title: shareTitle || undefined,
           og_description: shareText || undefined,
           og_image: shareImage || undefined,
@@ -468,7 +468,7 @@ function Editor({
   const extras: { id: Extra; label: string; icon: typeof Clock; on: boolean }[] = [
     { id: "tags", label: t("short.tags"), icon: Tag, on: tags.length > 0 },
     { id: "campaign", label: t("short.campaign"), icon: Megaphone, on: Boolean(utmS || utmM || utmC) },
-    { id: "device", label: t("short.device"), icon: MonitorSmartphone, on: Boolean(ios || android) },
+    { id: "device", label: t("short.device"), icon: MonitorSmartphone, on: splits.some((s) => s.url.trim()) },
     { id: "lock", label: t("short.lock"), icon: KeyRound, on: Boolean(password) },
     { id: "ttl", label: t("short.ttl"), icon: Clock, on: Boolean(expiresAt) },
   ];
@@ -794,12 +794,7 @@ function Editor({
               <Mini label={t("short.utmName")} value={utmC} onChange={setUtmC} />
             </div>
           )}
-          {extra === "device" && (
-            <div className="grid gap-2">
-              <Mini label={t("short.iosUrl")} value={ios} onChange={setIos} />
-              <Mini label={t("short.androidUrl")} value={android} onChange={setAndroid} />
-            </div>
-          )}
+          {extra === "device" && <DeviceSplitFields value={splits} onChange={setSplits} />}
           {extra === "lock" && (
             <Mini label={t("short.openPassword")} value={password} onChange={setPassword} />
           )}
@@ -834,12 +829,7 @@ function Editor({
             <Mini label={t("short.utmName")} value={utmC} onChange={setUtmC} />
           </div>
         )}
-        {extra === "device" && (
-          <div className="grid gap-2">
-            <Mini label={t("short.iosUrl")} value={ios} onChange={setIos} />
-            <Mini label={t("short.androidUrl")} value={android} onChange={setAndroid} />
-          </div>
-        )}
+        {extra === "device" && <DeviceSplitFields value={splits} onChange={setSplits} />}
         {extra === "lock" && (
           <Mini label={t("short.openPassword")} value={password} onChange={setPassword} />
         )}
@@ -868,7 +858,7 @@ function ExtraModal({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="relative z-10 w-full max-w-sm rounded-xl border border-border bg-bg-elevated p-4 shadow-2xl"
+        className="relative z-10 w-full max-w-md rounded-xl border border-border bg-bg-elevated p-4 shadow-2xl"
       >
         <div className="mb-3 flex items-center justify-between gap-3">
           <h3 className="font-display text-sm font-semibold">{title}</h3>

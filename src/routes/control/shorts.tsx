@@ -39,6 +39,8 @@ import { TagChip } from "@/components/control/tag-picker";
 import { tagColor } from "@/lib/docbay/tags";
 import { ActivityList, PresenceEye } from "@/components/control/presence-eye";
 import { RowMenu, VisitMeta } from "@/components/control/row-menu";
+import { DeviceSplitFields } from "@/components/control/device-split";
+import { packSplitRules, unpackSplitRules, type SplitRule } from "@/lib/docbay/device-split";
 
 export const Route = createFileRoute("/control/shorts")({
   validateSearch: (s: Record<string, unknown>) => ({
@@ -410,12 +412,12 @@ function ShortEditor({
     initial.max_clicks != null ? String(initial.max_clicks) : "",
   );
   const [cloak, setCloak] = useState(Boolean(initial.cloak));
-  const [ios, setIos] = useState(initial.ios_url || "");
-  const [android, setAndroid] = useState(initial.android_url || "");
-  const [geo, setGeo] = useState(
-    Object.entries(initial.geo_rules || {})
-      .map(([k, v]) => `${k} ${v}`)
-      .join("\n"),
+  const [splits, setSplits] = useState<SplitRule[]>(() =>
+    unpackSplitRules({
+      ios_url: initial.ios_url,
+      android_url: initial.android_url,
+      geo_rules: initial.geo_rules,
+    }),
   );
   const [ogTitle, setOgTitle] = useState(initial.og_title || "");
   const [ogDesc, setOgDesc] = useState(initial.og_description || "");
@@ -435,17 +437,6 @@ function ShortEditor({
     [state.params],
   );
 
-  function parseGeo(): Record<string, string> {
-    const out: Record<string, string> = {};
-    for (const line of geo.split("\n")) {
-      const t = line.trim();
-      if (!t) continue;
-      const [cc, ...rest] = t.split(/\s+/);
-      if (cc && rest.length) out[cc.toUpperCase()] = rest.join(" ");
-    }
-    return out;
-  }
-
   async function save() {
     setBusy(true);
     try {
@@ -458,9 +449,7 @@ function ShortEditor({
         expires_at: fromDatetimeLocal(expiresAt),
         max_clicks: maxClicks ? Number(maxClicks) : null,
         cloak,
-        ios_url: ios || undefined,
-        android_url: android || undefined,
-        geo_rules: parseGeo(),
+        ...packSplitRules(splits),
         og_title: ogTitle || undefined,
         og_description: ogDesc || undefined,
         og_image: ogImage || undefined,
@@ -599,25 +588,7 @@ function ShortEditor({
         <Toggle label="Cloak" checked={cloak} onChange={setCloak} />
       </div>
       {state.features.targeting && (
-        <>
-          <div>
-            <Label>iOS-URL</Label>
-            <Input value={ios} onChange={(e) => setIos(e.target.value)} />
-          </div>
-          <div>
-            <Label>Android-URL</Label>
-            <Input value={android} onChange={(e) => setAndroid(e.target.value)} />
-          </div>
-          <div>
-            <Label>Geo-Regeln</Label>
-            <Textarea
-              className="font-mono text-xs"
-              value={geo}
-              onChange={(e) => setGeo(e.target.value)}
-              placeholder={"DE https://firma.de/de"}
-            />
-          </div>
-        </>
+        <DeviceSplitFields value={splits} onChange={setSplits} />
       )}
       {state.features.og_previews && (
         <>

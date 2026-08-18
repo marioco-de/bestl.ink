@@ -10,6 +10,7 @@ import {
   parseJsonArray,
   parseJsonObj,
 } from "./id";
+import { splitRuleMatches, unpackSplitRules } from "./device-split";
 
 export const RESERVED_SLUGS = new Set([
   "control",
@@ -185,10 +186,10 @@ export function pickDestination(
   ua: string,
   country: string,
 ): string {
-  const { os } = parseUa(ua);
-  if (os === "iOS" && s.ios_url) return applyUtm(s.ios_url, s);
-  if (os === "Android" && s.android_url) return applyUtm(s.android_url, s);
-  if (country && s.geo_rules[country]) return applyUtm(s.geo_rules[country]!, s);
+  const parsed = parseUa(ua);
+  for (const rule of unpackSplitRules(s)) {
+    if (splitRuleMatches(rule, parsed, country)) return applyUtm(rule.url, s);
+  }
   return applyUtm(s.destination, s);
 }
 
