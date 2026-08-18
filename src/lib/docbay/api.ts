@@ -24,7 +24,7 @@ import {
 import { sendTenantEmail, renderTemplate } from "./email.server";
 import { MAX_UPLOAD_BYTES, MAX_UPLOAD_LABEL } from "./upload";
 import { getGoogleClientId, getGoogleClientSecret } from "./secrets.server";
-import { requestHostHeader } from "./request-host.server";
+import { requestHostHeader, requestClientIp } from "./request-host.server";
 import { findTenantBrandByHost } from "./shorts.server";
 import { isMarketingHost } from "./brand";
 import { probeDomainDns } from "./dns-check.server";
@@ -1472,8 +1472,14 @@ export const resolveAccess = createServerFn({ method: "POST" })
       `;
       if (accepted.length === 0) {
         await sql`
-          insert into db_nda_acceptances (id, link_id, email)
-          values (${uid("nda")}, ${String(link.id)}, ${email})
+          insert into db_nda_acceptances (id, link_id, email, ip, user_agent)
+          values (
+            ${uid("nda")},
+            ${String(link.id)},
+            ${email},
+            ${requestClientIp()},
+            ${(data.user_agent || "").slice(0, 400)}
+          )
         `;
       }
     }
@@ -1645,12 +1651,21 @@ export const listChat = createServerFn({ method: "POST" })
   .inputValidator((d: { resource_id: string; link_id?: string; visitor_key?: string }) => d)
   .handler(async ({ data }) => {
     const sql = await getSql();
-    const rows = await sql`
-      select * from db_chat_messages
-      where resource_id = ${data.resource_id}
-      order by created_at asc
-      limit 200
-    `;
+    const thread = (data.visitor_key || "").trim();
+    const rows = thread
+      ? await sql`
+          select * from db_chat_messages
+          where resource_id = ${data.resource_id}
+            and coalesce(visitor_key, '') = ${thread}
+          order by created_at asc
+          limit 200
+        `
+      : await sql`
+          select * from db_chat_messages
+          where resource_id = ${data.resource_id}
+          order by created_at asc
+          limit 200
+        `;
     return rows.map((r) => {
       const m = r as Record<string, unknown>;
       return {
@@ -1685,13 +1700,14 @@ export const postChat = createServerFn({ method: "POST" })
     if (data.sender_type === "visitor" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.sender_name.trim())) {
       throw new Error("E-Mail erforderlich");
     }
+    const threadKey = (data.visitor_key ?? "").trim();
     const id = uid("chat");
     await sql`
       insert into db_chat_messages (
         id, tenant_id, resource_id, link_id, visitor_key, sender_type, sender_name, body
       ) values (
         ${id}, ${res.tenant_id}, ${data.resource_id}, ${data.link_id ?? null},
-        ${data.visitor_key ?? null}, ${data.sender_type}, ${data.sender_name.trim()}, ${body}
+        ${threadKey}, ${data.sender_type}, ${data.sender_name.trim()}, ${body}
       )
     `;
     if (data.sender_type === "visitor") {
@@ -1725,26 +1741,30 @@ export const listChatInbox = createServerFn({ method: "POST" })
     const rows = await sql`
       select
         c.resource_id,
+        coalesce(nullif(c.visitor_key, ''), '') as thread_key,
         r.title as resource_title,
         r.slug as resource_slug,
         (select m.body from db_chat_messages m
           where m.resource_id = c.resource_id
+            and coalesce(m.visitor_key, '') = coalesce(nullif(c.visitor_key, ''), '')
           order by m.created_at desc limit 1) as last_body,
         (select m.sender_name from db_chat_messages m
           where m.resource_id = c.resource_id and m.sender_type = 'visitor'
+            and coalesce(m.visitor_key, '') = coalesce(nullif(c.visitor_key, ''), '')
           order by m.created_at desc limit 1) as last_visitor,
         max(c.created_at) as last_at,
         count(*)::int as n
       from db_chat_messages c
       join db_resources r on r.id = c.resource_id
       where c.tenant_id = ${mem.tenant.id}
-      group by c.resource_id, r.title, r.slug
+      group by c.resource_id, coalesce(nullif(c.visitor_key, ''), ''), r.title, r.slug
       order by last_at desc
     `;
     return rows.map((r) => {
       const row = r as Record<string, unknown>;
       return {
         resource_id: String(row.resource_id),
+        thread_key: String(row.thread_key || ""),
         resource_title: String(row.resource_title || ""),
         resource_slug: String(row.resource_slug || ""),
         last_body: String(row.last_body || ""),
@@ -1757,7 +1777,7 @@ export const listChatInbox = createServerFn({ method: "POST" })
 
 export const replyChat = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .inputValidator((d: { resource_id: string; body: string; tenant_id?: string }) => d)
+  .inputValidator((d: { resource_id: string; body: string; tenant_id?: string; visitor_key?: string }) => d)
   .handler(async ({ context, data }) => {
     const mem = await getMembership(context.userId, data.tenant_id);
     if (!mem || mem.tenant.id === "platform") throw new Error("Kein Workspace");
@@ -1779,12 +1799,12 @@ export const replyChat = createServerFn({ method: "POST" })
     const id = uid("chat");
     await sql`
       insert into db_chat_messages (
-        id, tenant_id, resource_id, sender_type, sender_name, body
+        id, tenant_id, resource_id, visitor_key, sender_type, sender_name, body
       ) values (
-        ${id}, ${mem.tenant.id}, ${data.resource_id}, ${"staff"}, ${name}, ${body}
+        ${id}, ${mem.tenant.id}, ${data.resource_id}, ${data.visitor_key || ""}, ${"staff"}, ${name}, ${body}
       )
     `;
-    return listChat({ data: { resource_id: data.resource_id } });
+    return listChat({ data: { resource_id: data.resource_id, visitor_key: data.visitor_key } });
   });
 
 

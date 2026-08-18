@@ -317,6 +317,7 @@ function Editor({
               <section className="space-y-2">
                 <p className="text-xs font-medium text-fg-muted">{t("short.teamOnly")}</p>
                 <TagPicker
+                  iconOnly
                   catalog={data.tags}
                   value={tags}
                   onChange={setTags}
@@ -465,14 +466,17 @@ function Editor({
                     type="button"
                     onClick={() => setExtra(active ? null : c.id)}
                     className={cn(
-                      "inline-flex h-8 items-center gap-1 rounded-md border px-2 text-[11px] transition-colors",
+                      "group relative inline-flex h-8 w-8 items-center justify-center rounded-md border transition-colors",
                       active || c.on
                         ? "border-fg bg-fg text-bg"
                         : "border-border text-fg-muted hover:bg-bg-subtle hover:text-fg",
                     )}
+                    title={c.label}
                   >
                     <Icon className="h-3.5 w-3.5" />
-                    {c.label}
+                    <span className="pointer-events-none absolute bottom-full left-1/2 z-30 mb-1.5 -translate-x-1/2 whitespace-nowrap rounded-md bg-fg px-2 py-1 text-[10px] text-bg opacity-0 shadow-md transition-opacity group-hover:opacity-100">
+                      {c.label}
+                    </span>
                   </button>
                 );
               })}

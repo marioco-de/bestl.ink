@@ -15,3 +15,18 @@ export function requestHostHeader(): string {
   }
   return PLATFORM_LINK_HOST;
 }
+
+export function requestClientIp(): string {
+  try {
+    const req = getRequest();
+    if (!req) return "";
+    const raw =
+      req.headers.get("x-forwarded-for") ||
+      req.headers.get("x-real-ip") ||
+      req.headers.get("cf-connecting-ip") ||
+      "";
+    return raw.split(",")[0]?.trim() || "";
+  } catch {
+    return "";
+  }
+}

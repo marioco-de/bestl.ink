@@ -24,7 +24,7 @@ import type { FullState, Resource } from "@/lib/docbay/types";
 import { TagChip, TagPicker } from "@/components/control/tag-picker";
 import { tagColor } from "@/lib/docbay/tags";
 import { DocActionPicker } from "@/components/control/doc-action-picker";
-import { actionsPayload, parseDocActions, type DocAction } from "@/lib/docbay/doc-actions";
+import { actionsPayload, parseChatMode, parseDocActions, withChatMode, type ChatMode, type DocAction } from "@/lib/docbay/doc-actions";
 import { useT } from "@/lib/i18n";
 
 export const Route = createFileRoute("/control/resources")({
@@ -150,6 +150,7 @@ export function ResourcesWorkspace({
                   )}
                   <div className="mt-2">
                     <TagPicker
+                      iconOnly
                       catalog={state.tags}
                       value={r.tags ?? []}
                       onChange={(tags) => {
@@ -166,7 +167,7 @@ export function ResourcesWorkspace({
                     />
                   </div>
                   {r.type === "document" && (
-                    <div className="mt-3">
+                    <div className="mt-3 space-y-2">
                       <p className="mb-1 text-xs font-medium">{t("doc.actions")}</p>
                       <DocActionPicker
                         value={parseDocActions(r.payload)}
@@ -180,6 +181,24 @@ export function ResourcesWorkspace({
                           }).then((s) => refresh(s as FullState));
                         }}
                       />
+                      <label className="block text-xs font-medium">{t("doc.chatMode")}</label>
+                      <select
+                        className="h-8 w-full max-w-xs rounded-md border border-border bg-bg px-2 text-xs"
+                        value={parseChatMode(r.payload)}
+                        onChange={(e) => {
+                          void updateResource({
+                            data: {
+                              id: r.id,
+                              payload: withChatMode(e.target.value as ChatMode, r.payload),
+                              tenant_id: state.tenant.id,
+                            },
+                          }).then((s) => refresh(s as FullState));
+                        }}
+                      >
+                        <option value="off">{t("doc.chatOff")}</option>
+                        <option value="shared">{t("doc.chatShared")}</option>
+                        <option value="per_email">{t("doc.chatPerEmail")}</option>
+                      </select>
                     </div>
                   )}
                   {r.type === "document" && (
@@ -253,6 +272,7 @@ function ResourceForm({
   const [pageUrl, setPageUrl] = useState("");
   const [tags, setTags] = useState<string[]>([]);
   const [actions, setActions] = useState<DocAction[]>([]);
+  const [chatMode, setChatMode] = useState<ChatMode>("shared");
   const [file, setFile] = useState<{
     raw: File;
     name: string;
@@ -364,7 +384,7 @@ function ResourceForm({
           file_name: type === "document" ? file!.name : undefined,
           file_size: type === "document" ? file!.size : undefined,
           tags,
-          payload: type === "document" ? actionsPayload(actions) : undefined,
+          payload: type === "document" ? withChatMode(chatMode, actionsPayload(actions)) : undefined,
           tenant_id: tenantId,
         },
       });
@@ -490,6 +510,18 @@ function ResourceForm({
           <div className="mt-4">
             <Label>{t("doc.actions")}</Label>
             <DocActionPicker value={actions} onChange={setActions} />
+          </div>
+          <div className="mt-3">
+            <Label>{t("doc.chatMode")}</Label>
+            <select
+              className="mt-1 h-9 w-full rounded-md border border-border bg-bg px-2 text-sm"
+              value={chatMode}
+              onChange={(e) => setChatMode(e.target.value as ChatMode)}
+            >
+              <option value="off">{t("doc.chatOff")}</option>
+              <option value="shared">{t("doc.chatShared")}</option>
+              <option value="per_email">{t("doc.chatPerEmail")}</option>
+            </select>
           </div>
         </div>
       ) : (

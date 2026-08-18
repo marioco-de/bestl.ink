@@ -171,64 +171,132 @@ function SharedPanel() {
           Noch keine Token-Links. Unter Dokumente, Termine oder Kontakte „Link generieren“.
         </p>
       )}
-      {filtered.map((l) => (
-        <Card key={l.id} className={cn(l.revoked && "opacity-60")}>
-          <CardContent className="p-4">
-            <div className="flex flex-col gap-3 @min-[36rem]/hub:flex-row @min-[36rem]/hub:justify-between">
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="font-medium">{l.resource_title}</p>
-                  {l.revoked && <Badge variant="danger">Widerrufen</Badge>}
-                  {l.one_time && <Badge variant="outline">Einmal</Badge>}
-                </div>
-                <p className="mt-1 text-xs text-fg-muted">
-                  {l.button_name || "—"} · {l.note || "ohne Notiz"} · {l.click_count}{" "}
-                  Klicks
-                  {l.last_clicked_at ? ` · ${formatDateDe(l.last_clicked_at)}` : ""}
-                </p>
-                {(l.tags?.length ?? 0) > 0 && (
-                  <div className="mt-2 flex flex-wrap gap-1">
-                    {l.tags.map((n) => (
-                      <TagChip key={n} name={n} color={tagColor(n, data.tags)} on />
-                    ))}
-                  </div>
-                )}
-              </div>
-              <div className="flex gap-1.5">
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={() => {
-                    void navigator.clipboard.writeText(
-                      publicUrl(l.resource_slug, l.token, l),
-                    );
-                    toast.success("Kopiert");
-                  }}
-                >
-                  <Copy className="h-3.5 w-3.5" />
-                </Button>
-                <Button size="sm" variant="ghost" asChild>
-                  <a href={publicUrl(l.resource_slug, l.token, l)} target="_blank" rel="noreferrer">
-                    <ExternalLink className="h-3.5 w-3.5" />
-                  </a>
-                </Button>
-                {!l.revoked && (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={async () => {
-                      const next = await revokeLink({ data: { id: l.id } });
-                      setGlobal?.(next as FullState);
-                    }}
-                  >
-                    <Ban className="h-3.5 w-3.5" />
-                  </Button>
-                )}
-              </div>
+      <div className="overflow-hidden rounded-lg border border-border">
+        {filtered.map((l, i) => (
+          <DocLinkRow
+            key={l.id}
+            l={l}
+            i={i}
+            url={publicUrl(l.resource_slug, l.token, l)}
+            tags={data.tags}
+            onRevoke={async () => {
+              const next = await revokeLink({ data: { id: l.id } });
+              setGlobal?.(next as FullState);
+            }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function DocLinkRow({
+  l,
+  i,
+  url,
+  tags,
+  onRevoke,
+}: {
+  l: FullState["links"][number];
+  i: number;
+  url: string;
+  tags: FullState["tags"];
+  onRevoke: () => void;
+}) {
+  const t = useT();
+  const [more, setMore] = useState(false);
+  const ndas = l.ndas || [];
+  const extra =
+    ndas.length > 0 ||
+    (l.tags?.length ?? 0) > 0 ||
+    Boolean(l.note) ||
+    Boolean(l.expires_at) ||
+    Boolean(l.require_nda);
+
+  return (
+    <div
+      className={cn(
+        "px-3 py-2.5",
+        i > 0 && "border-t border-border",
+        l.revoked && "opacity-60",
+      )}
+    >
+      <div className="flex flex-col gap-2 @min-[40rem]/hub:flex-row @min-[40rem]/hub:items-center @min-[40rem]/hub:justify-between">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <p className="truncate text-sm font-medium">{l.resource_title}</p>
+            {l.revoked && <Badge variant="danger">Widerrufen</Badge>}
+            {l.one_time && <Badge variant="outline">Einmal</Badge>}
+            {l.require_nda && <Badge variant="secondary">NDA</Badge>}
+            {l.button_name && <Badge variant="secondary">{l.button_name}</Badge>}
+          </div>
+          <p className="mt-0.5 truncate font-mono text-xs text-fg-muted">{url}</p>
+        </div>
+        <div className="flex shrink-0 items-center gap-3">
+          <span className="hidden tabular text-xs text-fg-subtle @min-[40rem]/hub:inline">
+            {l.human_click_count}
+            {l.last_clicked_at ? ` · ${formatDateDe(l.last_clicked_at)}` : ""}
+            {ndas.length ? ` · ${ndas.length} NDA` : ""}
+          </span>
+          <div className="flex flex-wrap gap-1">
+            {extra && (
+              <Button size="sm" variant="ghost" onClick={() => setMore((v) => !v)}>
+                {more ? t("links.less") : t("links.more")}
+              </Button>
+            )}
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => {
+                void navigator.clipboard.writeText(url);
+                toast.success("Kopiert");
+              }}
+            >
+              <Copy className="h-3.5 w-3.5" />
+            </Button>
+            <Button size="sm" variant="ghost" asChild>
+              <a href={url} target="_blank" rel="noreferrer">
+                <ExternalLink className="h-3.5 w-3.5" />
+              </a>
+            </Button>
+            {!l.revoked && (
+              <Button size="sm" variant="ghost" onClick={() => void onRevoke()}>
+                <Ban className="h-3.5 w-3.5" />
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+      {more && (
+        <div className="mt-2 space-y-2 border-t border-border/70 pt-2 text-xs text-fg-muted">
+          {l.note && <p>{l.note}</p>}
+          {(l.tags?.length ?? 0) > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {l.tags.map((n) => (
+                <TagChip key={n} name={n} color={tagColor(n, tags)} on />
+              ))}
             </div>
-          </CardContent>
-        </Card>
-      ))}
+          )}
+          {l.expires_at && <p>Ablauf: {formatDateDe(l.expires_at)}</p>}
+          {ndas.length === 0 && l.require_nda && <p>{t("links.ndaNone")}</p>}
+          {ndas.length > 0 && (
+            <div>
+              <p className="mb-1 font-medium text-fg">{t("links.ndaLog")}</p>
+              <ul className="space-y-1">
+                {ndas.map((n) => (
+                  <li key={n.id} className="font-mono text-[11px]">
+                    {n.email}
+                    {" · "}
+                    {formatDateDe(n.accepted_at)}
+                    {n.ip ? ` · ${n.ip}` : ""}
+                    {n.user_agent ? ` · ${n.user_agent.slice(0, 48)}` : ""}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

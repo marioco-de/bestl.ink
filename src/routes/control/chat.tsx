@@ -21,7 +21,7 @@ function ChatInboxPage() {
   const t = useT();
   const data = useControlData();
   const [threads, setThreads] = useState<Thread[]>([]);
-  const [active, setActive] = useState<string | null>(null);
+  const [active, setActive] = useState<{ resource_id: string; thread_key: string } | null>(null);
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [body, setBody] = useState("");
   const [busy, setBusy] = useState(false);
@@ -29,7 +29,7 @@ function ChatInboxPage() {
   async function loadInbox() {
     const rows = await listChatInbox({ data: { tenant_id: data.tenant.id } });
     setThreads(rows);
-    setActive((cur) => cur || rows[0]?.resource_id || null);
+    setActive((cur) => cur || (rows[0] ? { resource_id: rows[0].resource_id, thread_key: rows[0].thread_key } : null));
   }
 
   useEffect(() => {
@@ -41,21 +41,28 @@ function ChatInboxPage() {
       setMsgs([]);
       return;
     }
-    void listChat({ data: { resource_id: active } }).then(setMsgs);
+    void listChat({ data: { resource_id: active.resource_id, visitor_key: active.thread_key } }).then(setMsgs);
     const tick = window.setInterval(() => {
-      void listChat({ data: { resource_id: active } }).then(setMsgs);
+      void listChat({ data: { resource_id: active.resource_id, visitor_key: active.thread_key } }).then(setMsgs);
     }, 4000);
     return () => window.clearInterval(tick);
   }, [active]);
 
-  const current = threads.find((x) => x.resource_id === active);
+  const current = threads.find(
+    (x) => x.resource_id === active?.resource_id && x.thread_key === active?.thread_key,
+  );
 
   async function send() {
     if (!active || !body.trim()) return;
     setBusy(true);
     try {
       const next = await replyChat({
-        data: { resource_id: active, body: body.trim(), tenant_id: data.tenant.id },
+        data: {
+          resource_id: active.resource_id,
+          body: body.trim(),
+          tenant_id: data.tenant.id,
+          visitor_key: active.thread_key,
+        },
       });
       setMsgs(next);
       setBody("");
@@ -81,17 +88,19 @@ function ChatInboxPage() {
           )}
           {threads.map((th) => (
             <button
-              key={th.resource_id}
+              key={`${th.resource_id}:${th.thread_key}`}
               type="button"
-              onClick={() => setActive(th.resource_id)}
+              onClick={() => setActive({ resource_id: th.resource_id, thread_key: th.thread_key })}
               className={cn(
                 "flex w-full flex-col gap-0.5 border-b border-border px-3 py-2.5 text-left",
-                active === th.resource_id ? "bg-hue-teal/10" : "hover:bg-bg-subtle",
+                active?.resource_id === th.resource_id && active.thread_key === th.thread_key
+                  ? "bg-hue-teal/10"
+                  : "hover:bg-bg-subtle",
               )}
             >
               <span className="truncate text-sm font-medium">{th.resource_title}</span>
               <span className="truncate text-[11px] text-fg-muted">
-                {th.last_visitor || t("chat.visitor")} · {th.n}
+                {th.last_visitor || th.thread_key || t("chat.visitor")} · {th.n}
               </span>
               <span className="truncate text-[11px] text-fg-subtle">{th.last_body}</span>
             </button>

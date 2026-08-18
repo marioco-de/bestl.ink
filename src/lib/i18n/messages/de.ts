@@ -176,6 +176,10 @@ export const de = {
     shared: "Geteilt",
     revoke: "Widerrufen",
     none: "Noch keine geteilten Links.",
+    more: "Mehr anzeigen",
+    less: "Weniger",
+    ndaLog: "NDA-Unterschriften",
+    ndaNone: "Noch keine NDA-Unterschrift.",
   },
   overview: {
     title: "Übersicht",
@@ -322,6 +326,10 @@ export const de = {
     phonePh: "+49 …",
     emailPh: "team@firma.de",
     thanks: "Danke, wir haben das notiert.",
+    chatMode: "Dokumenten-Chat",
+    chatOff: "Deaktiviert",
+    chatShared: "Ein Chat für das gesamte Dokument",
+    chatPerEmail: "Ein Chat pro E-Mail-Adresse",
   },
 };
 

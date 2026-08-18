@@ -178,6 +178,10 @@ export const en: Messages = {
     shared: "Shared",
     revoke: "Revoke",
     none: "No shared links yet.",
+    more: "Show more",
+    less: "Show less",
+    ndaLog: "NDA signatures",
+    ndaNone: "No NDA signed yet.",
   },
   overview: {
     title: "Overview",
@@ -323,5 +327,9 @@ export const en: Messages = {
     phonePh: "+49 …",
     emailPh: "team@company.com",
     thanks: "Thanks, we noted that.",
+    chatMode: "Document chat",
+    chatOff: "Off",
+    chatShared: "One chat for the whole document",
+    chatPerEmail: "One chat per email address",
   },
 };

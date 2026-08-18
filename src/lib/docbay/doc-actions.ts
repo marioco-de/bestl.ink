@@ -36,3 +36,15 @@ export function parseDocActions(payload: JsonObject | undefined | null): DocActi
 export function actionsPayload(actions: DocAction[], prev?: JsonObject): JsonObject {
   return { ...(prev || {}), actions: actions.map((a) => ({ id: a.id, target: a.target })) };
 }
+
+export type ChatMode = "off" | "shared" | "per_email";
+
+export function parseChatMode(payload: JsonObject | undefined | null): ChatMode {
+  const raw = payload && typeof payload.chat === "string" ? payload.chat : "";
+  if (raw === "off" || raw === "shared" || raw === "per_email") return raw;
+  return "shared";
+}
+
+export function withChatMode(mode: ChatMode, prev?: JsonObject): JsonObject {
+  return { ...(prev || {}), chat: mode };
+}

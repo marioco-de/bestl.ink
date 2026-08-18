@@ -156,6 +156,15 @@ export interface GeneratedLink {
   button_name?: string;
   unique_ips?: number;
   share_suspected?: boolean;
+  ndas?: NdaRecord[];
+}
+
+export interface NdaRecord {
+  id: string;
+  email: string;
+  accepted_at: string;
+  ip: string;
+  user_agent: string;
 }
 
 export interface AccessRequest {

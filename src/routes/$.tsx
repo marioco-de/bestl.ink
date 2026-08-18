@@ -1,7 +1,7 @@
 import { createFileRoute, redirect, isRedirect } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { recordDocAction } from "@/lib/docbay/api";
-import { parseDocActions, type DocActionId } from "@/lib/docbay/doc-actions";
+import { parseDocActions, parseChatMode, type DocActionId } from "@/lib/docbay/doc-actions";
 import { useT } from "@/lib/i18n";
 import {
   resolveAccess,
@@ -376,6 +376,13 @@ function GrantedView({
   });
   const startRef = useRef(Date.now());
   const pageRef = useRef(1);
+  const [acted, setActed] = useState<string | null>(null);
+  const chatMode = parseChatMode(resource.payload);
+  const chatOn = Boolean(features.chat && chatMode !== "off");
+  const threadKey = chatMode === "per_email" ? chatEmail.trim().toLowerCase() : "";
+  const allowDl = link?.allow_download !== false;
+  const t = useT();
+  const docActions = resource.type === "document" ? parseDocActions(resource.payload) : [];
 
   useEffect(() => {
     if (
@@ -412,22 +419,17 @@ function GrantedView({
   }, [link, features.pdf_analytics]);
 
   useEffect(() => {
-    if (!features.chat) return;
-    void listChat({ data: { resource_id: resource.id, link_id: link?.id } }).then(
+    if (!chatOn) return;
+    void listChat({ data: { resource_id: resource.id, link_id: link?.id, visitor_key: threadKey } }).then(
       setMessages,
     );
-    const t = window.setInterval(() => {
-      void listChat({ data: { resource_id: resource.id, link_id: link?.id } }).then(
+    const tick = window.setInterval(() => {
+      void listChat({ data: { resource_id: resource.id, link_id: link?.id, visitor_key: threadKey } }).then(
         setMessages,
       );
     }, 4000);
-    return () => window.clearInterval(t);
-  }, [resource.id, link?.id, features.chat]);
-
-  const allowDl = link?.allow_download !== false;
-  const t = useT();
-  const docActions = resource.type === "document" ? parseDocActions(resource.payload) : [];
-  const [acted, setActed] = useState<string | null>(null);
+    return () => window.clearInterval(tick);
+  }, [resource.id, link?.id, chatOn, threadKey]);
 
   async function runAction(id: DocActionId, target: string) {
     if (acted === id) return;
@@ -508,7 +510,7 @@ function GrantedView({
               </Button>
             );
           })}
-          {features.chat && (
+          {chatOn && (
             <Button
               size="sm"
               variant="secondary"
@@ -586,7 +588,7 @@ function GrantedView({
           )}
         </div>
 
-        {chatOpen && features.chat && (
+        {chatOpen && chatOn && (
           <aside className="flex w-full max-w-sm flex-col border-l border-border bg-bg-elevated">
             <div className="border-b border-border px-3 py-2 text-sm font-medium">
               Chat zum Dokument
@@ -615,7 +617,7 @@ function GrantedView({
                   data: {
                     resource_id: resource.id,
                     link_id: link?.id,
-                    visitor_key: visitorKey,
+                    visitor_key: threadKey,
                     sender_type: "visitor",
                     sender_name: chatEmail.trim() || "Besucher",
                     body: chatBody.trim(),
@@ -623,7 +625,7 @@ function GrantedView({
                 });
                 setChatBody("");
                 const list = await listChat({
-                  data: { resource_id: resource.id, link_id: link?.id },
+                  data: { resource_id: resource.id, link_id: link?.id, visitor_key: threadKey },
                 });
                 setMessages(list);
               }}

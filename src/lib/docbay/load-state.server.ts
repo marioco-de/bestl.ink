@@ -7,6 +7,7 @@ import type {
   FullState,
   GeneratedLink,
   Member,
+  NdaRecord,
   Notification,
   ParamNode,
   Resource,
@@ -526,6 +527,34 @@ export async function loadFullState(
   }
 
   let links = linkRows.map((r) => mapLink(r as Record<string, unknown>));
+  try {
+    const ndaRows = await sql`
+      select n.id, n.link_id, n.email, n.accepted_at,
+             coalesce(n.ip, '') as ip, coalesce(n.user_agent, '') as user_agent
+      from db_nda_acceptances n
+      join db_links l on l.id = n.link_id
+      where l.tenant_id = ${tid}
+      order by n.accepted_at desc
+    `;
+    const byLink = new Map<string, NdaRecord[]>();
+    for (const row of ndaRows) {
+      const r = row as Record<string, unknown>;
+      const lid = String(r.link_id);
+      const rec: NdaRecord = {
+        id: String(r.id),
+        email: String(r.email || ""),
+        accepted_at: new Date(r.accepted_at as string).toISOString(),
+        ip: String(r.ip || ""),
+        user_agent: String(r.user_agent || ""),
+      };
+      const list = byLink.get(lid) || [];
+      list.push(rec);
+      byLink.set(lid, list);
+    }
+    links = links.map((l) => ({ ...l, ndas: byLink.get(l.id) || [] }));
+  } catch {
+    links = links.map((l) => ({ ...l, ndas: [] }));
+  }
   if (member.role === "member" && !superAdmin) {
     links = links.filter(
       (l) =>
