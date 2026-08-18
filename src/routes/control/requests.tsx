@@ -9,6 +9,7 @@ import { useControlData } from "@/lib/docbay/use-control";
 import { updateRequestStatus } from "@/lib/docbay/api";
 import { formatDateDe } from "@/lib/utils";
 import type { FullState } from "@/lib/docbay/types";
+import { QuickShorten } from "@/components/control/quick-shorten";
 
 export const Route = createFileRoute("/control/requests")({
   component: RequestsPage,
@@ -33,6 +34,7 @@ function RequestsPage() {
           Bei Genehmigung: Access-Link + E-Mail (Template + Provider).
         </p>
       </div>
+      <QuickShorten />
       <div className="space-y-3">
         {state.requests.length === 0 && (
           <Card>

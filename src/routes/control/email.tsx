@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea, Label } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { QuickShorten } from "@/components/control/quick-shorten";
 import { Badge } from "@/components/ui/badge";
 import { useControlData } from "@/lib/docbay/use-control";
 import { saveEmailSettings, saveEmailTemplate } from "@/lib/docbay/api";
@@ -38,6 +39,8 @@ function EmailPage() {
           SMTP (IMAP-Zugangsdaten / Mailserver).
         </p>
       </div>
+
+      <QuickShorten />
 
       <Card>
         <CardHeader>

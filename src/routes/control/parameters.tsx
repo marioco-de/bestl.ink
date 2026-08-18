@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FullScreenModal } from "@/components/ui/fullscreen-modal";
 import { useControlData } from "@/lib/docbay/use-control";
+import { QuickShorten } from "@/components/control/quick-shorten";
 import {
   createParamNode,
   updateParamNode,
@@ -64,6 +65,8 @@ function ParametersPage() {
           nicht als Klartext in der URL.
         </p>
       </div>
+
+      <QuickShorten />
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0">

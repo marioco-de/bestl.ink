@@ -17,6 +17,7 @@ import { cardDownloadPath } from "@/lib/docbay/cards";
 import { TagChip } from "@/components/control/tag-picker";
 import { tagColor } from "@/lib/docbay/tags";
 import { useT } from "@/lib/i18n";
+import { QuickShorten } from "@/components/control/quick-shorten";
 
 type Tab = "urls" | "docs" | "pages" | "events" | "contacts" | "shared";
 
@@ -82,6 +83,8 @@ function LinksHub() {
         </h1>
         <p className="mt-1 text-sm text-fg-muted">{t("links.hint")}</p>
       </div>
+
+      <QuickShorten />
 
       <div className="flex gap-1 overflow-x-auto border-b border-border pb-px @min-[52rem]/app:hidden">
         {(

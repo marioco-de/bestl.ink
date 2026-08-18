@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Card, CardContent } from "@/components/ui/card";
 import { useControlData } from "@/lib/docbay/use-control";
 import { formatDateDe } from "@/lib/utils";
+import { QuickShorten } from "@/components/control/quick-shorten";
 
 export const Route = createFileRoute("/control/audit")({
   component: AuditPage,
@@ -17,6 +18,7 @@ function AuditPage() {
           Wer hat Links erzeugt, widerrufen, Anfragen bearbeitet. DSGVO-Nachweis.
         </p>
       </div>
+      <QuickShorten />
       <div className="space-y-2">
         {data.audit.length === 0 && (
           <p className="text-sm text-fg-muted">Noch keine Einträge.</p>

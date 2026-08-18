@@ -14,6 +14,7 @@ import { formatDateDe, cn } from "@/lib/utils";
 import { useControlData } from "@/lib/docbay/use-control";
 import { markNotificationsRead } from "@/lib/docbay/api";
 import { toast } from "sonner";
+import { QuickShorten } from "@/components/control/quick-shorten";
 
 export const Route = createFileRoute("/control/")({
   component: Dashboard,
@@ -63,6 +64,8 @@ function Dashboard() {
           </Button>
         )}
       </div>
+
+      <QuickShorten />
 
       {data.isSuperAdmin && (
         <Card>

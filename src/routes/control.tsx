@@ -43,7 +43,6 @@ import { CommandPalette } from "@/components/control/command-palette";
 import { ShortcutsHelp } from "@/components/control/shortcuts-help";
 import { CreateLinkModal } from "@/components/control/create-link-modal";
 import { WorkspaceSwitcher } from "@/components/control/workspace-switcher";
-import { QuickShorten } from "@/components/control/quick-shorten";
 import { useTheme } from "@/lib/theme";
 import { useI18n, useT } from "@/lib/i18n";
 
@@ -433,7 +432,6 @@ function ControlShell() {
             <span className="hidden @min-[24rem]/app:inline">{t("short.newLink")}</span>
           </Button>
         </header>
-        <QuickShorten />
         <main key={pathname} className="page-in flex-1 px-4 py-6 @min-[52rem]/app:px-8 @min-[52rem]/app:py-8">
           <Outlet />
         </main>

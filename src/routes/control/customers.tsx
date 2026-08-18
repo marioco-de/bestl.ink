@@ -16,6 +16,7 @@ import { FEATURE_KEYS, type FeatureKey, type FeatureMap } from "@/lib/docbay/typ
 import type { SuperAdminPayload, SuperTenantRow, SuperUserRow } from "@/lib/docbay/types";
 import { PLAN_KIND_LABELS, emptyFeatureMap, type Plan, type PlanKind } from "@/lib/docbay/plans";
 import { Badge } from "@/components/ui/badge";
+import { QuickShorten } from "@/components/control/quick-shorten";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input, Textarea, Label } from "@/components/ui/input";
@@ -66,6 +67,8 @@ function CustomersPage() {
           Workspaces, Nutzer, Rechtegruppen – AppSumo-Tiers und Monatspakete.
         </p>
       </div>
+
+      <QuickShorten />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap gap-1 rounded-md border border-border bg-bg-elevated p-1">
