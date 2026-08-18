@@ -8,7 +8,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { FullScreenModal } from "@/components/ui/fullscreen-modal";
 import { useControlData } from "@/lib/docbay/use-control";
 import { saveWebhook, deleteWebhook } from "@/lib/docbay/api";
-import { QuickShorten } from "@/components/control/quick-shorten";
 
 export const Route = createFileRoute("/control/integrations")({
   component: IntegrationsPage,
@@ -43,7 +42,7 @@ function IntegrationsPage() {
           <Plus className="h-4 w-4" /> Webhook
         </Button>
       </div>
-      <QuickShorten />
+
       <div className="space-y-2">
         {data.webhooks.length === 0 && (
           <p className="text-sm text-fg-muted">Noch keine Webhooks.</p>

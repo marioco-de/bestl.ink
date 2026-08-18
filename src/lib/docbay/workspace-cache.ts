@@ -99,6 +99,8 @@ export function workspaceShell(
     members: [],
     shorts: [],
     apiKeys: [],
+    ndaTemplates: [],
+    has_nda: false,
     dash: emptyDash(),
     demoResetsInMs: null,
     workspaces: from.workspaces,

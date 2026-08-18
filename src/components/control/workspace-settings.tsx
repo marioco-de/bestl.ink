@@ -1,4 +1,4 @@
-import { Plus } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,7 +12,7 @@ import {
   removeDashTeamMember,
   saveDashSettings,
 } from "@/lib/docbay/dashboard-api";
-import { updateTenant } from "@/lib/docbay/api";
+import { updateTenant, saveNdaTemplate, deleteNdaTemplate, uploadBegin, uploadChunk } from "@/lib/docbay/api";
 import { useT } from "@/lib/i18n";
 import type { DashState, FullState } from "@/lib/docbay/types";
 import { normalizeHex } from "@/lib/docbay/palette";
@@ -69,6 +69,84 @@ export function WorkspaceSettings() {
           <Button size="sm">{t("workspace.brandPreview")}</Button>
         </CardContent>
       </Card>
+      {data.has_nda && (
+        <Card>
+          <CardHeader>
+            <CardTitle>{t("workspace.nda")}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-fg-muted">{t("workspace.ndaHint")}</p>
+            {(data.ndaTemplates ?? []).map((n) => (
+              <div key={n.id} className="flex items-center justify-between gap-2 rounded-md border border-border px-3 py-2">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium">{n.title}</p>
+                  {n.file_name && <p className="truncate text-xs text-fg-muted">{n.file_name}</p>}
+                </div>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() =>
+                    void deleteNdaTemplate({ data: { id: n.id, tenant_id: data.tenant.id } })
+                      .then((s) => setData(s as FullState))
+                      .catch((e) => toast.error(e instanceof Error ? e.message : t("common.error")))
+                  }
+                >
+                  <Trash2 className="h-3.5 w-3.5 text-danger" />
+                </Button>
+              </div>
+            ))}
+            <label className="inline-flex cursor-pointer">
+              <span className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border px-3 text-sm">
+                <Plus className="h-3.5 w-3.5" /> {t("workspace.ndaUpload")}
+              </span>
+              <input
+                type="file"
+                className="hidden"
+                accept=".pdf,.doc,.docx,application/pdf"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  e.target.value = "";
+                  if (!f) return;
+                  void (async () => {
+                    try {
+                      const started = await uploadBegin({
+                        data: {
+                          file_name: f.name,
+                          mime_type: f.type || "application/pdf",
+                          file_size: f.size,
+                          tenant_id: data.tenant.id,
+                        },
+                      });
+                      const buf = new Uint8Array(await f.arrayBuffer());
+                      const step = 0x8000;
+                      let binary = "";
+                      for (let i = 0; i < buf.length; i += step) {
+                        binary += String.fromCharCode(...buf.subarray(i, i + step));
+                      }
+                      await uploadChunk({
+                        data: { upload_id: started.upload_id, data: btoa(binary), tenant_id: data.tenant.id },
+                      });
+                      const s = await saveNdaTemplate({
+                        data: {
+                          title: f.name.replace(/\.[^.]+$/, ""),
+                          upload_id: started.upload_id,
+                          file_name: f.name,
+                          mime_type: f.type || "application/pdf",
+                          tenant_id: data.tenant.id,
+                        },
+                      });
+                      setData(s as FullState);
+                      toast.success(t("common.saved"));
+                    } catch (err) {
+                      toast.error(err instanceof Error ? err.message : t("common.error"));
+                    }
+                  })();
+                }}
+              />
+            </label>
+          </CardContent>
+        </Card>
+      )}
       <Card>
         <CardHeader>
           <CardTitle>{t("dash.personal")}</CardTitle>

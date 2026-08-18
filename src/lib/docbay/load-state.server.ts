@@ -102,6 +102,7 @@ function mapLink(row: Record<string, unknown>): GeneratedLink {
       row.require_nda === null || row.require_nda === undefined
         ? null
         : Boolean(row.require_nda),
+    nda_template_id: row.nda_template_id ? String(row.nda_template_id) : null,
     created_at: new Date(row.created_at as string).toISOString(),
     resource_title: row.resource_title ? String(row.resource_title) : undefined,
     resource_slug: row.resource_slug ? String(row.resource_slug) : undefined,
@@ -338,6 +339,8 @@ export async function loadFullState(
       members: [],
       shorts: [],
       apiKeys: [],
+      ndaTemplates: [],
+      has_nda: false,
       dash: emptyDash(),
       demoResetsInMs: null,
       isSuperAdmin: true,
@@ -384,6 +387,8 @@ export async function loadFullState(
       members: [],
       shorts: [],
       apiKeys: [],
+      ndaTemplates: [],
+      has_nda: false,
       dash: emptyDash(),
       demoResetsInMs: null,
       isSuperAdmin: true,
@@ -671,6 +676,30 @@ export async function loadFullState(
     ...s,
     presence: presence.shorts.get(s.id) || null,
   }));
+  let ndaTemplates: FullState["ndaTemplates"] = [];
+  let has_nda = links.some((l) => l.require_nda);
+  try {
+    const ndaTpl = await sql`
+      select id, title, body, file_name, mime_type, created_at
+      from db_nda_templates
+      where tenant_id = ${tid}
+      order by created_at desc
+    `;
+    ndaTemplates = ndaTpl.map((raw) => {
+      const r = raw as Record<string, unknown>;
+      return {
+        id: String(r.id),
+        title: String(r.title || ""),
+        body: String(r.body || ""),
+        file_name: String(r.file_name || ""),
+        mime_type: String(r.mime_type || ""),
+        created_at: new Date(r.created_at as string).toISOString(),
+      };
+    });
+    has_nda = has_nda || ndaTemplates.length > 0;
+  } catch {
+    /* table may lag a deploy */
+  }
   const apiKeys = apiKeyRows.map((r) => {
     const x = r as Record<string, unknown>;
     return {
@@ -715,6 +744,8 @@ export async function loadFullState(
     members,
     shorts: shortsWithPresence,
     apiKeys,
+    ndaTemplates,
+    has_nda,
     dash,
     demoResetsInMs: null,
     isSuperAdmin: superAdmin,

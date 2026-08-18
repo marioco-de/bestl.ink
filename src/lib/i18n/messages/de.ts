@@ -174,6 +174,9 @@ export const de = {
     brand: "Branding-Farbe",
     brandHint: "Alle Standard-Buttons und Verläufe in diesem Workspace.",
     brandPreview: "Vorschau",
+    nda: "NDA-Dokumente",
+    ndaHint: "Vorlagen für Links mit NDA. Beim Erzeugen auswählen oder hier hochladen.",
+    ndaUpload: "NDA hochladen",
   },
   links: {
     hint: "URL einfügen oder C drücken – der Rest ist optional.",

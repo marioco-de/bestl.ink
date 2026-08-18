@@ -149,6 +149,7 @@ export interface GeneratedLink {
   password_hash: string | null;
   allow_download: boolean | null;
   require_nda: boolean | null;
+  nda_template_id?: string | null;
   created_at: string;
   resource_title?: string;
   resource_slug?: string;
@@ -166,6 +167,15 @@ export interface NdaRecord {
   accepted_at: string;
   ip: string;
   user_agent: string;
+}
+
+export interface NdaTemplate {
+  id: string;
+  title: string;
+  body: string;
+  file_name: string;
+  mime_type: string;
+  created_at: string;
 }
 
 export interface AccessRequest {
@@ -422,6 +432,8 @@ export interface FullState {
   members: Member[];
   shorts: ShortLink[];
   apiKeys: ApiKeyRow[];
+  ndaTemplates: NdaTemplate[];
+  has_nda: boolean;
   dash: DashState;
   demoResetsInMs: number | null;
   isSuperAdmin: boolean;

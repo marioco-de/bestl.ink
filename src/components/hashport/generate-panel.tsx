@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input, Textarea, Label } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { FullScreenModal } from "@/components/ui/fullscreen-modal";
-import { generateLink, bulkGenerateLinks, createParamNode, createTag } from "@/lib/docbay/api";
+import { generateLink, bulkGenerateLinks, createParamNode, createTag, saveNdaTemplate, uploadBegin, uploadChunk } from "@/lib/docbay/api";
 import type { FullState, ParamNode, Resource } from "@/lib/docbay/types";
 import { cardDownloadPath } from "@/lib/docbay/cards";
 import { TagPicker } from "@/components/control/tag-picker";
@@ -49,6 +49,8 @@ export function GeneratePanel({
   const [password, setPassword] = useState("");
   const [allowDownload, setAllowDownload] = useState(resource.allow_download);
   const [requireNda, setRequireNda] = useState(resource.require_nda);
+  const [ndaTemplateId, setNdaTemplateId] = useState(state.ndaTemplates?.[0]?.id ?? "");
+  const [ndaBusy, setNdaBusy] = useState(false);
   const [bulk, setBulk] = useState("");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<{
@@ -56,6 +58,46 @@ export function GeneratePanel({
     token: string;
     button: string;
   } | null>(null);
+
+  async function uploadNda(file: File) {
+    setNdaBusy(true);
+    try {
+      const started = await uploadBegin({
+        data: {
+          file_name: file.name,
+          mime_type: file.type || "application/pdf",
+          file_size: file.size,
+          tenant_id: state.tenant.id,
+        },
+      });
+      const buf = new Uint8Array(await file.arrayBuffer());
+      const chunk = 0x8000;
+      let binary = "";
+      for (let i = 0; i < buf.length; i += chunk) {
+        binary += String.fromCharCode(...buf.subarray(i, i + chunk));
+      }
+      await uploadChunk({
+        data: { upload_id: started.upload_id, data: btoa(binary), tenant_id: state.tenant.id },
+      });
+      const next = (await saveNdaTemplate({
+        data: {
+          title: file.name.replace(/\.[^.]+$/, ""),
+          upload_id: started.upload_id,
+          file_name: file.name,
+          mime_type: file.type || "application/pdf",
+          tenant_id: state.tenant.id,
+        },
+      })) as FullState;
+      onUpdated(next);
+      const created = next.ndaTemplates?.find((n) => n.file_name === file.name);
+      if (created) setNdaTemplateId(created.id);
+      toast.success("NDA gespeichert");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "NDA-Upload fehlgeschlagen");
+    } finally {
+      setNdaBusy(false);
+    }
+  }
 
   async function ensureButton(): Promise<{ id: string; name: string }> {
     if (buttons[0]) return { id: buttons[0].node.id, name: buttons[0].node.name };
@@ -102,6 +144,7 @@ export function GeneratePanel({
           password: password || undefined,
           allow_download: allowDownload,
           require_nda: requireNda,
+          nda_template_id: requireNda ? ndaTemplateId || undefined : undefined,
         },
       });
       if (res.state) onUpdated(res.state);
@@ -223,6 +266,37 @@ export function GeneratePanel({
               </label>
             )}
           </div>
+          {state.features.nda && requireNda && (
+            <div className="space-y-2">
+              <Label>NDA-Dokument</Label>
+              <select
+                className="h-10 w-full rounded-lg border border-border bg-bg-elevated px-3 text-sm"
+                value={ndaTemplateId}
+                onChange={(e) => setNdaTemplateId(e.target.value)}
+              >
+                <option value="">— wählen —</option>
+                {(state.ndaTemplates ?? []).map((n) => (
+                  <option key={n.id} value={n.id}>
+                    {n.title}
+                    {n.file_name ? ` (${n.file_name})` : ""}
+                  </option>
+                ))}
+              </select>
+              <label className="block cursor-pointer text-xs text-primary">
+                {ndaBusy ? "Lädt…" : "Neue NDA hochladen"}
+                <input
+                  type="file"
+                  className="hidden"
+                  accept=".pdf,.doc,.docx,application/pdf"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) void uploadNda(f);
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+            </div>
+          )}
           {state.features.bulk_links && (
             <div>
               <Label>Bulk (eine Notiz pro Zeile)</Label>

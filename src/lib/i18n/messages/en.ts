@@ -176,6 +176,9 @@ export const en: Messages = {
     brand: "Brand color",
     brandHint: "All default buttons and gradients in this workspace.",
     brandPreview: "Preview",
+    nda: "NDA documents",
+    ndaHint: "Templates for NDA links. Pick one when creating a link or upload here.",
+    ndaUpload: "Upload NDA",
   },
   links: {
     hint: "Paste a URL or press C — the rest is optional.",

@@ -814,6 +814,7 @@ export const generateLink = createServerFn({ method: "POST" })
       password?: string;
       allow_download?: boolean;
       require_nda?: boolean;
+      nda_template_id?: string;
     }) => d,
   )
   .handler(async ({ context, data }) => {
@@ -843,20 +844,66 @@ export const generateLink = createServerFn({ method: "POST" })
       insert into db_links (
         id, tenant_id, token, resource_id, button_id, created_by, note, tags,
         utm_source, utm_medium, utm_campaign, utm_term, utm_content,
-        expires_at, one_time, password_hash, allow_download, require_nda
+        expires_at, one_time, password_hash, allow_download, require_nda, nda_template_id
       ) values (
         ${id}, ${mem.tenant.id}, ${token}, ${data.resource_id}, ${data.button_id},
         ${context.userId}, ${data.note ?? ""}, ${JSON.stringify(data.tags ?? [])},
         ${data.utm_source ?? null}, ${data.utm_medium ?? null}, ${data.utm_campaign ?? null},
         ${data.utm_term ?? null}, ${data.utm_content ?? null},
         ${expires}, ${data.one_time ?? false}, ${pwHash},
-        ${data.allow_download ?? null}, ${data.require_nda ?? null}
+        ${data.allow_download ?? null}, ${data.require_nda ?? null},
+        ${data.nda_template_id ?? null}
       )
     `;
     await audit(mem.tenant.id, context.userId, "link.created", { id, token });
     const state = await loadFullState(context.userId, mem.tenant.id);
     const link = state?.links.find((l) => l.id === id);
     return { state, link, token, public_host: mem.tenant.public_host };
+  });
+
+export const saveNdaTemplate = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .inputValidator(
+    (d: {
+      title: string;
+      body?: string;
+      upload_id?: string;
+      file_name?: string;
+      mime_type?: string;
+      tenant_id?: string;
+    }) => d,
+  )
+  .handler(async ({ context, data }) => {
+    const mem = await getMembership(context.userId, data.tenant_id);
+    if (!mem || mem.member.role === "member") throw new Error("Keine Berechtigung");
+    const sql = await getSql();
+    const id = uid("nda");
+    let contentUrl: string | null = null;
+    if (data.upload_id) {
+      const { commitUpload, storageContentUrl } = await import("./storage.server");
+      const key = await commitUpload(data.upload_id, mem.tenant.id, id);
+      contentUrl = storageContentUrl(key);
+    }
+    await sql`
+      insert into db_nda_templates (
+        id, tenant_id, title, body, content_url, file_name, mime_type
+      ) values (
+        ${id}, ${mem.tenant.id}, ${data.title.trim() || data.file_name || "NDA"},
+        ${data.body ?? ""}, ${contentUrl}, ${data.file_name ?? ""}, ${data.mime_type ?? ""}
+      )
+    `;
+    return loadFullState(context.userId, mem.tenant.id);
+  });
+
+export const deleteNdaTemplate = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .inputValidator((d: { id: string; tenant_id?: string }) => d)
+  .handler(async ({ context, data }) => {
+    const mem = await getMembership(context.userId, data.tenant_id);
+    if (!mem || mem.member.role === "member") throw new Error("Keine Berechtigung");
+    const sql = await getSql();
+    await sql`delete from db_nda_templates where id = ${data.id} and tenant_id = ${mem.tenant.id}`;
+    return loadFullState(context.userId, mem.tenant.id);
   });
 
 export const bulkGenerateLinks = createServerFn({ method: "POST" })
@@ -1465,6 +1512,22 @@ export const resolveAccess = createServerFn({ method: "POST" })
         ? Boolean(link.require_nda)
         : Boolean(resource.require_nda);
     if (requireNda && features.nda) {
+      const tplId = link.nda_template_id ? String(link.nda_template_id) : "";
+      if (tplId) {
+        try {
+          const tpl = (
+            await sql`select title, body, file_name from db_nda_templates where id = ${tplId} limit 1`
+          )[0] as { title?: string; body?: string; file_name?: string } | undefined;
+          if (tpl) {
+            base.resource.nda_text =
+              [tpl.title, tpl.body, tpl.file_name ? `Dokument: ${tpl.file_name}` : ""]
+                .filter(Boolean)
+                .join("\n\n") || base.resource.nda_text;
+          }
+        } catch {
+          /* ignore */
+        }
+      }
       const email = (data.nda_email || "").trim().toLowerCase();
       if (!email) return { ...base, access: "nda" as const };
       const accepted = await sql`
@@ -1837,31 +1900,40 @@ export const listChatInbox = createServerFn({ method: "POST" })
     const mem = await getMembership(context.userId, data?.tenant_id);
     if (!mem || mem.tenant.id === "platform") throw new Error("Kein Workspace");
     const sql = await getSql();
+    try {
     const rows = await sql`
+      with threads as (
+        select
+          resource_id,
+          coalesce(visitor_key, '') as thread_key,
+          max(created_at) as last_at,
+          count(*)::int as n
+        from db_chat_messages
+        where tenant_id = ${mem.tenant.id}
+        group by resource_id, coalesce(visitor_key, '')
+      )
       select
-        c.resource_id,
-        coalesce(nullif(c.visitor_key, ''), '') as thread_key,
+        t.resource_id,
+        t.thread_key,
         r.title as resource_title,
         r.slug as resource_slug,
+        t.last_at,
+        t.n,
         (select m.body from db_chat_messages m
-          where m.resource_id = c.resource_id
-            and coalesce(m.visitor_key, '') = coalesce(nullif(c.visitor_key, ''), '')
+          where m.resource_id = t.resource_id
+            and coalesce(m.visitor_key, '') = t.thread_key
           order by m.created_at desc limit 1) as last_body,
         (select m.sender_name from db_chat_messages m
-          where m.resource_id = c.resource_id and m.sender_type = 'visitor'
-            and coalesce(m.visitor_key, '') = coalesce(nullif(c.visitor_key, ''), '')
+          where m.resource_id = t.resource_id and m.sender_type = 'visitor'
+            and coalesce(m.visitor_key, '') = t.thread_key
           order by m.created_at desc limit 1) as last_visitor,
         (select m.sender_type from db_chat_messages m
-          where m.resource_id = c.resource_id
-            and coalesce(m.visitor_key, '') = coalesce(nullif(c.visitor_key, ''), '')
-          order by m.created_at desc limit 1) as last_sender,
-        max(c.created_at) as last_at,
-        count(*)::int as n
-      from db_chat_messages c
-      join db_resources r on r.id = c.resource_id
-      where c.tenant_id = ${mem.tenant.id}
-      group by c.resource_id, coalesce(nullif(c.visitor_key, ''), ''), r.title, r.slug
-      order by last_at desc
+          where m.resource_id = t.resource_id
+            and coalesce(m.visitor_key, '') = t.thread_key
+          order by m.created_at desc limit 1) as last_sender
+      from threads t
+      join db_resources r on r.id = t.resource_id
+      order by t.last_at desc
     `;
     return rows.map((r) => {
       const row = r as Record<string, unknown>;
@@ -1877,6 +1949,9 @@ export const listChatInbox = createServerFn({ method: "POST" })
         n: Number(row.n || 0),
       };
     });
+    } catch {
+      return [];
+    }
   });
 
 export const replyChat = createServerFn({ method: "POST" })

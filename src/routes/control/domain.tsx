@@ -23,7 +23,6 @@ import { TagPicker } from "@/components/control/tag-picker";
 import type { FullState, TenantDomain } from "@/lib/docbay/types";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
-import { QuickShorten } from "@/components/control/quick-shorten";
 
 export const Route = createFileRoute("/control/domain")({
   component: DomainPage,
@@ -258,7 +257,7 @@ function DomainPage() {
         )}
       </div>
 
-      <QuickShorten />
+
 
       <Card>
         <CardHeader>
