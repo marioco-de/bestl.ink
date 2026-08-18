@@ -154,7 +154,7 @@ export const de = {
     nameHint: "Name",
     pick: "Kein Workspace gewählt",
     vercelMissing:
-      "Vercel kennt die Domain nicht. Token einmal hier speichern — dann legt die App cname.bestl.ink und jede Kundendomain selbst an.",
+      "Vercel kennt die Domain nicht. Token einmal hier speichern — dann legt die App dns.bestl.ink und jede Kundendomain selbst an.",
     vercelOk: "Bei Vercel registriert",
     vercelToken: "VERCEL_TOKEN",
     vercelSave: "Token speichern & anlegen",

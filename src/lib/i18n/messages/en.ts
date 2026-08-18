@@ -156,7 +156,7 @@ export const en: Messages = {
     nameHint: "Name",
     pick: "No workspace selected",
     vercelMissing:
-      "Vercel does not know this domain. Save the token once here — the app then adds cname.bestl.ink and every customer host.",
+      "Vercel does not know this domain. Save the token once here — the app then adds dns.bestl.ink and every customer host.",
     vercelOk: "Registered on Vercel",
     vercelToken: "VERCEL_TOKEN",
     vercelSave: "Save token & register",
