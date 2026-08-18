@@ -419,6 +419,7 @@ function ShortEditor({
   );
   const [ogTitle, setOgTitle] = useState(initial.og_title || "");
   const [ogDesc, setOgDesc] = useState(initial.og_description || "");
+  const [descOpen, setDescOpen] = useState(Boolean(initial.og_description));
   const [ogImage, setOgImage] = useState(initial.og_image || "");
   const [buttonId, setButtonId] = useState(initial.button_id || "");
   const [utmS, setUtmS] = useState(initial.utm_source || "");
@@ -543,12 +544,34 @@ function ShortEditor({
           </select>
         )}
       </div>
-      <div>
-        <Label>Titel</Label>
+      <div className="space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <Label>{t("short.title")}</Label>
+          {!descOpen && (
+            <button
+              type="button"
+              onClick={() => setDescOpen(true)}
+              className="inline-flex h-7 items-center gap-1 text-[11px] text-fg-muted hover:text-fg"
+            >
+              <Plus className="h-3 w-3" />
+              {t("short.addDescription")}
+            </button>
+          )}
+        </div>
         <Input value={title} onChange={(e) => setTitle(e.target.value)} />
+        {descOpen && (
+          <div>
+            <Label>{t("short.publicDesc")}</Label>
+            <Textarea
+              value={ogDesc}
+              onChange={(e) => setOgDesc(e.target.value)}
+              placeholder={t("short.publicDescPh")}
+            />
+          </div>
+        )}
       </div>
       <div>
-        <Label>Notiz</Label>
+        <Label>{t("short.teamOnly")}</Label>
         <Textarea value={note} onChange={(e) => setNote(e.target.value)} />
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
@@ -602,10 +625,6 @@ function ShortEditor({
           <div>
             <Label>OG-Titel</Label>
             <Input value={ogTitle} onChange={(e) => setOgTitle(e.target.value)} />
-          </div>
-          <div>
-            <Label>OG-Beschreibung</Label>
-            <Textarea value={ogDesc} onChange={(e) => setOgDesc(e.target.value)} />
           </div>
           <div>
             <Label>OG-Bild-URL</Label>

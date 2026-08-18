@@ -443,9 +443,11 @@ function ContactPreview({ contact }: { contact: ContactPayload }) {
 export function EventFields({
   event,
   setEvent,
+  hideTitle,
 }: {
   event: EventPayload;
   setEvent: (e: EventPayload) => void;
+  hideTitle?: boolean;
 }) {
   const [advanced, setAdvanced] = useState(false);
   function set<K extends keyof EventPayload>(key: K, value: EventPayload[K]) {
@@ -453,6 +455,7 @@ export function EventFields({
   }
   return (
     <>
+      {!hideTitle && (
       <div>
         <Label htmlFor="ev-title">Titel *</Label>
         <Input
@@ -463,6 +466,7 @@ export function EventFields({
           required
         />
       </div>
+      )}
       <label className="flex min-h-11 items-center gap-2 text-sm">
         <input
           type="checkbox"

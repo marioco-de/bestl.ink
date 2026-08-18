@@ -314,6 +314,7 @@ export function ResourceForm({
   const [slug, setSlug] = useState(initial?.slug ?? "");
   const [slugTouched, setSlugTouched] = useState(Boolean(initial));
   const [description, setDescription] = useState(initial?.description ?? "");
+  const [descOpen, setDescOpen] = useState(Boolean(initial?.description));
   const [pageUrl, setPageUrl] = useState(initial?.content_url ?? "");
   const [tags, setTags] = useState<string[]>(initial?.tags ?? []);
   const [actions, setActions] = useState<DocAction[]>(() => parseDocActions(initial?.payload));
@@ -510,14 +511,36 @@ export function ResourceForm({
         ))}
       </div>
       )}
-      <div>
-        <Label>Titel</Label>
+      <div className="space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <Label>Titel</Label>
+          {!descOpen && (
+            <button
+              type="button"
+              onClick={() => setDescOpen(true)}
+              className="inline-flex h-7 items-center gap-1 text-[11px] text-fg-muted hover:text-fg"
+            >
+              <Plus className="h-3 w-3" />
+              {t("short.addDescription")}
+            </button>
+          )}
+        </div>
         <Input
           value={title}
           onChange={(e) => onTitle(e.target.value)}
           placeholder="Verkaufsfolder Markisen"
           required
         />
+        {descOpen && (
+          <div>
+            <Label>{t("short.publicDesc")}</Label>
+            <Textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder={t("short.publicDescPh")}
+            />
+          </div>
+        )}
       </div>
       <div>
         <Label>Slug / Pfad</Label>
@@ -530,13 +553,6 @@ export function ResourceForm({
           placeholder="folder-markisen.pdf"
           className="font-mono text-sm"
           required
-        />
-      </div>
-      <div>
-        <Label>Beschreibung</Label>
-        <Textarea
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
         />
       </div>
       <div>

@@ -9,6 +9,7 @@ import {
   KeyRound,
   Megaphone,
   MonitorSmartphone,
+  Plus,
   Shuffle,
   Tag,
   X,
@@ -129,13 +130,13 @@ function Editor({
   const [shareTitle, setShareTitle] = useState("");
   const [shareText, setShareText] = useState("");
   const [shareImage, setShareImage] = useState("");
+  const [descOpen, setDescOpen] = useState(false);
   const [extra, setExtra] = useState<Extra>(null);
   const [busy, setBusy] = useState(false);
   const [hostOpen, setHostOpen] = useState(false);
   const [wsOpen, setWsOpen] = useState(false);
   const [pinDash, setPinDash] = useState(false);
   const [dashDisplay, setDashDisplay] = useState<"text" | "icon" | "preview">("text");
-  const [docTitle, setDocTitle] = useState("");
   const [docFile, setDocFile] = useState<File | null>(null);
   const [docActions, setDocActions] = useState<DocAction[]>([]);
   const [chatMode, setChatMode] = useState<ChatMode>("shared");
@@ -291,7 +292,7 @@ function Editor({
           toast.error(`Max. ${MAX_UPLOAD_LABEL}`);
           return;
         }
-        const title = docTitle.trim() || docFile.name.replace(/\.[^.]+$/, "");
+        const title = shareTitle.trim() || docFile.name.replace(/\.[^.]+$/, "");
         const pageSlug = (slug || slugify(title) || genToken(5)).replace(/^\//, "");
         const uploadId = await uploadFile(docFile);
         const payload = withRequireRequest(
@@ -303,6 +304,7 @@ function Editor({
             type: "document",
             title,
             slug: pageSlug,
+            description: shareText.trim(),
             upload_id: uploadId,
             mime_type: docFile.type,
             file_name: docFile.name,
@@ -333,7 +335,7 @@ function Editor({
       }
 
       if (kind === "event" || kind === "contact") {
-        const name = (kind === "event" ? event.title : contact.name).trim();
+        const name = (shareTitle.trim() || (kind === "event" ? event.title : contact.name)).trim();
         if (!name) {
           toast.error(kind === "event" ? "Titel fehlt" : "Name fehlt");
           return;
@@ -347,7 +349,7 @@ function Editor({
             type: kind,
             title: name,
             slug: pageSlug,
-            description: kind === "event" ? event.location || "" : contact.company || "",
+            description: shareText.trim() || (kind === "event" ? event.location || "" : contact.company || ""),
             payload,
             mime_type: kind === "event" ? "text/calendar" : "text/vcard",
             allow_download: true,
@@ -396,6 +398,7 @@ function Editor({
             type: "page",
             title,
             slug: pageSlug,
+            description: shareText.trim(),
             content_url: withProto,
             tags,
             payload: { require_request: false },
@@ -475,8 +478,8 @@ function Editor({
       : kind === "contact"
         ? `https://${host}/vcf/${slug || "kontakt"}`
         : `https://${host}/${slug || "link"}`;
-  const previewTitle = shareTitle || docTitle || event.title || contact.name || destination || slug;
-  const previewText = shareText || note || event.description || contact.company || "";
+  const previewTitle = shareTitle || event.title || contact.name || destination || slug;
+  const previewText = shareText;
   const kindTitle =
     kind === "document"
       ? t("create.doc")
@@ -566,6 +569,42 @@ function Editor({
         </>
       }
     >
+      <section className="space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-xs font-medium">{t("short.title")}</p>
+          {!descOpen && (
+            <button
+              type="button"
+              onClick={() => setDescOpen(true)}
+              className="inline-flex h-7 items-center gap-1 text-[11px] text-fg-muted hover:text-fg"
+            >
+              <Plus className="h-3 w-3" />
+              {t("short.addDescription")}
+            </button>
+          )}
+        </div>
+        <Input
+          value={shareTitle}
+          onChange={(e) => {
+            const v = e.target.value;
+            setShareTitle(v);
+            if (kind === "event") setEvent((prev) => ({ ...prev, title: v }));
+          }}
+          placeholder={t("short.shareTitlePh")}
+        />
+        {descOpen && (
+          <div>
+            <p className="mb-1.5 text-xs font-medium">{t("short.publicDesc")}</p>
+            <Textarea
+              value={shareText}
+              onChange={(e) => setShareText(e.target.value)}
+              placeholder={t("short.publicDescPh")}
+              className="min-h-[72px]"
+            />
+          </div>
+        )}
+      </section>
+
       {(kind === "url" || kind === "page") && (
         <section>
           <p className="mb-1.5 text-xs font-medium">{t("short.destLabel")}</p>
@@ -594,7 +633,7 @@ function Editor({
                 onChange={(e) => {
                   const f = e.target.files?.[0] ?? null;
                   setDocFile(f);
-                  if (f && !docTitle) setDocTitle(f.name.replace(/\.[^.]+$/, ""));
+                  if (f && !shareTitle) setShareTitle(f.name.replace(/\.[^.]+$/, ""));
                   if (f) setSlug(f.name.toLowerCase().replace(/\s+/g, "-"));
                 }}
               />
@@ -602,10 +641,6 @@ function Editor({
             {progress != null && (
               <p className="mt-1 text-xs text-fg-subtle">Upload {progress}%</p>
             )}
-          </div>
-          <div>
-            <p className="mb-1.5 text-xs font-medium">Titel</p>
-            <Input value={docTitle} onChange={(e) => setDocTitle(e.target.value)} />
           </div>
           <DocActionPicker value={docActions} onChange={setDocActions} />
           <div>
@@ -629,9 +664,11 @@ function Editor({
 
       {kind === "event" && (
         <EventFields
+          hideTitle
           event={event}
           setEvent={(next) => {
             setEvent(next);
+            if (next.title && next.title !== shareTitle) setShareTitle(next.title);
             setSlug(suggestCardSlug("event", next.start));
           }}
         />
@@ -732,18 +769,6 @@ function Editor({
             )}
           </div>
           <div className="space-y-1 p-2.5">
-            <input
-              className="w-full bg-transparent text-sm font-medium outline-none"
-              placeholder={t("short.shareTitlePh")}
-              value={shareTitle}
-              onChange={(e) => setShareTitle(e.target.value)}
-            />
-            <input
-              className="w-full bg-transparent text-xs text-fg-muted outline-none"
-              placeholder={t("short.shareTextPh")}
-              value={shareText}
-              onChange={(e) => setShareText(e.target.value)}
-            />
             <input
               className="w-full bg-transparent text-[11px] text-fg-subtle outline-none"
               placeholder={t("short.shareImgPh")}

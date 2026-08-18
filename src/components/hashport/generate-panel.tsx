@@ -252,7 +252,7 @@ export function GeneratePanel({
       }}
     >
       <div>
-        <Label>Notiz</Label>
+        <Label>{t("short.teamOnly")}</Label>
             <Textarea
               value={note}
               onChange={(e) => setNote(e.target.value)}
