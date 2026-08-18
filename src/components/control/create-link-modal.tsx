@@ -30,17 +30,23 @@ import { upsertShort } from "@/lib/docbay/state-patch";
 type Extra = "campaign" | "device" | "lock" | "ttl" | null;
 
 function collectHosts(data: FullState): string[] {
-  const set = new Set<string>();
-  if (data.tenant.public_host) set.add(data.tenant.public_host);
-  if (data.tenant.custom_domain) set.add(data.tenant.custom_domain);
-  for (const d of data.domains ?? []) {
-    if (d.host) set.add(d.host.toLowerCase());
-  }
-  if (data.tenant.subdomain) {
-    set.add(`${data.tenant.subdomain}.${PLATFORM_LINK_HOST}`);
-  }
-  set.add(PLATFORM_LINK_HOST);
-  return [...set];
+  const hosts: string[] = [];
+  const seen = new Set<string>();
+  const add = (raw?: string) => {
+    const h = (raw || "").trim().toLowerCase();
+    if (!h || seen.has(h)) return;
+    seen.add(h);
+    hosts.push(h);
+  };
+  const ordered = [...(data.domains ?? [])].sort(
+    (a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0),
+  );
+  for (const d of ordered) add(d.host);
+  add(data.tenant.custom_domain);
+  add(data.tenant.public_host);
+  if (data.tenant.subdomain) add(`${data.tenant.subdomain}.${PLATFORM_LINK_HOST}`);
+  add(PLATFORM_LINK_HOST);
+  return hosts;
 }
 
 export function CreateLinkModal() {
@@ -74,7 +80,7 @@ function Editor({
   const { setData } = useControl();
   const navigate = useNavigate();
   const hosts = useMemo(() => collectHosts(data), [data]);
-  const [host, setHost] = useState(data.tenant.public_host || hosts[0] || PLATFORM_LINK_HOST);
+  const [host, setHost] = useState(hosts[0] || PLATFORM_LINK_HOST);
   const [destination, setDestination] = useState(seed);
   const [slug, setSlug] = useState(() => genToken(5));
   const [note, setNote] = useState("");
@@ -108,7 +114,7 @@ function Editor({
 
   useEffect(() => {
     if (!hosts.includes(host)) {
-      setHost(data.tenant.public_host || hosts[0] || PLATFORM_LINK_HOST);
+      setHost(hosts[0] || data.tenant.public_host || PLATFORM_LINK_HOST);
     }
   }, [hosts, data.tenant.public_host, host]);
 

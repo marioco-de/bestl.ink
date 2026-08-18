@@ -11,7 +11,7 @@ import {
   PLATFORM_LINK_HOST,
 } from "./load-state.server";
 import { featuresFromRows, defaultFeatures } from "./features";
-import { FEATURE_KEYS, type EmailSettings, type JsonObject } from "./types";
+import { FEATURE_KEYS, type EmailSettings, type JsonObject, type TenantDomain } from "./types";
 import {
   uid,
   genToken,
@@ -27,6 +27,7 @@ import { getGoogleClientId, getGoogleClientSecret } from "./secrets.server";
 import { requestHostHeader } from "./request-host.server";
 import { findTenantBrandByHost } from "./shorts.server";
 import { isMarketingHost } from "./brand";
+import { probeDomainDns } from "./dns-check.server";
 
 async function audit(
   tenantId: string | null,
@@ -300,9 +301,18 @@ export const addTenantDomain = createServerFn({ method: "POST" })
       select id from db_tenants where lower(custom_domain) = ${host} and id <> ${mem.tenant.id} limit 1
     `;
     if (tenantClash.length) throw new Error("Domain bereits verknüpft");
+    const max = (
+      await sql`
+        select coalesce(max(sort_order), -1)::int as m
+        from db_tenant_domains where tenant_id = ${mem.tenant.id}
+      `
+    )[0] as { m: number };
     await sql`
-      insert into db_tenant_domains (id, tenant_id, host, connected, tags)
-      values (${uid("tdom")}, ${mem.tenant.id}, ${host}, ${false}, ${JSON.stringify(data.tags ?? [])})
+      insert into db_tenant_domains (id, tenant_id, host, connected, tags, sort_order)
+      values (
+        ${uid("tdom")}, ${mem.tenant.id}, ${host}, ${false},
+        ${JSON.stringify(data.tags ?? [])}, ${(max?.m ?? -1) + 1}
+      )
     `;
     if (!mem.tenant.custom_domain) {
       await sql`
@@ -389,6 +399,69 @@ export const removeTenantDomain = createServerFn({ method: "POST" })
       `;
     }
     return loadFullState(context.userId, mem.tenant.id);
+  });
+
+export const verifyTenantDomain = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .inputValidator((d: { id: string; tenant_id?: string }) => d)
+  .handler(async ({ context, data }) => {
+    const mem = await getMembership(context.userId, data.tenant_id);
+    if (!mem || mem.member.role === "member") throw new Error("Keine Berechtigung");
+    const sql = await getSql();
+    const row = (
+      await sql`
+        select * from db_tenant_domains
+        where id = ${data.id} and tenant_id = ${mem.tenant.id}
+        limit 1
+      `
+    )[0] as Record<string, unknown> | undefined;
+    if (!row) throw new Error("Domain nicht gefunden");
+    const host = String(row.host);
+    const probe = await probeDomainDns(host);
+    await sql`
+      update db_tenant_domains set connected = ${probe.ok} where id = ${data.id}
+    `;
+    if (probe.ok) {
+      await sql`
+        update db_tenants set
+          custom_domain = ${host},
+          custom_domain_connected = true
+        where id = ${mem.tenant.id}
+      `;
+    } else if (mem.tenant.custom_domain === host) {
+      await sql`
+        update db_tenants set custom_domain_connected = false
+        where id = ${mem.tenant.id}
+      `;
+    }
+    const domain: TenantDomain = {
+      id: String(row.id),
+      tenant_id: String(row.tenant_id),
+      host,
+      connected: probe.ok,
+      tags: parseJsonArray(row.tags),
+      sort_order: Number(row.sort_order ?? 0),
+      created_at: new Date(row.created_at as string).toISOString(),
+    };
+    return { domain, ok: probe.ok, detail: probe.detail };
+  });
+
+export const reorderTenantDomains = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .inputValidator((d: { ids: string[]; tenant_id?: string }) => d)
+  .handler(async ({ context, data }) => {
+    const mem = await getMembership(context.userId, data.tenant_id);
+    if (!mem || mem.member.role === "member") throw new Error("Keine Berechtigung");
+    const sql = await getSql();
+    await Promise.all(
+      data.ids.map(
+        (id, i) => sql`
+          update db_tenant_domains set sort_order = ${i}
+          where id = ${id} and tenant_id = ${mem.tenant.id}
+        `,
+      ),
+    );
+    return { ids: data.ids };
   });
 
 export const createResource = createServerFn({ method: "POST" })

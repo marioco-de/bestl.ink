@@ -79,6 +79,7 @@ export interface TenantDomain {
   host: string;
   connected: boolean;
   tags: string[];
+  sort_order: number;
   created_at: string;
 }
 
