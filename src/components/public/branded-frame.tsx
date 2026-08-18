@@ -1,7 +1,9 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Shield } from "lucide-react";
 import { BRAND_HOME, BRAND_NAME } from "@/lib/docbay/brand";
 import { useT } from "@/lib/i18n";
+
+const DELAY = 3;
 
 export function BrandFlag({ dest }: { dest?: string }) {
   const t = useT();
@@ -31,19 +33,24 @@ export function BrandedFrame({
   frameable?: boolean;
 }) {
   const t = useT();
-  useEffect(() => {
-    const tmr = window.setTimeout(() => {
-      window.location.replace(url);
-    }, 1450);
-    return () => window.clearTimeout(tmr);
-  }, [url]);
+  const [left, setLeft] = useState(DELAY);
 
-  let host = url;
-  try {
-    host = new URL(url, "https://bestl.ink").host;
-  } catch {
-    /* keep raw */
-  }
+  useEffect(() => {
+    const started = Date.now();
+    const tick = window.setInterval(() => {
+      const remain = Math.max(0, DELAY - Math.floor((Date.now() - started) / 1000));
+      setLeft(remain);
+      if (remain <= 0) {
+        window.clearInterval(tick);
+        window.location.replace(url);
+      }
+    }, 200);
+    const hard = window.setTimeout(() => window.location.replace(url), DELAY * 1000 + 50);
+    return () => {
+      window.clearInterval(tick);
+      window.clearTimeout(hard);
+    };
+  }, [url]);
 
   return (
     <div className="hop-wash relative flex min-h-dvh flex-col items-center justify-center px-6">
@@ -59,14 +66,19 @@ export function BrandedFrame({
         <span>{t("brand.flag", { name: BRAND_NAME })}</span>
       </a>
       {title ? (
-        <p className="mt-5 max-w-md truncate text-center text-sm text-white/75">{title}</p>
+        <p className="mt-8 max-w-2xl truncate text-center text-sm text-white/70">{title}</p>
       ) : null}
       <a
         href={url}
-        className="mt-3 text-xs text-white/60 underline-offset-2 hover:text-white hover:underline"
+        className="mt-3 max-w-3xl break-all text-center font-display text-2xl font-semibold tracking-tight text-white sm:text-3xl"
       >
-        {host}
+        {url}
       </a>
+      <p className="mt-4 max-w-2xl text-center text-sm text-white/80">
+        {left === 1
+          ? t("brand.redirectOne", { url })
+          : t("brand.redirect", { n: left, url })}
+      </p>
     </div>
   );
 }

@@ -11,6 +11,8 @@ export const en: Messages = {
     slogan: "The link says it all. The content stays yours.",
     flag: "shortened & secured with {name}",
     whatIs: "What is {name}?",
+    redirect: "You will be redirected to {url} in {n} seconds.",
+    redirectOne: "You will be redirected to {url} in 1 second.",
   },
   common: {
     save: "Save",
