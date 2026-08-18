@@ -27,7 +27,7 @@ import { TagChip, TagPicker } from "@/components/control/tag-picker";
 import { tagColor } from "@/lib/docbay/tags";
 import { DocActionPicker } from "@/components/control/doc-action-picker";
 import { actionsPayload, parseChatMode, parseDocActions, parseRequireRequest, withChatMode, withRequireRequest, type ChatMode, type DocAction } from "@/lib/docbay/doc-actions";
-import { Toggle } from "@/components/ui/toggle";
+import { RequestAccessToggle } from "@/components/ui/toggle";
 import { useT } from "@/lib/i18n";
 import { PresenceEye } from "@/components/control/presence-eye";
 import { RowMenu, VisitMeta } from "@/components/control/row-menu";
@@ -614,8 +614,7 @@ export function ResourceForm({
             Frame.
           </p>
           <div className="mt-3">
-            <Toggle
-              label="Zugriff muss angefragt werden"
+            <RequestAccessToggle
               hint="Aus: die Seite ist über den Slug ohne Token erreichbar."
               checked={requireRequest}
               onChange={setRequireRequest}

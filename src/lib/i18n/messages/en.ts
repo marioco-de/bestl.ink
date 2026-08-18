@@ -132,6 +132,9 @@ export const en: Messages = {
     openPassword: "Password to open",
     hoursUntil: "Hours until it expires",
     createBtn: "Create link",
+    requestOff: "Anyone with the link can view",
+    requestOn: "Access must be requested",
+    requestHint: "Without a valid token the request form is shown.",
   },
   domain: {
     title: "Domains",

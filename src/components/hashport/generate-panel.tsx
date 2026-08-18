@@ -11,8 +11,9 @@ import { generateLink, bulkGenerateLinks, createParamNode, createTag, saveNdaTem
 import type { FullState, ParamNode, Resource } from "@/lib/docbay/types";
 import { buildPublicUrl, resourceRestricted } from "@/lib/docbay/public-url";
 import { TagPicker } from "@/components/control/tag-picker";
-import { Toggle } from "@/components/ui/toggle";
+import { RequestAccessToggle, Toggle } from "@/components/ui/toggle";
 import { parseRequireRequest, withRequireRequest } from "@/lib/docbay/doc-actions";
+import { useT } from "@/lib/i18n";
 
 function collectButtons(
   nodes: ParamNode[],
@@ -42,6 +43,7 @@ export function GeneratePanel({
   onClose: () => void;
   onUpdated: (s: FullState) => void;
 }) {
+  const t = useT();
   const router = useRouter();
   const buttons = useMemo(() => collectButtons(state.params), [state.params]);
   const [note, setNote] = useState("");
@@ -318,9 +320,8 @@ export function GeneratePanel({
             {state.features.nda && (
               <Toggle label="NDA" checked={requireNda} onChange={setRequireNda} />
             )}
-            <Toggle
-              label="Zugriff muss angefragt werden"
-              hint="Ohne gültigen Token erscheint das Anfrage-Formular."
+            <RequestAccessToggle
+              hint={t("short.requestHint")}
               checked={requireRequest}
               onChange={setRequireRequest}
             />

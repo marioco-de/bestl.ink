@@ -31,7 +31,7 @@ import { createTag, createResource, generateLink, createParamNode, uploadBegin, 
 import { pinShortDash } from "@/lib/docbay/dashboard-api";
 import { upsertShort } from "@/lib/docbay/state-patch";
 import { useT } from "@/lib/i18n";
-import { Toggle } from "@/components/ui/toggle";
+import { RequestAccessToggle } from "@/components/ui/toggle";
 import { EventFields, ContactFields } from "@/routes/control/-cards";
 import { emptyContact, emptyEvent } from "@/lib/docbay/cards";
 import { suggestCardSlug, cardKindPath } from "@/lib/docbay/public-url";
@@ -620,8 +620,7 @@ function Editor({
               <option value="per_email">{t("doc.chatPerEmail")}</option>
             </select>
           </div>
-          <Toggle
-            label="Zugriff muss angefragt werden"
+          <RequestAccessToggle
             checked={requireRequest}
             onChange={setRequireRequest}
           />
