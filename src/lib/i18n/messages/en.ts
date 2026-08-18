@@ -85,6 +85,8 @@ export const en: Messages = {
     note: "Note",
     notePh: "Who gets the link? e.g. Müller, callback",
     tags: "Tags",
+    tagPh: "Search or create a tag…",
+    tagCreate: "Create {name}",
     ready: "Short link ready · {path}",
     created: "Short link created",
     updated: "Updated",

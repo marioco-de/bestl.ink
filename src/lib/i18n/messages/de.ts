@@ -83,6 +83,8 @@ export const de = {
     note: "Notiz",
     notePh: "Wer bekommt den Link? z. B. Müller, Rückruf",
     tags: "Tags",
+    tagPh: "Tag suchen oder anlegen…",
+    tagCreate: "{name} erstellen",
     ready: "Kurzlink liegt bereit · {path}",
     created: "Kurzlink angelegt",
     updated: "Aktualisiert",

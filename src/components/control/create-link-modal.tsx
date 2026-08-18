@@ -65,6 +65,15 @@ export function CreateLinkModal() {
   const { data, setData, createOpen, createSeed, createKind, setCreateKind, closeCreate } =
     useControl();
   const [doneUrl, setDoneUrl] = useState<string | null>(null);
+  const [tags, setTags] = useState<string[]>([]);
+  const [pendingTags, setPendingTags] = useState<{ name: string; color: string }[]>([]);
+
+  useEffect(() => {
+    setTags([]);
+    setPendingTags([]);
+    setDoneUrl(null);
+  }, [createSeed]);
+
   if (!createOpen) return null;
   if (doneUrl) {
     return (
@@ -91,6 +100,10 @@ export function CreateLinkModal() {
       seed={createSeed}
       kind={createKind}
       onKind={setCreateKind}
+      tags={tags}
+      setTags={setTags}
+      pendingTags={pendingTags}
+      setPendingTags={setPendingTags}
       onClose={closeCreate}
       onSaved={(s, url) => {
         setData(s);
@@ -108,6 +121,10 @@ function Editor({
   onKind,
   onClose,
   onSaved,
+  tags,
+  setTags,
+  pendingTags,
+  setPendingTags,
 }: {
   data: FullState;
   seed: string;
@@ -115,6 +132,10 @@ function Editor({
   onKind: (k: CreateKind) => void;
   onClose: () => void;
   onSaved: (s: FullState, url?: string) => void;
+  tags: string[];
+  setTags: (v: string[]) => void;
+  pendingTags: { name: string; color: string }[];
+  setPendingTags: (v: { name: string; color: string }[]) => void;
 }) {
   const { setData, switchWorkspace, prefetchWorkspace } = useControl();
   const t = useT();
@@ -124,7 +145,6 @@ function Editor({
   const [destination, setDestination] = useState(seed);
   const [slug, setSlug] = useState(() => genToken(5));
   const [note, setNote] = useState("");
-  const [tags, setTags] = useState<string[]>([]);
   const [password, setPassword] = useState("");
   const [expiresAt, setExpiresAt] = useState("");
   const [splits, setSplits] = useState<SplitRule[]>(() => [emptySplitRule()]);
@@ -282,9 +302,21 @@ function Editor({
     }
   }
 
+  async function flushTags(state: FullState): Promise<FullState> {
+    let next = state;
+    for (const p of pendingTags) {
+      if (next.tags.some((t) => t.name === p.name)) continue;
+      next = (await createTag({
+        data: { name: p.name, color: p.color, tenant_id: data.tenant.id },
+      })) as FullState;
+    }
+    return next;
+  }
+
   async function save() {
     setBusy(true);
     try {
+      await flushTags(data);
       if (kind === "document") {
         if (!docFile) {
           toast.error("Bitte Datei hochladen");
@@ -805,14 +837,18 @@ function Editor({
         {extra === "tags" && (
           <TagPicker
             alwaysOpen
-            catalog={data.tags}
+            catalog={[
+              ...data.tags,
+              ...pendingTags
+                .filter((p) => !data.tags.some((t) => t.name === p.name))
+                .map((p) => ({ id: p.name, name: p.name, color: p.color })),
+            ]}
             value={tags}
             onChange={setTags}
-            onCreate={async (name, color) => {
-              const next = (await createTag({
-                data: { name, color, tenant_id: data.tenant.id },
-              })) as FullState;
-              setData(next);
+            onCreate={(name, color) => {
+              if (!pendingTags.some((p) => p.name === name)) {
+                setPendingTags([...pendingTags, { name, color }]);
+              }
             }}
           />
         )}
