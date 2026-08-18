@@ -157,6 +157,34 @@
     animation: page-in 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 
+  .hue-action {
+    --hue: var(--color-hue-teal);
+    background: linear-gradient(
+      160deg,
+      color-mix(in oklab, var(--hue) 22%, var(--color-bg-elevated)),
+      color-mix(in oklab, var(--hue) 8%, var(--color-bg-elevated))
+    );
+    color: var(--hue);
+    border: 1px solid color-mix(in oklab, var(--hue) 28%, transparent);
+  }
+  .hue-action:hover {
+    background: linear-gradient(
+      160deg,
+      color-mix(in oklab, var(--hue) 32%, var(--color-bg-elevated)),
+      color-mix(in oklab, var(--hue) 14%, var(--color-bg-elevated))
+    );
+  }
+
+  .dash-section {
+    --hue: var(--color-hue-teal);
+    background: linear-gradient(
+      180deg,
+      color-mix(in oklab, var(--hue) 10%, var(--color-bg-elevated)),
+      var(--color-bg-elevated)
+    );
+    border: 1px solid color-mix(in oklab, var(--hue) 22%, var(--color-border));
+  }
+
   .metal {
     background-image: var(--metal-primary);
     color: var(--color-primary-fg);
