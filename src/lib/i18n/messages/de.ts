@@ -277,6 +277,10 @@ export const de = {
     asText: "Als Text",
     asIcon: "Als Icon",
     asPreview: "Als Vorschau",
+    copied: "Link kopiert",
+    settings: "Button",
+    pickLink: "Link wählen",
+    lastClick: "Zuletzt",
   },
 };
 

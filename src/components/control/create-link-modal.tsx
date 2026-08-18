@@ -477,9 +477,32 @@ function Editor({
                 );
               })}
             </div>
-            <Button className="h-9" disabled={busy} onClick={() => void save()}>
-              {busy ? t("common.loading") : t("short.createBtn")}
-            </Button>
+            <div className="flex flex-col items-stretch gap-2 @min-[28rem]/modal:items-end">
+              <label className="flex items-center gap-2 text-[11px] text-fg-muted">
+                <input
+                  type="checkbox"
+                  checked={pinDash}
+                  onChange={(e) => setPinDash(e.target.checked)}
+                />
+                {t("dash.pin")}
+              </label>
+              {pinDash && (
+                <select
+                  className="h-8 rounded-md border border-border bg-bg px-2 text-[11px]"
+                  value={dashDisplay}
+                  onChange={(e) =>
+                    setDashDisplay(e.target.value as "text" | "icon" | "preview")
+                  }
+                >
+                  <option value="text">{t("dash.asText")}</option>
+                  <option value="icon">{t("dash.asIcon")}</option>
+                  <option value="preview">{t("dash.asPreview")}</option>
+                </select>
+              )}
+              <Button className="h-9" disabled={busy} onClick={() => void save()}>
+                {busy ? t("common.loading") : t("short.createBtn")}
+              </Button>
+            </div>
           </footer>
         </div>
 

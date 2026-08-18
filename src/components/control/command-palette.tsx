@@ -15,6 +15,7 @@ import {
   Keyboard,
   CalendarDays,
   Contact,
+  Gauge,
 } from "lucide-react";
 import { signOut } from "@/lib/auth/client";
 import { useTheme } from "@/lib/theme";
@@ -101,7 +102,8 @@ export function CommandPalette({
             />
           </Command.Group>
           <Command.Group heading={t("cmd.go")} className="px-1 py-1 text-[11px] text-fg-subtle">
-            <Row icon={LayoutDashboard} label={t("nav.overview")} kbd="G H" onSelect={() => go("/control")} />
+            <Row icon={LayoutDashboard} label={t("nav.dashboard")} kbd="G H" onSelect={() => go("/control")} />
+            <Row icon={Gauge} label={t("nav.overview")} kbd="G S" onSelect={() => go("/control/stats")} />
             <Row icon={Link2} label={t("nav.urls")} kbd="G L" onSelect={() => go("/control/links", { tab: "urls" })} />
             <Row icon={FileText} label={t("nav.docs")} onSelect={() => go("/control/links", { tab: "docs" })} />
             <Row icon={Globe} label={t("nav.pages")} onSelect={() => go("/control/links", { tab: "pages" })} />

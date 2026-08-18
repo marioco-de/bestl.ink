@@ -278,5 +278,9 @@ export const en: Messages = {
     asText: "As text",
     asIcon: "As icon",
     asPreview: "As preview",
+    copied: "Link copied",
+    settings: "Button",
+    pickLink: "Pick a link",
+    lastClick: "Last",
   },
 };

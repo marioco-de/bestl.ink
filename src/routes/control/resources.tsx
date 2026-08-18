@@ -84,7 +84,17 @@ export function ResourcesWorkspace({
       )}
       {hideChrome && (
         <div className="flex justify-end">
-          <Button size="sm" onClick={() => setShowForm(true)}>
+          <Button
+            size="sm"
+            className="hue-action"
+            style={
+              {
+                ["--hue"]:
+                  typeFilter === "page" ? "var(--color-hue-lime)" : "var(--color-hue-violet)",
+              } as React.CSSProperties
+            }
+            onClick={() => setShowForm(true)}
+          >
             <Plus className="h-4 w-4" />{" "}
             {typeFilter === "page" ? "Seite" : "Dokument"}
           </Button>

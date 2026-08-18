@@ -28,6 +28,8 @@ import {
   createWorkspaceApiKey,
   deleteWorkspaceApiKey,
 } from "@/lib/docbay/shorts-api";
+import { pinShortDash } from "@/lib/docbay/dashboard-api";
+import { useT } from "@/lib/i18n";
 import type { FullState, ShortLink } from "@/lib/docbay/types";
 import { upsertShort, removeShort } from "@/lib/docbay/state-patch";
 import { formatDateDe, cn } from "@/lib/utils";
@@ -104,8 +106,13 @@ export function ShortsWorkspace({
 
       {hideChrome && (
         <div className="flex justify-end">
-          <Button size="sm" variant="secondary" onClick={() => openCreate()}>
-            <Plus className="h-4 w-4" /> Optionen
+          <Button
+            size="sm"
+            className="hue-action"
+            style={{ ["--hue"]: "var(--color-hue-azure)" } as React.CSSProperties}
+            onClick={() => openCreate()}
+          >
+            <Plus className="h-4 w-4" /> URL
           </Button>
         </div>
       )}
@@ -382,6 +389,9 @@ function ShortEditor({
   const [utmM, setUtmM] = useState(initial.utm_medium || "");
   const [utmC, setUtmC] = useState(initial.utm_campaign || "");
   const [busy, setBusy] = useState(false);
+  const [pinDash, setPinDash] = useState(false);
+  const [dashDisplay, setDashDisplay] = useState<"text" | "icon" | "preview">("text");
+  const t = useT();
 
   const buttons = useMemo(
     () => state.params.filter((p) => p.kind === "button"),
@@ -426,7 +436,20 @@ function ShortEditor({
       const result = initial.id
         ? await updateShort({ data: { ...payload, id: initial.id } })
         : await createShort({ data: payload });
-      await onSaved(upsertShort(state, result.short));
+      let next = upsertShort(state, result.short);
+      if (pinDash) {
+        const dash = await pinShortDash({
+          data: {
+            tenant_id: state.tenant.id,
+            short_id: result.short.id,
+            label: title || note || result.short.slug,
+            display: dashDisplay,
+            image: ogImage || null,
+          },
+        });
+        next = { ...next, dash };
+      }
+      await onSaved(next);
       toast.success(initial.id ? "Aktualisiert" : "Kurzlink angelegt");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Fehler");
@@ -466,8 +489,30 @@ function ShortEditor({
           className="font-mono"
           value={slug}
           onChange={(e) => setSlug(e.target.value)}
-          placeholder="sale"
         />
+      </div>
+      <div className="space-y-2 rounded-md border border-border p-3">
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={pinDash}
+            onChange={(e) => setPinDash(e.target.checked)}
+          />
+          {t("dash.pin")}
+        </label>
+        {pinDash && (
+          <select
+            className="h-9 w-full rounded-md border border-border bg-bg px-2 text-sm"
+            value={dashDisplay}
+            onChange={(e) =>
+              setDashDisplay(e.target.value as "text" | "icon" | "preview")
+            }
+          >
+            <option value="text">{t("dash.asText")}</option>
+            <option value="icon">{t("dash.asIcon")}</option>
+            <option value="preview">{t("dash.asPreview")}</option>
+          </select>
+        )}
       </div>
       <div>
         <Label>Titel</Label>

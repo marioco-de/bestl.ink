@@ -228,6 +228,7 @@ function ControlShell() {
         g.pending = false;
         const bag = searchBagRef.current;
         if (k === "h") void navigateRef.current({ to: "/control", search: bag });
+        if (k === "s") void navigateRef.current({ to: "/control/stats", search: bag });
         if (k === "l")
           void navigateRef.current({
             to: "/control/links",
