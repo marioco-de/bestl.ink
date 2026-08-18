@@ -43,6 +43,33 @@ import {
 } from "@/lib/docbay/cards";
 import { BrandedFrame, BrandFlag } from "@/components/public/branded-frame";
 
+type VisitorId = { email: string; name: string };
+
+function visitorKey(token?: string | null) {
+  return `bestlink_id_${token || "anon"}`;
+}
+
+function readVisitor(token?: string | null): VisitorId | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(visitorKey(token));
+    if (!raw) return null;
+    const v = JSON.parse(raw) as VisitorId;
+    if (v?.email) return { email: String(v.email).trim().toLowerCase(), name: String(v.name || "") };
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
+function writeVisitor(token: string | null | undefined, email: string, name: string) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(
+    visitorKey(token),
+    JSON.stringify({ email: email.trim().toLowerCase(), name: name.trim() }),
+  );
+}
+
 type Search = {
   access?: string;
   utm_source?: string;
@@ -255,10 +282,16 @@ function GatedResource({ initial }: { initial: any }) {
   const search = Route.useSearch();
   const [data, setData] = useState(initial);
   const [password, setPassword] = useState("");
-  const [ndaEmail, setNdaEmail] = useState("");
+  const [ndaEmail, setNdaEmail] = useState(
+    () => initial.assigned_email || readVisitor(search.access)?.email || "",
+  );
+  const [ndaName, setNdaName] = useState(
+    () => initial.assigned_name || readVisitor(search.access)?.name || "",
+  );
   const [busy, setBusy] = useState(false);
+  const [booting, setBooting] = useState(initial.access === "nda");
 
-  async function retry(extra: { password?: string; nda_email?: string }) {
+  async function retry(extra: { password?: string; nda_email?: string; visitor_name?: string }) {
     const slug = data.resource.slug;
     setBusy(true);
     try {
@@ -268,16 +301,44 @@ function GatedResource({ initial }: { initial: any }) {
           token: search.access ?? null,
           password: extra.password,
           nda_email: extra.nda_email,
+          visitor_name: extra.visitor_name,
           user_agent: navigator.userAgent,
           host: typeof window !== "undefined" ? window.location.host : undefined,
         },
       });
       setData(next);
+      return next;
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Fehler");
+      return null;
     } finally {
       setBusy(false);
     }
+  }
+
+  useEffect(() => {
+    if (initial.access !== "nda") {
+      setBooting(false);
+      return;
+    }
+    const stored = readVisitor(search.access);
+    if (!stored?.email) {
+      setBooting(false);
+      return;
+    }
+    void retry({
+      nda_email: stored.email,
+      visitor_name: stored.name,
+    }).finally(() => setBooting(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  if (booting) {
+    return (
+      <div className="flex min-h-dvh items-center justify-center text-sm text-fg-muted">
+        …
+      </div>
+    );
   }
 
   if (data.access === "granted") {
@@ -314,7 +375,9 @@ function GatedResource({ initial }: { initial: any }) {
           className="space-y-3"
           onSubmit={(e) => {
             e.preventDefault();
-            void retry({ nda_email: ndaEmail, password });
+            const mail = ndaEmail.trim().toLowerCase();
+            writeVisitor(search.access, mail, ndaName);
+            void retry({ nda_email: mail, visitor_name: ndaName, password });
           }}
         >
           <Label>E-Mail zur Bestätigung</Label>
@@ -322,7 +385,15 @@ function GatedResource({ initial }: { initial: any }) {
             type="email"
             required
             value={ndaEmail}
+            disabled={data.allow_identity_edit === false && Boolean(data.assigned_email)}
             onChange={(e) => setNdaEmail(e.target.value)}
+          />
+          <Label>Name (optional)</Label>
+          <Input
+            value={ndaName}
+            disabled={data.allow_identity_edit === false && Boolean(data.assigned_name)}
+            onChange={(e) => setNdaName(e.target.value)}
+            placeholder="Ihr Name"
           />
           <Button type="submit" className="w-full" disabled={busy}>
             {busy ? "…" : "NDA akzeptieren & öffnen"}
@@ -364,7 +435,14 @@ function GrantedView({
   const { resource, settings, link, features } = data;
   const [chatOpen, setChatOpen] = useState(false);
   const [askEmail, setAskEmail] = useState(false);
-  const [chatEmail, setChatEmail] = useState(data.visitor_email || "");
+  const stored = readVisitor(search.access);
+  const locked = data.allow_identity_edit === false;
+  const [chatEmail, setChatEmail] = useState(
+    stored?.email || data.assigned_email || "",
+  );
+  const [chatName, setChatName] = useState(
+    stored?.name || data.assigned_name || "",
+  );
   const [messages, setMessages] = useState<
     { id: string; sender_type: string; sender_name: string; body: string }[]
   >([]);
@@ -380,7 +458,7 @@ function GrantedView({
   const [acted, setActed] = useState<string | null>(null);
   const chatMode = parseChatMode(resource.payload);
   const chatOn = Boolean(features.chat && chatMode !== "off");
-  const threadKey = chatMode === "per_email" ? chatEmail.trim().toLowerCase() : "";
+  const threadKey = chatEmail.trim().toLowerCase();
   const allowDl = link?.allow_download !== false;
   const t = useT();
   const docActions = resource.type === "document" ? parseDocActions(resource.payload) : [];
@@ -564,14 +642,12 @@ function GrantedView({
               size="sm"
               variant="secondary"
               onClick={() => {
-                const known =
-                  (data.visitor_email || "").trim() ||
-                  (typeof window !== "undefined"
-                    ? localStorage.getItem(`bestlink_chat_email_${resource.id}`) || ""
-                    : "");
-                if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(known)) {
-                  setChatEmail(known);
+                if (locked && chatEmail) {
                   setChatOpen((v) => !v);
+                  return;
+                }
+                if (chatOpen) {
+                  setChatOpen(false);
                   return;
                 }
                 setAskEmail(true);
@@ -639,8 +715,23 @@ function GrantedView({
 
         {chatOpen && chatOn && (
           <aside className="flex w-full max-w-sm flex-col border-l border-border bg-bg-elevated">
-            <div className="border-b border-border px-3 py-2 text-sm font-medium">
-              Chat zum Dokument
+            <div className="flex items-center justify-between border-b border-border px-3 py-2">
+              <div>
+                <p className="text-sm font-medium">Chat zum Dokument</p>
+                <p className="text-[11px] text-fg-muted">
+                  {chatName || chatEmail}
+                  {chatEmail && chatName ? ` · ${chatEmail}` : ""}
+                </p>
+              </div>
+              {data.allow_identity_edit !== false && (
+                <button
+                  type="button"
+                  className="text-[11px] text-primary"
+                  onClick={() => setAskEmail(true)}
+                >
+                  Ändern
+                </button>
+              )}
             </div>
             <div className="flex-1 space-y-2 overflow-y-auto p-3">
               {messages.map((m) => (
@@ -668,7 +759,7 @@ function GrantedView({
                     link_id: link?.id,
                     visitor_key: threadKey,
                     sender_type: "visitor",
-                    sender_name: chatEmail.trim() || "Besucher",
+                    sender_name: (chatName.trim() || chatEmail.trim() || "Besucher"),
                     body: chatBody.trim(),
                   },
                 });
@@ -702,21 +793,28 @@ function GrantedView({
                 toast.error("E-Mail fehlt");
                 return;
               }
-              localStorage.setItem(`bestlink_chat_email_${resource.id}`, mail);
+              writeVisitor(search.access, mail, chatName);
               setChatEmail(mail);
               setAskEmail(false);
               setChatOpen(true);
             }}
           >
-            <p className="text-sm font-medium">E-Mail für den Chat</p>
-            <p className="text-xs text-fg-muted">Damit das Team antworten kann.</p>
+            <p className="text-sm font-medium">Wer schreibt?</p>
+            <p className="text-xs text-fg-muted">E-Mail ist nötig, Name ist optional.</p>
             <Input
               type="email"
               required
               autoFocus
               value={chatEmail}
+              disabled={locked && Boolean(data.assigned_email)}
               onChange={(e) => setChatEmail(e.target.value)}
-              placeholder="sarah.b@example.net"
+              placeholder="kunde@firma.de"
+            />
+            <Input
+              value={chatName}
+              disabled={locked && Boolean(data.assigned_name)}
+              onChange={(e) => setChatName(e.target.value)}
+              placeholder="Name (optional)"
             />
             <div className="flex justify-end gap-2">
               <Button type="button" size="sm" variant="secondary" onClick={() => setAskEmail(false)}>

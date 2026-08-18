@@ -150,6 +150,9 @@ export interface GeneratedLink {
   allow_download: boolean | null;
   require_nda: boolean | null;
   nda_template_id?: string | null;
+  assigned_email?: string | null;
+  assigned_name?: string | null;
+  allow_identity_edit?: boolean;
   created_at: string;
   resource_title?: string;
   resource_slug?: string;

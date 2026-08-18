@@ -247,6 +247,9 @@ function DocLinkRow({
             {l.revoked && <Badge variant="danger">Widerrufen</Badge>}
             {l.one_time && <Badge variant="outline">Einmal</Badge>}
             {l.require_nda && <Badge variant="secondary">NDA</Badge>}
+            {l.assigned_email && (
+              <Badge variant="outline">{l.assigned_email}</Badge>
+            )}
             {l.button_name && <Badge variant="secondary">{l.button_name}</Badge>}
           </div>
           <p className="mt-0.5 truncate font-mono text-xs text-fg-muted">{url}</p>

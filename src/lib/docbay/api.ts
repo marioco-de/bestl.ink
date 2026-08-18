@@ -815,6 +815,9 @@ export const generateLink = createServerFn({ method: "POST" })
       allow_download?: boolean;
       require_nda?: boolean;
       nda_template_id?: string;
+      assigned_email?: string;
+      assigned_name?: string;
+      allow_identity_edit?: boolean;
     }) => d,
   )
   .handler(async ({ context, data }) => {
@@ -844,7 +847,8 @@ export const generateLink = createServerFn({ method: "POST" })
       insert into db_links (
         id, tenant_id, token, resource_id, button_id, created_by, note, tags,
         utm_source, utm_medium, utm_campaign, utm_term, utm_content,
-        expires_at, one_time, password_hash, allow_download, require_nda, nda_template_id
+        expires_at, one_time, password_hash, allow_download, require_nda, nda_template_id,
+        assigned_email, assigned_name, allow_identity_edit
       ) values (
         ${id}, ${mem.tenant.id}, ${token}, ${data.resource_id}, ${data.button_id},
         ${context.userId}, ${data.note ?? ""}, ${JSON.stringify(data.tags ?? [])},
@@ -852,7 +856,10 @@ export const generateLink = createServerFn({ method: "POST" })
         ${data.utm_term ?? null}, ${data.utm_content ?? null},
         ${expires}, ${data.one_time ?? false}, ${pwHash},
         ${data.allow_download ?? null}, ${data.require_nda ?? null},
-        ${data.nda_template_id ?? null}
+        ${data.nda_template_id ?? null},
+        ${(data.assigned_email || "").trim().toLowerCase() || null},
+        ${(data.assigned_name || "").trim() || null},
+        ${data.allow_identity_edit !== false}
       )
     `;
     await audit(mem.tenant.id, context.userId, "link.created", { id, token });
@@ -1366,6 +1373,7 @@ export const resolveAccess = createServerFn({ method: "POST" })
       token?: string | null;
       password?: string;
       nda_email?: string;
+      visitor_name?: string;
       user_agent?: string;
       ip_hint?: string;
       host?: string;
@@ -1477,6 +1485,9 @@ export const resolveAccess = createServerFn({ method: "POST" })
       target_url: null as string | null,
       download_url: null as string | null,
       visitor_email: null as string | null,
+      assigned_email: null as string | null,
+      assigned_name: null as string | null,
+      allow_identity_edit: true,
       link: null as null | {
         id: string;
         token: string;
@@ -1501,6 +1512,10 @@ export const resolveAccess = createServerFn({ method: "POST" })
       return { ...base, access: "denied" as const };
     }
     if (link.one_time && link.used_at) return { ...base, access: "denied" as const };
+
+    base.assigned_email = (link.assigned_email ? String(link.assigned_email) : "").trim().toLowerCase() || null;
+    base.assigned_name = (link.assigned_name ? String(link.assigned_name) : "").trim() || null;
+    base.allow_identity_edit = link.allow_identity_edit !== false;
 
     if (link.password_hash) {
       const ok = await verifySecret(data.password || "", String(link.password_hash));
@@ -1528,7 +1543,12 @@ export const resolveAccess = createServerFn({ method: "POST" })
           /* ignore */
         }
       }
-      const email = (data.nda_email || "").trim().toLowerCase();
+      const assignedEmail = (link.assigned_email ? String(link.assigned_email) : "")
+        .trim()
+        .toLowerCase();
+      const allowEdit = link.allow_identity_edit !== false;
+      const requestEmail = (data.nda_email || "").trim().toLowerCase();
+      const email = allowEdit ? requestEmail || assignedEmail : assignedEmail || requestEmail;
       if (!email) return { ...base, access: "nda" as const };
       const accepted = await sql`
         select id from db_nda_acceptances
@@ -1629,15 +1649,15 @@ export const resolveAccess = createServerFn({ method: "POST" })
         ? Boolean(link.allow_download)
         : Boolean(resource.allow_download);
 
-    const ndaRow = (
-      await sql`
-        select email from db_nda_acceptances
-        where link_id = ${String(link.id)}
-        order by accepted_at desc
-        limit 1
-      `
-    )[0] as { email?: string } | undefined;
-    const visitorEmail = ndaRow?.email ? String(ndaRow.email).trim().toLowerCase() : null;
+    const assignedEmail = (link.assigned_email ? String(link.assigned_email) : "")
+      .trim()
+      .toLowerCase();
+    const assignedName = (link.assigned_name ? String(link.assigned_name) : "").trim();
+    const allowEdit = link.allow_identity_edit !== false;
+    const requestEmail = (data.nda_email || "").trim().toLowerCase();
+    const visitorEmail = allowEdit
+      ? requestEmail || assignedEmail || null
+      : assignedEmail || requestEmail || null;
 
     return {
       ...base,
@@ -1646,6 +1666,9 @@ export const resolveAccess = createServerFn({ method: "POST" })
       target_url,
       download_url,
       visitor_email: visitorEmail,
+      assigned_email: assignedEmail || null,
+      assigned_name: assignedName || null,
+      allow_identity_edit: allowEdit,
       link: {
         id: String(link.id),
         token: String(link.token),

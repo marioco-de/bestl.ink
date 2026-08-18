@@ -51,6 +51,9 @@ export function GeneratePanel({
   const [requireNda, setRequireNda] = useState(resource.require_nda);
   const [ndaTemplateId, setNdaTemplateId] = useState(state.ndaTemplates?.[0]?.id ?? "");
   const [ndaBusy, setNdaBusy] = useState(false);
+  const [assignedEmail, setAssignedEmail] = useState("");
+  const [assignedName, setAssignedName] = useState("");
+  const [allowIdentityEdit, setAllowIdentityEdit] = useState(true);
   const [bulk, setBulk] = useState("");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<{
@@ -145,6 +148,9 @@ export function GeneratePanel({
           allow_download: allowDownload,
           require_nda: requireNda,
           nda_template_id: requireNda ? ndaTemplateId || undefined : undefined,
+          assigned_email: assignedEmail.trim() || undefined,
+          assigned_name: assignedName.trim() || undefined,
+          allow_identity_edit: allowIdentityEdit,
         },
       });
       if (res.state) onUpdated(res.state);
@@ -297,6 +303,30 @@ export function GeneratePanel({
               </label>
             </div>
           )}
+          <div className="space-y-2">
+            <Label>Für Empfänger vorbelegen</Label>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <Input
+                type="email"
+                placeholder="kunde@firma.de"
+                value={assignedEmail}
+                onChange={(e) => setAssignedEmail(e.target.value)}
+              />
+              <Input
+                placeholder="Name (optional)"
+                value={assignedName}
+                onChange={(e) => setAssignedName(e.target.value)}
+              />
+            </div>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={allowIdentityEdit}
+                onChange={(e) => setAllowIdentityEdit(e.target.checked)}
+              />
+              Besucher darf Name und E-Mail ändern
+            </label>
+          </div>
           {state.features.bulk_links && (
             <div>
               <Label>Bulk (eine Notiz pro Zeile)</Label>

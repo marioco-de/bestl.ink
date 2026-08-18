@@ -103,6 +103,9 @@ function mapLink(row: Record<string, unknown>): GeneratedLink {
         ? null
         : Boolean(row.require_nda),
     nda_template_id: row.nda_template_id ? String(row.nda_template_id) : null,
+    assigned_email: row.assigned_email ? String(row.assigned_email) : null,
+    assigned_name: row.assigned_name ? String(row.assigned_name) : null,
+    allow_identity_edit: row.allow_identity_edit !== false,
     created_at: new Date(row.created_at as string).toISOString(),
     resource_title: row.resource_title ? String(row.resource_title) : undefined,
     resource_slug: row.resource_slug ? String(row.resource_slug) : undefined,
