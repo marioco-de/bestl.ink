@@ -31,6 +31,7 @@ import {
 } from "@/lib/docbay/shorts-api";
 import { pinShortDash } from "@/lib/docbay/dashboard-api";
 import { useT } from "@/lib/i18n";
+import { Toggle } from "@/components/ui/toggle";
 import type { FullState, ShortLink } from "@/lib/docbay/types";
 import { upsertShort, removeShort } from "@/lib/docbay/state-patch";
 import { formatDateDe, cn } from "@/lib/utils";
@@ -527,14 +528,7 @@ function ShortEditor({
         />
       </div>
       <div className="space-y-2 rounded-md border border-border p-3">
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={pinDash}
-            onChange={(e) => setPinDash(e.target.checked)}
-          />
-          {t("dash.pin")}
-        </label>
+        <Toggle label={t("dash.pin")} checked={pinDash} onChange={setPinDash} />
         {pinDash && (
           <select
             className="h-9 w-full rounded-md border border-border bg-bg px-2 text-sm"
@@ -580,14 +574,7 @@ function ShortEditor({
             onChange={(e) => setMaxClicks(e.target.value)}
           />
         </div>
-        <label className="flex items-end gap-2 pb-2 text-sm">
-          <input
-            type="checkbox"
-            checked={cloak}
-            onChange={(e) => setCloak(e.target.checked)}
-          />
-          Cloak
-        </label>
+        <Toggle label="Cloak" checked={cloak} onChange={setCloak} />
       </div>
       {state.features.targeting && (
         <>

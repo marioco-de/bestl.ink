@@ -27,12 +27,14 @@ import { orderedHosts, defaultHost, withHttp } from "@/lib/docbay/hosts";
 import { cn } from "@/lib/utils";
 import type { FullState } from "@/lib/docbay/types";
 import { QrDrawer } from "./qr-drawer";
+import { FullScreenModal } from "@/components/ui/fullscreen-modal";
 import { TagPicker } from "./tag-picker";
 import { createTag, createResource, generateLink, createParamNode } from "@/lib/docbay/api";
 import { slugify } from "@/lib/utils";
 import { pinShortDash } from "@/lib/docbay/dashboard-api";
 import { upsertShort } from "@/lib/docbay/state-patch";
 import { useT } from "@/lib/i18n";
+import { Toggle } from "@/components/ui/toggle";
 
 type Extra = "campaign" | "device" | "lock" | "ttl" | null;
 
@@ -51,7 +53,26 @@ function slugFromPageUrl(raw: string) {
 export function CreateLinkModal() {
   const { data, setData, createOpen, createSeed, createKind, setCreateKind, closeCreate } =
     useControl();
+  const [doneUrl, setDoneUrl] = useState<string | null>(null);
   if (!createOpen) return null;
+  if (doneUrl) {
+    return (
+      <FullScreenModal title="Link bereit" onClose={closeCreate} wide>
+        <div className="flex flex-col items-stretch gap-4 py-4 @min-[640px]/fs:flex-row @min-[640px]/fs:items-center">
+          <p className="min-w-0 flex-1 break-all font-mono text-sm">{doneUrl}</p>
+          <Button
+            className="shrink-0"
+            onClick={() => {
+              void navigator.clipboard.writeText(doneUrl);
+              toast.success("Kopiert");
+            }}
+          >
+            Kopieren
+          </Button>
+        </div>
+      </FullScreenModal>
+    );
+  }
   if (createKind === "document") {
     return (
       <ResourceForm
@@ -89,9 +110,10 @@ export function CreateLinkModal() {
       kind={createKind}
       onKind={setCreateKind}
       onClose={closeCreate}
-      onSaved={(s) => {
+      onSaved={(s, url) => {
         setData(s);
-        closeCreate();
+        if (url) setDoneUrl(url);
+        else closeCreate();
       }}
     />
   );
@@ -110,7 +132,7 @@ function Editor({
   kind: CreateKind;
   onKind: (k: CreateKind) => void;
   onClose: () => void;
-  onSaved: (s: FullState) => void;
+  onSaved: (s: FullState, url?: string) => void;
 }) {
   const { setData, switchWorkspace, prefetchWorkspace } = useControl();
   const t = useT();
@@ -231,6 +253,7 @@ function Editor({
             slug: pageSlug,
             content_url: withProto,
             tags,
+            payload: { require_request: false },
             tenant_id: data.tenant.id,
           },
         })) as FullState;
@@ -248,7 +271,7 @@ function Editor({
         });
         if (made.state) state = made.state as FullState;
         toast.success(t("short.ready", { path: `${host}/${pageSlug}?access=${made.token}` }));
-        onSaved(state);
+        onSaved(state, `https://${host}/${pageSlug}?access=${made.token}`);
         return;
       }
       const created = await createShort({
@@ -285,7 +308,7 @@ function Editor({
         });
         next = { ...next, dash };
       }
-      onSaved(next);
+      onSaved(next, `https://${host}/${created.short.slug}`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : t("common.error"));
     } finally {
@@ -586,14 +609,7 @@ function Editor({
               })}
             </div>
             <div className="flex flex-col items-stretch gap-2 @min-[28rem]/modal:items-end">
-              <label className="flex items-center gap-2 text-[11px] text-fg-muted">
-                <input
-                  type="checkbox"
-                  checked={pinDash}
-                  onChange={(e) => setPinDash(e.target.checked)}
-                />
-                {t("dash.pin")}
-              </label>
+              <Toggle label={t("dash.pin")} checked={pinDash} onChange={setPinDash} />
               {pinDash && (
                 <select
                   className="h-8 rounded-md border border-border bg-bg px-2 text-[11px]"

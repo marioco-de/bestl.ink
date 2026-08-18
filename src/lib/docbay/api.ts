@@ -28,6 +28,7 @@ import { requestHostHeader, requestClientIp } from "./request-host.server";
 import { writeActivity, listActivityEvents, loadPresenceMap, listRecentActivity } from "./activity.server";
 import { findTenantBrandByHost } from "./shorts.server";
 import { isMarketingHost } from "./brand";
+import { parseRequireRequest } from "./doc-actions";
 import { probeDomainDns } from "./dns-check.server";
 import {
   ensurePlatformVercelDomains,
@@ -1505,21 +1506,50 @@ export const resolveAccess = createServerFn({ method: "POST" })
       },
     };
 
-    if (!data.token) return base;
+    const needsRequest = parseRequireRequest(parseJsonObj(resource.payload), String(resource.type));
 
-    const linkRows = await sql`
-      select l.*, p.name as button_name
-      from db_links l
-      left join db_param_nodes p on p.id = l.button_id
-      where l.token = ${data.token} and l.resource_id = ${String(resource.id)}
-    `;
-    if (linkRows.length === 0) return { ...base, access: "denied" as const };
-    const link = linkRows[0] as Record<string, unknown>;
-    if (link.revoked) return { ...base, access: "denied" as const };
-    if (link.expires_at && new Date(link.expires_at as string).getTime() < Date.now()) {
-      return { ...base, access: "denied" as const };
+    let link: Record<string, unknown> | null = null;
+    if (data.token) {
+      const linkRows = await sql`
+        select l.*, p.name as button_name
+        from db_links l
+        left join db_param_nodes p on p.id = l.button_id
+        where l.token = ${data.token} and l.resource_id = ${String(resource.id)}
+      `;
+      const row = (linkRows[0] as Record<string, unknown> | undefined) ?? null;
+      const bad =
+        !row ||
+        Boolean(row.revoked) ||
+        Boolean(row.expires_at && new Date(row.expires_at as string).getTime() < Date.now()) ||
+        Boolean(row.one_time && row.used_at);
+      if (bad) {
+        if (needsRequest) return { ...base, access: "denied" as const };
+      } else {
+        link = row;
+      }
+    } else if (needsRequest) {
+      return base;
     }
-    if (link.one_time && link.used_at) return { ...base, access: "denied" as const };
+
+    if (!link) {
+      let content_data_url: string | null = null;
+      let target_url: string | null = null;
+      if (resource.type === "document") {
+        const curl = resource.content_url ? String(resource.content_url) : "";
+        if (curl.startsWith("storage:")) content_data_url = `/api/files/${resource.id}`;
+        else if (resource.content_base64) {
+          content_data_url = `data:${resource.mime_type || "application/pdf"};base64,${resource.content_base64}`;
+        } else if (curl) content_data_url = curl;
+      } else if (features.page_proxy) {
+        target_url = (resource.content_url as string) || null;
+      }
+      return {
+        ...base,
+        access: "granted" as const,
+        content_data_url,
+        target_url,
+      };
+    }
 
     base.assigned_email = (link.assigned_email ? String(link.assigned_email) : "").trim().toLowerCase() || null;
     base.assigned_name = (link.assigned_name ? String(link.assigned_name) : "").trim() || null;

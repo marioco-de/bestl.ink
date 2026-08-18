@@ -49,6 +49,18 @@ export function withChatMode(mode: ChatMode, prev?: JsonObject): JsonObject {
   return { ...(prev || {}), chat: mode };
 }
 
+export function parseRequireRequest(
+  payload: JsonObject | undefined | null,
+  type?: string,
+): boolean {
+  if (payload && typeof payload.require_request === "boolean") return payload.require_request;
+  return type !== "page";
+}
+
+export function withRequireRequest(on: boolean, prev?: JsonObject): JsonObject {
+  return { ...(prev || {}), require_request: on };
+}
+
 export const WITHDRAWAL_DAYS = 14;
 export const WITHDRAWAL_MS = WITHDRAWAL_DAYS * 24 * 60 * 60 * 1000;
 

@@ -25,7 +25,8 @@ import type { FullState, GeneratedLink, Resource } from "@/lib/docbay/types";
 import { TagChip, TagPicker } from "@/components/control/tag-picker";
 import { tagColor } from "@/lib/docbay/tags";
 import { DocActionPicker } from "@/components/control/doc-action-picker";
-import { actionsPayload, parseChatMode, parseDocActions, withChatMode, type ChatMode, type DocAction } from "@/lib/docbay/doc-actions";
+import { actionsPayload, parseChatMode, parseDocActions, parseRequireRequest, withChatMode, withRequireRequest, type ChatMode, type DocAction } from "@/lib/docbay/doc-actions";
+import { Toggle } from "@/components/ui/toggle";
 import { useT } from "@/lib/i18n";
 import { PresenceEye } from "@/components/control/presence-eye";
 import { RowMenu, VisitMeta } from "@/components/control/row-menu";
@@ -312,6 +313,9 @@ export function ResourceForm({
   const [tags, setTags] = useState<string[]>(initial?.tags ?? []);
   const [actions, setActions] = useState<DocAction[]>(() => parseDocActions(initial?.payload));
   const [chatMode, setChatMode] = useState<ChatMode>(() => parseChatMode(initial?.payload));
+  const [requireRequest, setRequireRequest] = useState(() =>
+    parseRequireRequest(initial?.payload, initial?.type || defaultType),
+  );
   const [file, setFile] = useState<{
     raw: File;
     name: string;
@@ -411,7 +415,10 @@ export function ResourceForm({
         const uploaded = await uploadFile(file.raw);
         uploadId = uploaded;
       }
-      const payload = type === "document" ? withChatMode(chatMode, actionsPayload(actions, initial?.payload)) : initial?.payload;
+      const payload = withRequireRequest(
+        requireRequest,
+        type === "document" ? withChatMode(chatMode, actionsPayload(actions, initial?.payload)) : initial?.payload,
+      );
       const s = editing
         ? await updateResource({
             data: {
@@ -598,6 +605,14 @@ export function ResourceForm({
             Die öffentliche URL bleibt auf deiner Domain; die Zielseite läuft im
             Frame.
           </p>
+          <div className="mt-3">
+            <Toggle
+              label="Zugriff muss angefragt werden"
+              hint="Aus: die Seite ist über den Slug ohne Token erreichbar."
+              checked={requireRequest}
+              onChange={setRequireRequest}
+            />
+          </div>
         </div>
       )}
     </FullScreenModal>

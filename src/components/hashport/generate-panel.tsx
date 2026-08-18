@@ -6,10 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Input, Textarea, Label } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { FullScreenModal } from "@/components/ui/fullscreen-modal";
-import { generateLink, bulkGenerateLinks, createParamNode, createTag, saveNdaTemplate, uploadBegin, uploadChunk } from "@/lib/docbay/api";
+import { generateLink, bulkGenerateLinks, createParamNode, createTag, saveNdaTemplate, uploadBegin, uploadChunk, updateResource } from "@/lib/docbay/api";
 import type { FullState, ParamNode, Resource } from "@/lib/docbay/types";
 import { cardDownloadPath } from "@/lib/docbay/cards";
 import { TagPicker } from "@/components/control/tag-picker";
+import { Toggle } from "@/components/ui/toggle";
+import { parseRequireRequest, withRequireRequest } from "@/lib/docbay/doc-actions";
 
 function collectButtons(
   nodes: ParamNode[],
@@ -54,6 +56,9 @@ export function GeneratePanel({
   const [assignedEmail, setAssignedEmail] = useState("");
   const [assignedName, setAssignedName] = useState("");
   const [allowIdentityEdit, setAllowIdentityEdit] = useState(true);
+  const [requireRequest, setRequireRequest] = useState(
+    parseRequireRequest(resource.payload, resource.type),
+  );
   const [bulk, setBulk] = useState("");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<{
@@ -133,6 +138,14 @@ export function GeneratePanel({
       }
 
       const utm = state.utmPresets.find((u) => u.id === utmId);
+      const gated = await updateResource({
+        data: {
+          id: resource.id,
+          payload: withRequireRequest(requireRequest, resource.payload),
+          tenant_id: state.tenant.id,
+        },
+      });
+      if (gated) onUpdated(gated as FullState);
       const res = await generateLink({
         data: {
           resource_id: resource.id,
@@ -173,6 +186,25 @@ export function GeneratePanel({
     } finally {
       setBusy(false);
     }
+  }
+
+  if (result) {
+    return (
+      <FullScreenModal title="Link bereit" description={resource.title} onClose={onClose} wide>
+        <div className="flex flex-col items-stretch gap-4 py-4 @min-[640px]/fs:flex-row @min-[640px]/fs:items-center">
+          <p className="min-w-0 flex-1 break-all font-mono text-sm">{result.url}</p>
+          <Button
+            className="shrink-0"
+            onClick={() => {
+              void navigator.clipboard.writeText(result.url);
+              toast.success("Kopiert");
+            }}
+          >
+            <Copy className="h-4 w-4" /> Kopieren
+          </Button>
+        </div>
+      </FullScreenModal>
+    );
   }
 
   return (
@@ -240,37 +272,27 @@ export function GeneratePanel({
               </div>
             )}
           </div>
-          <div className="flex flex-wrap gap-3 text-sm">
+          <div className="space-y-3">
             {state.features.one_time_links && (
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={oneTime}
-                  onChange={(e) => setOneTime(e.target.checked)}
-                />
-                Einmal-Link
-              </label>
+              <Toggle label="Einmal-Link" checked={oneTime} onChange={setOneTime} />
             )}
             {state.features.download_control && resource.type !== "page" && (
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={allowDownload}
-                  onChange={(e) => setAllowDownload(e.target.checked)}
-                />
-                Download erlauben
-              </label>
+              <Toggle label="Download erlauben" checked={allowDownload} onChange={setAllowDownload} />
             )}
             {state.features.nda && (
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={requireNda}
-                  onChange={(e) => setRequireNda(e.target.checked)}
-                />
-                NDA
-              </label>
+              <Toggle label="NDA" checked={requireNda} onChange={setRequireNda} />
             )}
+            <Toggle
+              label="Zugriff muss angefragt werden"
+              hint="Ohne gültigen Token erscheint das Anfrage-Formular."
+              checked={requireRequest}
+              onChange={setRequireRequest}
+            />
+            <Toggle
+              label="Besucher darf Name und E-Mail ändern"
+              checked={allowIdentityEdit}
+              onChange={setAllowIdentityEdit}
+            />
           </div>
           {state.features.nda && requireNda && (
             <div className="space-y-2">
@@ -318,14 +340,6 @@ export function GeneratePanel({
                 onChange={(e) => setAssignedName(e.target.value)}
               />
             </div>
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={allowIdentityEdit}
-                onChange={(e) => setAllowIdentityEdit(e.target.checked)}
-              />
-              Besucher darf Name und E-Mail ändern
-            </label>
           </div>
           {state.features.bulk_links && (
             <div>
@@ -377,27 +391,6 @@ export function GeneratePanel({
               ))}
             </div>
           </div>
-          {result && (
-            <div className="rounded-md border border-border bg-bg-subtle p-4">
-              <div className="flex items-center gap-2 text-sm text-primary">
-                <Check className="h-4 w-4" /> {result.button}
-              </div>
-              <p className="mt-2 break-all font-mono text-xs">{result.url}</p>
-              <Badge variant="outline" className="mt-2 font-mono">
-                {result.token}
-              </Badge>
-              <Button
-                className="mt-3 w-full"
-                size="sm"
-                onClick={() => {
-                  void navigator.clipboard.writeText(result.url);
-                  toast.success("Kopiert");
-                }}
-              >
-                <Copy className="h-4 w-4" /> Kopieren
-              </Button>
-            </div>
-          )}
     </FullScreenModal>
   );
 }

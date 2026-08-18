@@ -123,6 +123,15 @@ export function ControlProvider({
     return () => window.clearTimeout(t);
   }, [initial.workspaces, initial.tenant.id, prefetchWorkspace]);
 
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      const tid = tenantRef.current;
+      if (!tid || tid === "platform") return;
+      void hydrate(tid, true);
+    }, 2000);
+    return () => window.clearInterval(id);
+  }, [hydrate]);
+
   const openCreate = useCallback((seed?: string, kind?: CreateKind) => {
     setCreateSeed(seed && seed !== "1" ? seed : "");
     if (kind) setCreateKind(kind);

@@ -36,7 +36,7 @@ function ChatInboxPage() {
     void loadInbox().catch((e) => toast.error(e instanceof Error ? e.message : t("common.error")));
     const tick = window.setInterval(() => {
       void loadInbox().catch(() => undefined);
-    }, 8000);
+    }, 2000);
     return () => window.clearInterval(tick);
   }, [data.tenant.id]);
 
@@ -48,7 +48,7 @@ function ChatInboxPage() {
     void listChat({ data: { resource_id: active.resource_id, visitor_key: active.thread_key } }).then(setMsgs);
     const tick = window.setInterval(() => {
       void listChat({ data: { resource_id: active.resource_id, visitor_key: active.thread_key } }).then(setMsgs);
-    }, 4000);
+    }, 2000);
     return () => window.clearInterval(tick);
   }, [active]);
 
