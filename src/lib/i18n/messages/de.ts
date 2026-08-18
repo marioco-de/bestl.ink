@@ -209,7 +209,7 @@ export const de = {
     pageHint: "Ziel-URL hinter deiner Domain, nur mit Token erreichbar.",
     event: "Termin",
     contact: "Kontakt",
-    new: "+ {kind}",
+    new: "{kind}",
   },
   thread: {
     priority: "Priorität",

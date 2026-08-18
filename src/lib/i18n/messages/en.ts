@@ -211,7 +211,7 @@ export const en: Messages = {
     pageHint: "Target URL behind your domain, token required.",
     event: "Event",
     contact: "Contact",
-    new: "+ {kind}",
+    new: "{kind}",
   },
   thread: {
     priority: "Priority",
