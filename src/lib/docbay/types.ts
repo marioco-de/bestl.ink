@@ -328,6 +328,7 @@ export interface DashWidget {
   show_clicks: boolean;
   show_last_click: boolean;
   click_mode: "copy" | "mint";
+  color: string;
   x: number;
   y: number;
   w: number;

@@ -113,6 +113,7 @@ export const saveDashWidget = createServerFn({ method: "POST" })
           show_clicks = ${data.show_clicks ?? true},
           show_last_click = ${data.show_last_click ?? false},
           click_mode = ${data.click_mode ?? "copy"},
+          color = ${data.color ?? ""},
           x = ${data.x ?? 0}, y = ${data.y ?? 0},
           w = ${data.w ?? 2}, h = ${data.h ?? 2},
           group_id = ${data.group_id ?? null}
@@ -122,12 +123,12 @@ export const saveDashWidget = createServerFn({ method: "POST" })
       await sql`
         insert into db_dash_widgets (
           id, section_id, short_id, resource_id, label, display, icon, image_url,
-          show_clicks, show_last_click, click_mode, x, y, w, h, created_by
+          show_clicks, show_last_click, click_mode, color, x, y, w, h, created_by
         ) values (
           ${id}, ${data.section_id}, ${data.short_id ?? null}, ${data.resource_id ?? null},
           ${data.label ?? ""}, ${data.display ?? "text"}, ${data.icon ?? "link"},
           ${data.image_url ?? null}, ${data.show_clicks ?? true}, ${data.show_last_click ?? false},
-          ${data.click_mode ?? "copy"},
+          ${data.click_mode ?? "copy"}, ${data.color ?? ""},
           ${data.x ?? 0}, ${data.y ?? 0}, ${data.w ?? 2}, ${data.h ?? 2}, ${context.userId}
         )
       `;

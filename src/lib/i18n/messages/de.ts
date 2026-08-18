@@ -292,6 +292,11 @@ export const de = {
     mintSave: "Speichern und Link erstellen",
     mintReady: "Link liegt in der Zwischenablage",
     settingsTitle: "Button",
+    buttonText: "Text auf dem Button",
+    buttonColor: "Farbe des Buttons",
+    groupTitle: "Gruppe",
+    groupName: "Name der Gruppe",
+    groupColor: "Farbe der Gruppe",
   },
 };
 

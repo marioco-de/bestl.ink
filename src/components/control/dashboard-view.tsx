@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from "react";
 import {
   ArrowDown,
   ArrowUp,
@@ -31,7 +31,17 @@ import { ColorPicker } from "./color-picker";
 import { useOpenCreate } from "@/lib/docbay/use-control";
 
 const COLS = 12;
-const ROW = 72;
+const ROW = 80;
+const GAP = 16;
+
+function cellStyle(x: number, y: number, w: number, h: number, inset: number): CSSProperties {
+  return {
+    left: `calc(${(x / COLS) * 100}% + ${inset}px)`,
+    top: y * ROW + inset,
+    width: `calc(${(w / COLS) * 100}% - ${inset * 2}px)`,
+    height: h * ROW - inset * 2,
+  };
+}
 
 function snap(n: number, max: number) {
   return Math.max(0, Math.min(max, Math.round(n)));
@@ -361,54 +371,111 @@ function GroupFrame({
   onApply: (s: DashState) => void;
   onDelete: () => void;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
+  const [title, setTitle] = useState(g.title);
+  const [color, setColor] = useState(g.color);
+  const hold = useRef(0);
+
+  useEffect(() => {
+    setTitle(g.title);
+    setColor(g.color);
+  }, [g.title, g.color]);
+
+  function clearHold() {
+    if (hold.current) window.clearTimeout(hold.current);
+    hold.current = 0;
+  }
+
+  function openModal() {
+    clearHold();
+    setTitle(g.title);
+    setColor(g.color);
+    setOpen(true);
+  }
+
+  async function save() {
+    onApply(
+      await saveDashGroup({
+        data: {
+          id: g.id,
+          section_id: g.section_id,
+          title,
+          color,
+          x: g.x,
+          y: g.y,
+          w: g.w,
+          h: g.h,
+          tenant_id: tenantId,
+        },
+      }),
+    );
+    setOpen(false);
+  }
+
   return (
-    <div
-      className="absolute rounded-lg border-2"
-      style={{
-        left: `${(g.x / COLS) * 100}%`,
-        top: g.y * ROW,
-        width: `${(g.w / COLS) * 100}%`,
-        height: g.h * ROW,
-        borderColor: g.color,
-        background: `${g.color}14`,
-      }}
-    >
-      <div className="flex items-center justify-between gap-1 px-2 py-1 text-[11px]" style={{ color: g.color }}>
-        <span className="min-w-0 truncate">{g.title || " "}</span>
-        <button
-          type="button"
-          className="h-3.5 w-3.5 rounded-full border border-current"
-          style={{ background: g.color }}
-          onClick={() => setOpen((v) => !v)}
-        />
-        <button type="button" onClick={onDelete}>
-          <Trash2 className="h-3 w-3" />
-        </button>
+    <>
+      <div
+        className="absolute rounded-xl border-2"
+        style={{
+          ...cellStyle(g.x, g.y, g.w, g.h, 0),
+          borderColor: g.color,
+          background: `${g.color}14`,
+        }}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          openModal();
+        }}
+        onPointerDown={(e) => {
+          if (e.button !== 0) return;
+          clearHold();
+          hold.current = window.setTimeout(openModal, 480);
+        }}
+        onPointerUp={clearHold}
+        onPointerLeave={clearHold}
+        onPointerCancel={clearHold}
+      >
+        {g.title ? (
+          <span
+            className="pointer-events-none absolute left-3 top-0 -translate-y-1/2 rounded-sm bg-bg-elevated px-1.5 text-[10px] font-medium"
+            style={{ color: g.color }}
+          >
+            {g.title}
+          </span>
+        ) : null}
       </div>
       {open && (
-        <div className="absolute left-2 right-2 z-10 rounded-md border border-border bg-bg-elevated p-2 shadow-lg">
-          <ColorPicker
-            value={g.color}
-            onChange={(color) => {
-              void saveDashGroup({
-                data: {
-                  id: g.id,
-                  section_id: g.section_id,
-                  title: g.title,
-                  color,
-                  x: g.x,
-                  y: g.y,
-                  w: g.w,
-                  h: g.h,
-                  tenant_id: tenantId,
-                },
-              }).then(onApply);
-            }}
-          />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-fg/30 p-4">
+          <div className="w-full max-w-sm space-y-3 rounded-lg border border-border bg-bg-elevated p-4 shadow-xl">
+            <p className="text-sm font-medium">{t("dash.groupTitle")}</p>
+            <div>
+              <Label>{t("dash.groupName")}</Label>
+              <Input value={title} onChange={(e) => setTitle(e.target.value)} />
+            </div>
+            <div>
+              <Label>{t("dash.groupColor")}</Label>
+              <div className="mt-1.5">
+                <ColorPicker value={color} onChange={setColor} />
+              </div>
+            </div>
+            <div className="flex justify-between gap-2 pt-1">
+              <Button size="sm" variant="danger" onClick={() => { onDelete(); setOpen(false); }}>
+                <Trash2 className="h-3.5 w-3.5" /> {t("common.delete")}
+              </Button>
+              <div className="flex gap-2">
+                <Button size="sm" variant="secondary" onClick={() => setOpen(false)}>
+                  {t("common.cancel")}
+                </Button>
+                <Button size="sm" onClick={() => void save()}>
+                  {t("common.save")}
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
 
@@ -440,7 +507,7 @@ function Grid({
   const ref = useRef<HTMLDivElement>(null);
   const [draft, setDraft] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
 
-  function cell(e: React.PointerEvent) {
+  function cell(e: PointerEvent) {
     const box = ref.current!.getBoundingClientRect();
     const cw = box.width / COLS;
     const x = snap((e.clientX - box.left) / cw, COLS - 1);
@@ -492,13 +559,8 @@ function Grid({
       ))}
       {draft && (
         <div
-          className="pointer-events-none absolute rounded-lg border border-dashed border-fg/40 bg-fg/5"
-          style={{
-            left: `${(draft.x / COLS) * 100}%`,
-            top: draft.y * ROW,
-            width: `${(draft.w / COLS) * 100}%`,
-            height: draft.h * ROW,
-          }}
+          className="pointer-events-none absolute rounded-xl border border-dashed border-fg/40 bg-fg/5"
+          style={cellStyle(draft.x, draft.y, draft.w, draft.h, 0)}
         />
       )}
       {widgets.map((w) => (
@@ -561,7 +623,7 @@ function WidgetCard({
     hold.current = 0;
   }
 
-  function start(e: React.PointerEvent, kind: "move" | "resize") {
+  function start(e: PointerEvent, kind: "move" | "resize") {
     e.stopPropagation();
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     moved.current = false;
@@ -585,7 +647,7 @@ function WidgetCard({
     }
   }
 
-  function move(e: React.PointerEvent) {
+  function move(e: PointerEvent) {
     if (!drag.current) return;
     const parent = (e.currentTarget as HTMLElement).offsetParent as HTMLElement | null;
     if (!parent) return;
@@ -674,12 +736,11 @@ function WidgetCard({
   return (
     <>
       <div
-        className="absolute flex flex-col overflow-hidden rounded-lg border border-border bg-bg-elevated shadow-sm"
+        className="absolute flex flex-col overflow-hidden rounded-lg border bg-bg-elevated shadow-sm"
         style={{
-          left: `${(geom.x / COLS) * 100}%`,
-          top: geom.y * ROW,
-          width: `${(geom.w / COLS) * 100}%`,
-          height: geom.h * ROW - 6,
+          ...cellStyle(geom.x, geom.y, geom.w, geom.h, GAP / 2),
+          borderColor: w.color || undefined,
+          background: w.color ? `${w.color}18` : undefined,
         }}
         onPointerDown={(e) => start(e, "move")}
         onPointerMove={move}
@@ -701,7 +762,10 @@ function WidgetCard({
               className="pointer-events-none mb-1 h-12 w-full rounded object-cover"
             />
           )}
-          <span className="inline-flex items-center gap-1 text-sm font-medium">
+          <span
+            className="inline-flex items-center gap-1 text-sm font-medium"
+            style={w.color ? { color: w.color } : undefined}
+          >
             {(w.display === "icon" || cells <= 2) && <Link2 className="h-4 w-4 text-hue-azure" />}
             {w.display !== "icon" && (
               <span className="truncate">{w.label || short?.title || short?.slug}</span>
@@ -731,8 +795,17 @@ function WidgetCard({
           <div className="w-full max-w-sm space-y-3 rounded-lg border border-border bg-bg-elevated p-4 shadow-xl">
             <p className="text-sm font-medium">{t("dash.settingsTitle")}</p>
             <div>
-              <Label>{t("common.name")}</Label>
+              <Label>{t("dash.buttonText")}</Label>
               <Input value={draft.label} onChange={(e) => setDraft({ ...draft, label: e.target.value })} />
+            </div>
+            <div>
+              <Label>{t("dash.buttonColor")}</Label>
+              <div className="mt-1.5">
+                <ColorPicker
+                  value={draft.color || "#64748b"}
+                  onChange={(color) => setDraft({ ...draft, color })}
+                />
+              </div>
             </div>
             <div>
               <Label>{t("dash.settings")}</Label>

@@ -293,5 +293,10 @@ export const en: Messages = {
     mintSave: "Save and create link",
     mintReady: "Link copied to the clipboard",
     settingsTitle: "Button",
+    buttonText: "Text on the button",
+    buttonColor: "Button color",
+    groupTitle: "Group",
+    groupName: "Group name",
+    groupColor: "Group color",
   },
 };

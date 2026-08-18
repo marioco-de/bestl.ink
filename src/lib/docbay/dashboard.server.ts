@@ -53,6 +53,7 @@ function mapWidget(r: Record<string, unknown>): DashWidget {
     show_clicks: Boolean(r.show_clicks),
     show_last_click: Boolean(r.show_last_click),
     click_mode: r.click_mode === "mint" ? "mint" : "copy",
+    color: String(r.color || ""),
     x: Number(r.x ?? 0),
     y: Number(r.y ?? 0),
     w: Number(r.w ?? 2),
