@@ -39,7 +39,7 @@ export const Route = createFileRoute("/")({
         mode: "home" as const,
         product: "BESTL.INK",
         tagline: "Share less. Know more.",
-        slogan: "Ein Link sagt mehr als 1000 Worte. Kürzen. Und schützen.",
+        slogan: "Ein Link, keine Umwege. Kürzen. Und schützen.",
         platformHost: "bestl.ink",
         googleNative: false,
         host: "bestl.ink",
@@ -206,7 +206,7 @@ function HomePage() {
           </Badge>
 
           <h1 className="font-display max-w-3xl text-4xl font-semibold leading-[1.1] tracking-tight sm:text-5xl lg:text-[3.25rem]">
-            Ein Link sagt mehr als 1000 Worte.
+            Ein Link, keine Umwege.
             <span className="mt-1 block text-fg-muted">
               Kürzen. Und schützen.
             </span>
