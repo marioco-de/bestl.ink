@@ -332,6 +332,8 @@ export const de = {
     actionsHint: "Bis zu drei Buttons in der Viewer-Leiste.",
     actAccept: "Akzeptieren",
     actReject: "Ablehnen",
+    actAccepted: "Akzeptiert",
+    actRejected: "Abgelehnt",
     actSign: "Unterzeichnen",
     actCall: "Anrufen",
     actEmail: "E-Mail schreiben",

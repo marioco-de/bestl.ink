@@ -333,6 +333,8 @@ export const en: Messages = {
     actionsHint: "Up to three buttons in the viewer bar.",
     actAccept: "Accept",
     actReject: "Decline",
+    actAccepted: "Accepted",
+    actRejected: "Declined",
     actSign: "Sign",
     actCall: "Call",
     actEmail: "Write email",

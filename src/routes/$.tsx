@@ -1,5 +1,5 @@
 import { createFileRoute, redirect, isRedirect } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { recordDocAction } from "@/lib/docbay/api";
 import { parseDocActions, parseChatMode, type DocActionId } from "@/lib/docbay/doc-actions";
 import { useT } from "@/lib/i18n";
@@ -487,13 +487,6 @@ function GrantedView({
     }
   }
 
-  const actionStyle: Record<DocActionId, string> = {
-    accept: "bg-emerald-600 text-white hover:bg-emerald-500",
-    reject: "bg-red-600 text-white hover:bg-red-500",
-    sign: "bg-blue-600 text-white hover:bg-blue-500",
-    call: "bg-zinc-200 text-zinc-800 hover:bg-zinc-300",
-    email: "bg-zinc-200 text-zinc-800 hover:bg-zinc-300",
-  };
   const actionIcon: Record<DocActionId, typeof Check> = {
     accept: Check,
     reject: X,
@@ -502,12 +495,27 @@ function GrantedView({
     email: Mail,
   };
   const actionLabel: Record<DocActionId, string> = {
-    accept: t("doc.actAccept"),
-    reject: t("doc.actReject"),
+    accept: acted === "accept" ? t("doc.actAccepted") : t("doc.actAccept"),
+    reject: acted === "reject" ? t("doc.actRejected") : t("doc.actReject"),
     sign: t("doc.actSign"),
     call: t("doc.actCall"),
     email: t("doc.actEmail"),
   };
+  const actionHue: Record<DocActionId, string> = {
+    accept: "#059669",
+    reject: "#dc2626",
+    sign: "#2563eb",
+    call: "#71717a",
+    email: "#71717a",
+  };
+  const actionIdle: Record<DocActionId, string> = {
+    accept: "border-emerald-600 bg-transparent text-emerald-700 hover:bg-emerald-50",
+    reject: "border-red-600 bg-transparent text-red-700 hover:bg-red-50",
+    sign: "border-blue-600 bg-transparent text-blue-700 hover:bg-blue-50",
+    call: "border-zinc-400 bg-transparent text-zinc-600 hover:bg-zinc-100",
+    email: "border-zinc-400 bg-transparent text-zinc-600 hover:bg-zinc-100",
+  };
+  const decided = acted === "accept" || acted === "reject";
 
   return (
     <div className="relative flex min-h-dvh flex-col bg-bg">
@@ -527,12 +535,23 @@ function GrantedView({
           </Badge>
           {docActions.map((a) => {
             const Icon = actionIcon[a.id];
+            const chosen = acted === a.id && (a.id === "accept" || a.id === "reject" || a.id === "sign");
+            const dimmed =
+              decided && (a.id === "accept" || a.id === "reject") && acted !== a.id;
             return (
               <Button
                 key={a.id}
                 size="sm"
-                className={actionStyle[a.id]}
-                disabled={acted === a.id}
+                variant="outline"
+                disabled={dimmed}
+                className={
+                  chosen
+                    ? "hue-action border-transparent text-white"
+                    : dimmed
+                      ? "border-zinc-300 bg-transparent text-zinc-400"
+                      : actionIdle[a.id]
+                }
+                style={chosen ? ({ ["--hue"]: actionHue[a.id] } as CSSProperties) : undefined}
                 onClick={() => void runAction(a.id, a.target)}
               >
                 <Icon className="h-3.5 w-3.5" />
