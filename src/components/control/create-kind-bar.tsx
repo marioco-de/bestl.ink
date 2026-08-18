@@ -11,8 +11,25 @@ export function CreateKindBar({
   onChange: (k: CreateKind) => void;
 }) {
   const t = useT();
+  const idx = Math.max(0, CREATE_KINDS.findIndex((k) => k.id === value));
+  const n = CREATE_KINDS.length;
+  const active = CREATE_KINDS[idx]!;
+
   return (
-    <div className="mb-4 flex flex-wrap justify-center gap-1">
+    <div
+      role="tablist"
+      aria-label={t("create.url")}
+      className="relative flex h-9 w-[11.5rem] shrink-0 items-stretch rounded-lg bg-bg-subtle p-0.5"
+    >
+      <span
+        aria-hidden
+        className="pointer-events-none absolute top-0.5 bottom-0.5 rounded-md hue-action shadow-sm transition-[left] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]"
+        style={{
+          width: `calc((100% - 4px) / ${n})`,
+          left: `calc(2px + ${idx} * ((100% - 4px) / ${n}))`,
+          ...hueStyle(active.hue),
+        }}
+      />
       {CREATE_KINDS.map((k) => {
         const Icon = k.icon;
         const on = value === k.id;
@@ -20,15 +37,16 @@ export function CreateKindBar({
           <button
             key={k.id}
             type="button"
+            role="tab"
+            aria-selected={on}
             title={t(k.labelKey)}
             onClick={() => onChange(k.id)}
             className={cn(
-              "flex h-9 w-9 items-center justify-center rounded-md border transition-colors",
-              on ? "hue-action border-transparent text-white" : "border-border text-fg-muted hover:bg-bg-subtle",
+              "relative z-10 flex flex-1 items-center justify-center rounded-md transition-colors",
+              on ? "text-white" : "text-fg-muted hover:text-fg",
             )}
-            style={on ? hueStyle(k.hue) : undefined}
           >
-            <Icon className="h-4 w-4" />
+            <Icon className="h-3.5 w-3.5" />
           </button>
         );
       })}

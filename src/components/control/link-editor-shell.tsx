@@ -73,11 +73,11 @@ export function LinkEditorShell({
             aria-label={title}
             className="@container/modal relative z-20 flex h-full min-w-0 w-full flex-col overflow-hidden bg-bg-elevated shadow-2xl @min-[40rem]/stage:h-auto @min-[40rem]/stage:max-h-[min(88dvh,720px)] @min-[40rem]/stage:rounded-xl @min-[40rem]/stage:border @min-[40rem]/stage:border-border"
           >
-            <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
-              <div className="min-w-0">
+            <header className="flex shrink-0 items-center gap-3 border-b border-border px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
+              <div className="min-w-0 flex-1">
                 <h2 className="font-display text-base font-semibold tracking-tight">{title}</h2>
-                {description && <p className="text-[12px] text-fg-subtle">{description}</p>}
               </div>
+              {toolbar}
               <button
                 type="button"
                 onClick={onClose}
@@ -87,7 +87,6 @@ export function LinkEditorShell({
                 <X className="h-5 w-5" />
               </button>
             </header>
-            {toolbar && <div className="shrink-0 px-4 pt-3">{toolbar}</div>}
             <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5">
               <div className="space-y-6">{children}</div>
             </div>

@@ -492,7 +492,6 @@ function Editor({
     <>
     <LinkEditorShell
       title={kindTitle}
-      description={kind === "page" ? t("create.pageHint") : t("short.createHint")}
       onClose={onClose}
       toolbar={<CreateKindBar value={kind} onChange={onKind} />}
       url={shortUrl}
