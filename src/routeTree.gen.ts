@@ -30,6 +30,8 @@ import { Route as ControlResourcesRouteImport } from './routes/control/resources
 import { Route as ControlShortsRouteImport } from './routes/control/shorts'
 import { Route as ControlStatsRouteImport } from './routes/control/stats'
 import { Route as ControlWorkspaceRouteImport } from './routes/control/workspace'
+import { Route as IcsSlugRouteImport } from './routes/ics/$slug'
+import { Route as VcfSlugRouteImport } from './routes/vcf/$slug'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as ApiCardsResourceIdRouteImport } from './routes/api/cards/$resourceId'
 import { Route as ApiFilesResourceIdRouteImport } from './routes/api/files/$resourceId'
@@ -140,6 +142,16 @@ const ControlWorkspaceRoute = ControlWorkspaceRouteImport.update({
   path: '/workspace',
   getParentRoute: () => ControlRoute,
 } as any)
+const IcsSlugRoute = IcsSlugRouteImport.update({
+  id: '/ics/$slug',
+  path: '/ics/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const VcfSlugRoute = VcfSlugRouteImport.update({
+  id: '/vcf/$slug',
+  path: '/vcf/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
@@ -182,6 +194,8 @@ export interface FileRoutesByFullPath {
   '/control/shorts': typeof ControlShortsRoute
   '/control/stats': typeof ControlStatsRoute
   '/control/workspace': typeof ControlWorkspaceRoute
+  '/ics/$slug': typeof IcsSlugRoute
+  '/vcf/$slug': typeof VcfSlugRoute
   '/control/': typeof ControlIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/cards/$resourceId': typeof ApiCardsResourceIdRoute
@@ -208,6 +222,8 @@ export interface FileRoutesByTo {
   '/control/shorts': typeof ControlShortsRoute
   '/control/stats': typeof ControlStatsRoute
   '/control/workspace': typeof ControlWorkspaceRoute
+  '/ics/$slug': typeof IcsSlugRoute
+  '/vcf/$slug': typeof VcfSlugRoute
   '/control': typeof ControlIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/cards/$resourceId': typeof ApiCardsResourceIdRoute
@@ -236,6 +252,8 @@ export interface FileRoutesById {
   '/control/shorts': typeof ControlShortsRoute
   '/control/stats': typeof ControlStatsRoute
   '/control/workspace': typeof ControlWorkspaceRoute
+  '/ics/$slug': typeof IcsSlugRoute
+  '/vcf/$slug': typeof VcfSlugRoute
   '/control/': typeof ControlIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/cards/$resourceId': typeof ApiCardsResourceIdRoute
@@ -265,6 +283,8 @@ export interface FileRouteTypes {
     | '/control/shorts'
     | '/control/stats'
     | '/control/workspace'
+    | '/ics/$slug'
+    | '/vcf/$slug'
     | '/control/'
     | '/api/auth/$'
     | '/api/cards/$resourceId'
@@ -291,6 +311,8 @@ export interface FileRouteTypes {
     | '/control/shorts'
     | '/control/stats'
     | '/control/workspace'
+    | '/ics/$slug'
+    | '/vcf/$slug'
     | '/control'
     | '/api/auth/$'
     | '/api/cards/$resourceId'
@@ -318,6 +340,8 @@ export interface FileRouteTypes {
     | '/control/shorts'
     | '/control/stats'
     | '/control/workspace'
+    | '/ics/$slug'
+    | '/vcf/$slug'
     | '/control/'
     | '/api/auth/$'
     | '/api/cards/$resourceId'
@@ -333,6 +357,8 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   SignupRoute: typeof SignupRoute
   ApiUploadsRoute: typeof ApiUploadsRoute
+  IcsSlugRoute: typeof IcsSlugRoute
+  VcfSlugRoute: typeof VcfSlugRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiCardsResourceIdRoute: typeof ApiCardsResourceIdRoute
   ApiFilesResourceIdRoute: typeof ApiFilesResourceIdRoute
@@ -488,6 +514,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ControlWorkspaceRouteImport
       parentRoute: typeof ControlRoute
     }
+    '/ics/$slug': {
+      id: '/ics/$slug'
+      path: '/ics/$slug'
+      fullPath: '/ics/$slug'
+      preLoaderRoute: typeof IcsSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/vcf/$slug': {
+      id: '/vcf/$slug'
+      path: '/vcf/$slug'
+      fullPath: '/vcf/$slug'
+      preLoaderRoute: typeof VcfSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/auth/$': {
       id: '/api/auth/$'
       path: '/api/auth/$'
@@ -564,6 +604,8 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   SignupRoute: SignupRoute,
   ApiUploadsRoute: ApiUploadsRoute,
+  IcsSlugRoute: IcsSlugRoute,
+  VcfSlugRoute: VcfSlugRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiCardsResourceIdRoute: ApiCardsResourceIdRoute,
   ApiFilesResourceIdRoute: ApiFilesResourceIdRoute,

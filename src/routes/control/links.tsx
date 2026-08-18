@@ -13,7 +13,7 @@ import type { FullState } from "@/lib/docbay/types";
 import { ShortsWorkspace } from "./shorts";
 import { ResourcesWorkspace } from "./resources";
 import { CardsWorkspace } from "./-cards";
-import { cardDownloadPath } from "@/lib/docbay/cards";
+import { buildPublicUrl, resourceRestricted } from "@/lib/docbay/public-url";
 import { TagChip } from "@/components/control/tag-picker";
 import { tagColor } from "@/lib/docbay/tags";
 import { useT } from "@/lib/i18n";
@@ -162,17 +162,26 @@ function SharedPanel() {
   );
 
   function publicUrl(slug: string | undefined, token: string, link: (typeof data.links)[0]) {
-    if (link.resource_type === "event" || link.resource_type === "contact") {
-      return `${window.location.origin}${cardDownloadPath(link.resource_id, token)}`;
-    }
     const host = data.tenant.public_host || window.location.host;
-    const path = (slug || "link").includes(".") ? `/${slug}` : `/${slug || "link"}/`;
-    const params = new URLSearchParams();
-    params.set("access", token);
-    if (link.utm_source) params.set("utm_source", link.utm_source);
-    if (link.utm_medium) params.set("utm_medium", link.utm_medium);
-    if (link.utm_campaign) params.set("utm_campaign", link.utm_campaign);
-    return `https://${host}${path}?${params.toString()}`;
+    const res = data.resources.find((r) => r.id === link.resource_id);
+    const restricted = resourceRestricted(link.resource_type || "document", res?.payload, {
+      password: Boolean(link.password_hash),
+      nda: Boolean(link.require_nda ?? res?.require_nda),
+      expires: Boolean(link.expires_at),
+      oneTime: Boolean(link.one_time),
+    });
+    return buildPublicUrl({
+      host,
+      type: link.resource_type || "document",
+      slug: slug || res?.slug || "link",
+      token,
+      restricted,
+      utm: {
+        source: link.utm_source,
+        medium: link.utm_medium,
+        campaign: link.utm_campaign,
+      },
+    });
   }
 
   return (

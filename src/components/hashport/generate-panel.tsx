@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { FullScreenModal } from "@/components/ui/fullscreen-modal";
 import { generateLink, bulkGenerateLinks, createParamNode, createTag, saveNdaTemplate, uploadBegin, uploadChunk, updateResource } from "@/lib/docbay/api";
 import type { FullState, ParamNode, Resource } from "@/lib/docbay/types";
-import { cardDownloadPath } from "@/lib/docbay/cards";
+import { buildPublicUrl, resourceRestricted } from "@/lib/docbay/public-url";
 import { TagPicker } from "@/components/control/tag-picker";
 import { Toggle } from "@/components/ui/toggle";
 import { parseRequireRequest, withRequireRequest } from "@/lib/docbay/doc-actions";
@@ -169,16 +169,24 @@ export function GeneratePanel({
       if (res.state) onUpdated(res.state);
       await router.invalidate();
       const host = state.tenant.public_host || window.location.host;
-      const origin = window.location.origin;
-      const params = new URLSearchParams();
-      params.set("access", res.token);
-      if (utm?.utm_source) params.set("utm_source", utm.utm_source);
-      if (utm?.utm_medium) params.set("utm_medium", utm.utm_medium);
-      if (utm?.utm_campaign) params.set("utm_campaign", utm.utm_campaign);
-      const url =
-        resource.type === "event" || resource.type === "contact"
-          ? `${origin}${cardDownloadPath(resource.id, res.token)}`
-          : `https://${host}${resource.slug.includes(".") ? `/${resource.slug}` : `/${resource.slug}/`}?${params.toString()}`;
+      const restricted = resourceRestricted(resource.type, resource.payload, {
+        password: Boolean(password),
+        nda: requireNda,
+        expires: Boolean(expiresHours),
+        oneTime,
+      }) || requireRequest;
+      const url = buildPublicUrl({
+        host,
+        type: resource.type,
+        slug: resource.slug,
+        token: res.token,
+        restricted,
+        utm: {
+          source: utm?.utm_source,
+          medium: utm?.utm_medium,
+          campaign: utm?.utm_campaign,
+        },
+      });
       setResult({ url, token: res.token, button: buttonName });
       toast.success(`Link für ${buttonName}`);
     } catch (e) {

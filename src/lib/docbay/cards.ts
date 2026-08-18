@@ -121,7 +121,8 @@ export function parseContactPayload(raw: unknown): ContactPayload {
 }
 
 export function cardDownloadPath(resourceId: string, token: string): string {
-  return `/api/cards/${encodeURIComponent(resourceId)}?access=${encodeURIComponent(token)}`;
+  const q = token ? `?access=${encodeURIComponent(token)}` : "";
+  return `/api/cards/${encodeURIComponent(resourceId)}${q}`;
 }
 
 export function formatEventWhen(event: EventPayload): string {

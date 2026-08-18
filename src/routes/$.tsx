@@ -42,6 +42,7 @@ import {
   parseContactPayload,
   parseEventPayload,
 } from "@/lib/docbay/cards";
+import { cardKindPath, stripCardExt } from "@/lib/docbay/public-url";
 import { BrandedFrame, BrandFlag } from "@/components/public/branded-frame";
 
 type VisitorId = { email: string; name: string };
@@ -100,6 +101,8 @@ export const Route = createFileRoute("/$")({
       slug.startsWith("super") ||
       slug.startsWith("api") ||
       slug.startsWith("login") ||
+      slug.startsWith("ics/") ||
+      slug.startsWith("vcf/") ||
       slug.startsWith("signup")
     ) {
       return {
@@ -989,6 +992,7 @@ function CardGate({
     id: string;
     type: string;
     title: string;
+    slug?: string;
     payload?: Record<string, unknown>;
   };
   downloadUrl: string | null;
@@ -996,10 +1000,15 @@ function CardGate({
   const href =
     downloadUrl ||
     (typeof window !== "undefined"
-      ? cardDownloadPath(
-          resource.id,
-          new URLSearchParams(window.location.search).get("access") || "",
-        )
+      ? (() => {
+          const kind = cardKindPath(resource.type);
+          const access = new URLSearchParams(window.location.search).get("access") || "";
+          if (kind) {
+            const q = access ? `?access=${encodeURIComponent(access)}` : "";
+            return `/${kind}/${stripCardExt(resource.slug || resource.id)}${q}`;
+          }
+          return cardDownloadPath(resource.id, access);
+        })()
       : "");
   if (resource.type === "event") {
     const event = parseEventPayload(resource.payload);

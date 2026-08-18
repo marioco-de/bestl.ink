@@ -29,6 +29,7 @@ import { writeActivity, listActivityEvents, loadPresenceMap, listRecentActivity 
 import { findTenantBrandByHost } from "./shorts.server";
 import { isMarketingHost } from "./brand";
 import { parseRequireRequest } from "./doc-actions";
+import { ACCESS_TOKEN_LEN, buildPublicUrl, cardKindPath, resourceRestricted } from "./public-url";
 import { probeDomainDns } from "./dns-check.server";
 import {
   ensurePlatformVercelDomains,
@@ -834,11 +835,11 @@ export const generateLink = createServerFn({ method: "POST" })
     if (data.one_time && !fmap.one_time_links) throw new Error("Einmal-Links deaktiviert");
     if (data.password && !fmap.password_links) throw new Error("Passwort-Links deaktiviert");
 
-    let token = genToken(10);
-    for (let i = 0; i < 6; i++) {
+    let token = genToken(ACCESS_TOKEN_LEN);
+    for (let i = 0; i < 8; i++) {
       const clash = await sql`select id from db_links where token = ${token}`;
       if (clash.length === 0) break;
-      token = genToken(10);
+      token = genToken(ACCESS_TOKEN_LEN);
     }
     const id = uid("link");
     const expires =
@@ -931,7 +932,7 @@ export const bulkGenerateLinks = createServerFn({ method: "POST" })
     for (const line of data.lines.slice(0, 100)) {
       const note = line.trim();
       if (!note) continue;
-      const token = genToken(10);
+      const token = genToken(ACCESS_TOKEN_LEN);
       const id = uid("link");
       await sql`
         insert into db_links (
@@ -996,7 +997,7 @@ export const updateRequestStatus = createServerFn({ method: "POST" })
       )[0] as Record<string, unknown> | undefined;
 
       if (req) {
-        const token = genToken(10);
+        const token = genToken(ACCESS_TOKEN_LEN);
         let buttonId = mem.member.param_button_id;
         if (!buttonId) {
           const b = (
@@ -1679,9 +1680,16 @@ export const resolveAccess = createServerFn({ method: "POST" })
     }
 
     const kind = String(resource.type);
+    const restricted = resourceRestricted(kind, parseJsonObj(resource.payload), {
+      password: Boolean(link.password_hash),
+      nda: link.require_nda != null ? Boolean(link.require_nda) : Boolean(resource.require_nda),
+      expires: Boolean(link.expires_at),
+      oneTime: Boolean(link.one_time),
+    });
+    const cardPath = cardKindPath(kind);
     const download_url =
-      kind === "event" || kind === "contact"
-        ? `/api/cards/${resource.id}?access=${encodeURIComponent(String(link.token))}`
+      cardPath
+        ? `/${cardPath}/${String(resource.slug || "").replace(/\.(ics|vcf)$/i, "")}${restricted ? `?access=${encodeURIComponent(String(link.token))}` : ""}`
         : null;
 
     const allowDl =

@@ -18,6 +18,7 @@ import { GeneratePanel } from "@/components/hashport/generate-panel";
 import { useControlData, useSetControlData } from "@/lib/docbay/use-control";
 import { createResource, deleteResource, updateResource, createTag } from "@/lib/docbay/api";
 import { slugify, formatDateDe } from "@/lib/utils";
+import { suggestCardSlug } from "@/lib/docbay/public-url";
 import type { FullState, Resource, JsonObject } from "@/lib/docbay/types";
 import { TagChip, TagPicker } from "@/components/control/tag-picker";
 import { tagColor } from "@/lib/docbay/tags";
@@ -233,7 +234,10 @@ export function CardForm({
   onSaved: (s: FullState) => void;
   toolbar?: ReactNode;
 }) {
-  const [slug, setSlug] = useState(existing?.slug ?? "");
+  const [slug, setSlug] = useState(
+    existing?.slug ??
+      (kind === "event" ? suggestCardSlug("event", emptyEvent().start) : suggestCardSlug("contact")),
+  );
   const [slugTouched, setSlugTouched] = useState(Boolean(existing));
   const [event, setEvent] = useState<EventPayload>(() =>
     existing && kind === "event" ? parseEventPayload(existing.payload) : emptyEvent(),
@@ -250,7 +254,11 @@ export function CardForm({
 
   function syncSlug(name: string) {
     if (slugTouched) return;
-    setSlug(`${slugify(name) || (kind === "event" ? "termin" : "kontakt")}${ext}`);
+    if (kind === "event") {
+      setSlug(suggestCardSlug("event", event.start));
+      return;
+    }
+    setSlug(suggestCardSlug("contact"));
   }
 
   async function save() {
@@ -271,7 +279,7 @@ export function CardForm({
       ) as JsonObject;
       const body = {
         title: name,
-        slug: (slug || slugify(name) + ext).replace(/^\//, ""),
+        slug: (slug || suggestCardSlug(kind, kind === "event" ? event.start : undefined)).replace(/^\//, ""),
         description:
           kind === "event" ? event.location || "" : contact.company || "",
         payload,
@@ -333,7 +341,7 @@ export function CardForm({
             event={event}
             setEvent={(next) => {
               setEvent(next);
-              if (next.title) syncSlug(next.title);
+              if (!slugTouched) setSlug(suggestCardSlug("event", next.start));
             }}
           />
         </>
