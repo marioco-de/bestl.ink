@@ -16,10 +16,11 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { HueButton } from "@/components/ui/hue-button";
 import { Input, Textarea, Label } from "@/components/ui/input";
 import { useControl } from "@/lib/docbay/control-store";
 import { CreateKindBar } from "./create-kind-bar";
-import type { CreateKind } from "@/lib/docbay/create-kind";
+import { kindMeta, type CreateKind } from "@/lib/docbay/create-kind";
 import { createShort } from "@/lib/docbay/shorts-api";
 import { genToken } from "@/lib/docbay/id";
 import { PLATFORM_LINK_HOST } from "@/lib/docbay/brand";
@@ -81,7 +82,7 @@ export function CreateLinkModal() {
   }
   return (
     <Editor
-      key={`${createKind}-${createSeed}`}
+      key={createSeed}
       data={data}
       seed={createSeed}
       kind={createKind}
@@ -563,9 +564,14 @@ function Editor({
               );
             })}
           </div>
-          <Button className="h-9" disabled={busy} onClick={() => void save()}>
+          <HueButton
+            hue={kindMeta(kind).hue}
+            className="h-9"
+            disabled={busy}
+            onClick={() => void save()}
+          >
             {busy ? t("common.loading") : t("short.createBtn")}
-          </Button>
+          </HueButton>
         </>
       }
     >

@@ -17,13 +17,16 @@ export function CreateKindBar({
   const active = CREATE_KINDS[idx]!;
   const prev = useRef(idx);
   const [stretch, setStretch] = useState(1);
+  const [from, setFrom] = useState(idx);
 
   useEffect(() => {
-    const dist = Math.abs(idx - prev.current);
+    const dist = idx - prev.current;
+    const last = prev.current;
     prev.current = idx;
     if (!dist) return;
-    setStretch(1 + Math.min(dist, 4) * 0.16);
-    const id = window.setTimeout(() => setStretch(1), 340);
+    setFrom(last);
+    setStretch(1 + Math.min(Math.abs(dist), 4) * 0.18);
+    const id = window.setTimeout(() => setStretch(1), 360);
     return () => window.clearTimeout(id);
   }, [idx]);
 
@@ -35,13 +38,14 @@ export function CreateKindBar({
     >
       <span
         aria-hidden
-        className="pointer-events-none absolute top-0.5 bottom-0.5 left-0.5 rounded-md hue-action shadow-sm will-change-transform"
+        className="pointer-events-none absolute top-0.5 bottom-0.5 rounded-md hue-action hue-warp shadow-sm"
         style={{
           width: `calc((100% - 4px) / ${n})`,
-          transform: `translateX(${idx * 100}%) scaleX(${stretch})`,
-          transformOrigin: "center",
+          left: `calc(2px + ${idx} * ((100% - 4px) / ${n}))`,
+          transform: `scaleX(${stretch})`,
+          transformOrigin: idx > from ? "left center" : idx < from ? "right center" : "center",
           transition:
-            "transform 520ms cubic-bezier(0.22, 1.45, 0.36, 1), --hue 480ms cubic-bezier(0.4, 0.05, 0.2, 1)",
+            "left 540ms cubic-bezier(0.22, 1.4, 0.36, 1), transform 360ms cubic-bezier(0.22, 1.15, 0.36, 1)",
           ...hueStyle(active.hue),
         }}
       />

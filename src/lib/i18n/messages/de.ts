@@ -132,7 +132,7 @@ export const de = {
     androidUrl: "Andere URL auf Android",
     openPassword: "Passwort zum Öffnen",
     hoursUntil: "Stunden bis ungültig",
-    createBtn: "Link anlegen",
+    createBtn: "Erstellen",
     requestOff: "Jeder mit Link kann anzeigen",
     requestOn: "Zugriff muss angefragt werden",
     requestHint: "Ohne gültigen Token erscheint das Anfrage-Formular.",

@@ -10,7 +10,7 @@ export function HueButton({
 }: ButtonProps & { hue: string }) {
   return (
     <Button
-      className={cn("hue-action", className)}
+      className={cn("hue-action hue-warp", className)}
       style={{ ...hueStyle(hue), ...style }}
       {...props}
     />

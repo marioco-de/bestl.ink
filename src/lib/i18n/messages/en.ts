@@ -134,7 +134,7 @@ export const en: Messages = {
     androidUrl: "Different URL on Android",
     openPassword: "Password to open",
     hoursUntil: "Hours until it expires",
-    createBtn: "Create link",
+    createBtn: "Create",
     requestOff: "Anyone with the link can view",
     requestOn: "Access must be requested",
     requestHint: "Without a valid token the request form is shown.",
