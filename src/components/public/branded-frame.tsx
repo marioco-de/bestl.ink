@@ -66,10 +66,8 @@ export function BrandedFrame({
     setHeld(true);
   }
 
-  const line =
-    left <= 1
-      ? copy.redirectOne.replace("{url}", url)
-      : copy.redirect.replace("{n}", String(left)).replace("{url}", url);
+  const template = left <= 1 ? copy.redirectOne : copy.redirect.replace("{n}", String(left));
+  const [before, after] = template.split("{url}");
 
   return (
     <div className="hop-wash relative flex min-h-dvh flex-col items-center justify-center px-6">
@@ -105,7 +103,20 @@ export function BrandedFrame({
           >
             {left}
           </p>
-          <p className="mt-4 max-w-2xl text-center text-sm text-white/80">{line}</p>
+          <p className="mt-4 max-w-2xl text-center text-sm text-white/80">
+            {before}
+            <a
+              href={url}
+              onClick={(e) => {
+                e.preventDefault();
+                go();
+              }}
+              className="break-all font-medium text-white underline underline-offset-2 hover:text-white"
+            >
+              {url}
+            </a>
+            {after}
+          </p>
         </>
       )}
       <button
