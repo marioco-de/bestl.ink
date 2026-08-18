@@ -259,6 +259,8 @@ export const en: Messages = {
     dnsTitle: "{host}",
     dnsPending: "DNS does not point to bestl.ink yet.",
     dnsConnected: "Domain is active, but DNS is invalid.",
+    warnCount: "{n} warnings",
+    infoCount: "{n} actions",
   },
   dash: {
     title: "Dashboard",

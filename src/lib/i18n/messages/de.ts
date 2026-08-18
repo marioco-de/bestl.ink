@@ -258,6 +258,8 @@ export const de = {
     dnsTitle: "{host}",
     dnsPending: "DNS zeigt noch nicht auf bestl.ink.",
     dnsConnected: "Domain ist aktiv, DNS aber ungültig.",
+    warnCount: "{n} Warnungen",
+    infoCount: "{n} Aktionen",
   },
   dash: {
     title: "Dashboard",
