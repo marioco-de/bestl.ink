@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import {
   Building2,
@@ -7,6 +7,7 @@ import {
   Clock,
   ImageIcon,
   KeyRound,
+  Megaphone,
   MonitorSmartphone,
   Shuffle,
   Tag,
@@ -40,7 +41,7 @@ import { MAX_UPLOAD_BYTES, MAX_UPLOAD_LABEL } from "@/lib/docbay/upload";
 import { Upload } from "lucide-react";
 import { FullScreenModal } from "@/components/ui/fullscreen-modal";
 
-type Extra = "campaign" | "device" | "lock" | "ttl" | null;
+type Extra = "tags" | "campaign" | "device" | "lock" | "ttl" | null;
 
 function slugFromPageUrl(raw: string) {
   try {
@@ -166,9 +167,10 @@ function Editor({
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.preventDefault();
-        if (hostOpen || wsOpen) {
+        if (hostOpen || wsOpen || extra) {
           setHostOpen(false);
           setWsOpen(false);
+          setExtra(null);
           return;
         }
         onClose();
@@ -183,7 +185,7 @@ function Editor({
       document.body.style.overflow = prev;
       window.removeEventListener("keydown", onKey);
     };
-  }, [onClose, hostOpen, wsOpen]);
+  }, [onClose, hostOpen, wsOpen, extra]);
 
   function pickWorkspace(id: string) {
     if (id === data.tenant.id) {
@@ -460,7 +462,8 @@ function Editor({
   }
 
   const extras: { id: Extra; label: string; icon: typeof Clock; on: boolean }[] = [
-    { id: "campaign", label: t("short.campaign"), icon: Tag, on: Boolean(utmS || utmM || utmC) },
+    { id: "tags", label: t("short.tags"), icon: Tag, on: tags.length > 0 },
+    { id: "campaign", label: t("short.campaign"), icon: Megaphone, on: Boolean(utmS || utmM || utmC) },
     { id: "device", label: t("short.device"), icon: MonitorSmartphone, on: Boolean(ios || android) },
     { id: "lock", label: t("short.lock"), icon: KeyRound, on: Boolean(password) },
     { id: "ttl", label: t("short.ttl"), icon: Clock, on: Boolean(expiresHours) },
@@ -486,6 +489,7 @@ function Editor({
             : t("create.url");
 
   return (
+    <>
     <LinkEditorShell
       title={kindTitle}
       description={kind === "page" ? t("create.pageHint") : t("short.createHint")}
@@ -711,17 +715,6 @@ function Editor({
 
       <section className="space-y-2">
         <p className="text-xs font-medium text-fg-muted">{t("short.teamOnly")}</p>
-        <TagPicker
-          catalog={data.tags}
-          value={tags}
-          onChange={setTags}
-          onCreate={async (name, color) => {
-            const next = (await createTag({
-              data: { name, color, tenant_id: data.tenant.id },
-            })) as FullState;
-            setData(next);
-          }}
-        />
         <Textarea
           value={note}
           onChange={(e) => setNote(e.target.value)}
@@ -789,6 +782,83 @@ function Editor({
 
       <DashPinBlock pin={pinDash} onPin={setPinDash} display={dashDisplay} onDisplay={setDashDisplay} />
     </LinkEditorShell>
+    {extra && (
+      <ExtraModal title={extras.find((e) => e.id === extra)?.label || ""} onClose={() => setExtra(null)}>
+        {extra === "tags" && (
+          <TagPicker
+            catalog={data.tags}
+            value={tags}
+            onChange={setTags}
+            onCreate={async (name, color) => {
+              const next = (await createTag({
+                data: { name, color, tenant_id: data.tenant.id },
+              })) as FullState;
+              setData(next);
+            }}
+          />
+        )}
+        {extra === "campaign" && (
+          <div className="grid gap-2">
+            <Mini label={t("short.utmSource")} value={utmS} onChange={setUtmS} />
+            <Mini label={t("short.utmMedium")} value={utmM} onChange={setUtmM} />
+            <Mini label={t("short.utmName")} value={utmC} onChange={setUtmC} />
+          </div>
+        )}
+        {extra === "device" && (
+          <div className="grid gap-2">
+            <Mini label={t("short.iosUrl")} value={ios} onChange={setIos} />
+            <Mini label={t("short.androidUrl")} value={android} onChange={setAndroid} />
+          </div>
+        )}
+        {extra === "lock" && (
+          <Mini label={t("short.openPassword")} value={password} onChange={setPassword} />
+        )}
+        {extra === "ttl" && (
+          <Mini label={t("short.hoursUntil")} value={expiresHours} onChange={setExpiresHours} type="number" />
+        )}
+      </ExtraModal>
+    )}
+    </>
+  );
+}
+
+function ExtraModal({
+  title,
+  onClose,
+  children,
+}: {
+  title: string;
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+      <button type="button" className="absolute inset-0 bg-fg/25" aria-label="Schließen" onClick={onClose} />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        className="relative z-10 w-full max-w-sm rounded-xl border border-border bg-bg-elevated p-4 shadow-2xl"
+      >
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h3 className="font-display text-sm font-semibold">{title}</h3>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-8 w-8 items-center justify-center rounded-md text-fg-muted hover:bg-bg-subtle hover:text-fg"
+            aria-label="Schließen"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        {children}
+        <div className="mt-4 flex justify-end">
+          <Button type="button" size="sm" onClick={onClose}>
+            Fertig
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 }
 
