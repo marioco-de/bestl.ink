@@ -9,6 +9,7 @@ import { defaultFeatures } from "./features";
 import { FEATURE_KEYS } from "./types";
 import { uid } from "./id";
 import { defaultPlanCatalog } from "./plans";
+import { ensurePlatformVercelDomains } from "./vercel-domains.server";
 
 async function ensureAuthUser(
   id: string,
@@ -119,6 +120,7 @@ export async function ensurePlatformSeeded(): Promise<void> {
     });
   }
   await seedOnce;
+  void ensurePlatformVercelDomains();
 }
 
 async function seedPlatformNow(): Promise<void> {

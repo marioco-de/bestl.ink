@@ -26,8 +26,14 @@ import { MAX_UPLOAD_BYTES, MAX_UPLOAD_LABEL } from "./upload";
 import { getGoogleClientId, getGoogleClientSecret } from "./secrets.server";
 import { requestHostHeader } from "./request-host.server";
 import { findTenantBrandByHost } from "./shorts.server";
-import { isMarketingHost } from "./brand";
+import { isMarketingHost, CNAME_TARGET } from "./brand";
 import { probeDomainDns } from "./dns-check.server";
+import {
+  ensurePlatformVercelDomains,
+  ensureVercelDomain,
+  removeVercelDomain,
+  vercelDomainsReady,
+} from "./vercel-domains.server";
 
 async function audit(
   tenantId: string | null,
@@ -321,6 +327,8 @@ export const addTenantDomain = createServerFn({ method: "POST" })
       `;
     }
     await audit(mem.tenant.id, context.userId, "domain.added", { host });
+    void ensurePlatformVercelDomains();
+    await ensureVercelDomain(host).catch(() => undefined);
     return loadFullState(context.userId, mem.tenant.id);
   });
 
@@ -355,6 +363,7 @@ export const updateTenantDomain = createServerFn({ method: "POST" })
       where id = ${data.id}
     `;
     if (connected) {
+      await ensureVercelDomain(String(row.host)).catch(() => undefined);
       await sql`
         update db_tenants set
           custom_domain = ${String(row.host)},
@@ -382,6 +391,9 @@ export const removeTenantDomain = createServerFn({ method: "POST" })
     await sql`
       delete from db_tenant_domains where id = ${data.id} and tenant_id = ${mem.tenant.id}
     `;
+    if (row?.host) {
+      await removeVercelDomain(row.host).catch(() => undefined);
+    }
     if (row?.host && mem.tenant.custom_domain === row.host) {
       const next = (
         await sql`
@@ -418,6 +430,8 @@ export const verifyTenantDomain = createServerFn({ method: "POST" })
     if (!row) throw new Error("Domain nicht gefunden");
     const host = String(row.host);
     const probe = await probeDomainDns(host);
+    void ensurePlatformVercelDomains();
+    const vercel = await ensureVercelDomain(host);
     await sql`
       update db_tenant_domains set dns_ok = ${probe.ok} where id = ${data.id}
     `;
@@ -431,7 +445,26 @@ export const verifyTenantDomain = createServerFn({ method: "POST" })
       sort_order: Number(row.sort_order ?? 0),
       created_at: new Date(row.created_at as string).toISOString(),
     };
-    return { domain, ok: probe.ok, detail: probe.detail };
+    return {
+      domain,
+      ok: probe.ok,
+      detail: probe.ok
+        ? vercel.ok
+          ? `${probe.detail}. ${vercel.detail}`
+          : `${probe.detail}. Vercel: ${vercel.detail}`
+        : probe.detail,
+      vercel,
+    };
+  });
+
+export const vercelDomainSetup = createServerFn({ method: "GET" })
+  .middleware([authMiddleware])
+  .handler(async () => {
+    void ensurePlatformVercelDomains();
+    return {
+      ready: vercelDomainsReady(),
+      cname: CNAME_TARGET,
+    };
   });
 
 export const reorderTenantDomains = createServerFn({ method: "POST" })

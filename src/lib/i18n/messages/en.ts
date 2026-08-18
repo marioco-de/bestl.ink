@@ -153,6 +153,9 @@ export const en: Messages = {
     nowActive: "Domain active",
     nameHint: "Name",
     pick: "No workspace selected",
+    vercelMissing:
+      "Customer domains need a one-time VERCEL_TOKEN on the Vercel project (Account → Tokens). After that, bestl.ink registers cname.bestl.ink and every domain itself.",
+    vercelOk: "Registered on Vercel",
   },
   workspace: {
     new: "New workspace",

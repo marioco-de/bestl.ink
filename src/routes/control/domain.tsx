@@ -15,6 +15,7 @@ import {
   verifyTenantDomain,
   reorderTenantDomains,
   createTag,
+  vercelDomainSetup,
 } from "@/lib/docbay/api";
 import { PLATFORM_LINK_HOST, CNAME_TARGET } from "@/lib/docbay/brand";
 import { TagPicker } from "@/components/control/tag-picker";
@@ -36,7 +37,14 @@ function DomainPage() {
   const [busy, setBusy] = useState(false);
   const [checking, setChecking] = useState<string | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
+  const [vercelReady, setVercelReady] = useState<boolean | null>(null);
   const scanned = useRef<string>("");
+
+  useEffect(() => {
+    void vercelDomainSetup()
+      .then((s) => setVercelReady(s.ready))
+      .catch(() => setVercelReady(false));
+  }, []);
 
   useEffect(() => {
     setCompany(data.tenant.brand_company || data.tenant.name);
@@ -179,6 +187,11 @@ function DomainPage() {
       <div>
         <h1 className="font-display text-2xl font-semibold">{t("domain.title")}</h1>
         <p className="mt-1 text-sm text-fg-muted">{t("domain.hint")}</p>
+        {vercelReady === false && (
+          <p className="mt-3 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-fg-muted">
+            {t("domain.vercelMissing")}
+          </p>
+        )}
       </div>
 
       <Card>

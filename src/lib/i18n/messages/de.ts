@@ -151,6 +151,9 @@ export const de = {
     nowActive: "Domain aktiv",
     nameHint: "Name",
     pick: "Kein Workspace gewählt",
+    vercelMissing:
+      "Kundendomains brauchen einmalig VERCEL_TOKEN im Vercel-Projekt (Account → Tokens). Dann legt bestl.ink cname.bestl.ink und jede Domain selbst an.",
+    vercelOk: "Bei Vercel registriert",
   },
   workspace: {
     new: "Neuer Workspace",
