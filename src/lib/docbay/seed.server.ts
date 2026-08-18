@@ -83,13 +83,15 @@ async function writeFeatures(
   map: ReturnType<typeof defaultFeatures>,
 ) {
   const sql = await getSql();
-  for (const key of FEATURE_KEYS) {
-    await sql`
-      insert into db_features (tenant_id, feature_key, enabled)
-      values (${tenantId}, ${key}, ${map[key]})
-      on conflict (tenant_id, feature_key) do update set enabled = excluded.enabled
-    `;
-  }
+  await Promise.all(
+    FEATURE_KEYS.map(
+      (key) => sql`
+        insert into db_features (tenant_id, feature_key, enabled)
+        values (${tenantId}, ${key}, ${map[key]})
+        on conflict (tenant_id, feature_key) do update set enabled = excluded.enabled
+      `,
+    ),
+  );
 }
 
 function slugify(input: string): string {
@@ -106,8 +108,20 @@ function slugify(input: string): string {
   );
 }
 
-/** Only seeds Super Admin – no demo tenant/users. */
+/** Only seeds Super Admin – no demo tenant/users. Cached per process. */
+let seedOnce: Promise<void> | null = null;
+
 export async function ensurePlatformSeeded(): Promise<void> {
+  if (!seedOnce) {
+    seedOnce = seedPlatformNow().catch((err) => {
+      seedOnce = null;
+      throw err;
+    });
+  }
+  await seedOnce;
+}
+
+async function seedPlatformNow(): Promise<void> {
   await ensureAuthUser(
     "user_super",
     SUPER_ADMIN_EMAIL,
@@ -173,38 +187,40 @@ export async function createTenantForUser(opts: {
     insert into db_tenant_members (id, tenant_id, user_id, role)
     values (${uid("mem")}, ${tenantId}, ${opts.userId}, 'owner')
   `;
-  await writeFeatures(tenantId, defaultFeatures());
-  await sql`
-    insert into db_email_templates (id, tenant_id, kind, subject, body_html)
-    values
-      (
-        ${uid("tpl")}, ${tenantId}, 'access_approved',
-        'Zugang freigeschaltet: {{resource_title}}',
-        '<p>Ihr Zugang zu <strong>{{resource_title}}</strong> ist freigeschaltet.</p><p><a href="{{access_url}}">Öffnen</a></p>'
-      ),
-      (
-        ${uid("tpl")}, ${tenantId}, 'click_notify',
-        'Klick auf {{resource_title}}',
-        '<p>{{note}} · Token {{token}}</p>'
-      )
-  `;
-  await sql`
-    insert into db_email_settings (tenant_id, provider, from_email, from_name)
-    values (${tenantId}, 'none', ${opts.email}, ${opts.company})
-  `;
-  await sql`
-    insert into db_profiles (user_id, email, name, is_super_admin)
-    values (${opts.userId}, ${opts.email}, ${opts.name}, false)
-    on conflict (user_id) do nothing
-  `;
   const folderId = uid("par");
   const buttonId = uid("par");
-  await sql`
-    insert into db_param_nodes (id, tenant_id, parent_id, name, kind, show_on_home, sort_order)
-    values
-      (${folderId}, ${tenantId}, null, 'Vertrieb', 'folder', false, 0),
-      (${buttonId}, ${tenantId}, ${folderId}, 'Direkt', 'button', true, 0)
-  `;
+  await Promise.all([
+    writeFeatures(tenantId, defaultFeatures()),
+    sql`
+      insert into db_email_templates (id, tenant_id, kind, subject, body_html)
+      values
+        (
+          ${uid("tpl")}, ${tenantId}, 'access_approved',
+          'Zugang freigeschaltet: {{resource_title}}',
+          '<p>Ihr Zugang zu <strong>{{resource_title}}</strong> ist freigeschaltet.</p><p><a href="{{access_url}}">Öffnen</a></p>'
+        ),
+        (
+          ${uid("tpl")}, ${tenantId}, 'click_notify',
+          'Klick auf {{resource_title}}',
+          '<p>{{note}} · Token {{token}}</p>'
+        )
+    `,
+    sql`
+      insert into db_email_settings (tenant_id, provider, from_email, from_name)
+      values (${tenantId}, 'none', ${opts.email}, ${opts.company})
+    `,
+    sql`
+      insert into db_profiles (user_id, email, name, is_super_admin)
+      values (${opts.userId}, ${opts.email}, ${opts.name}, false)
+      on conflict (user_id) do nothing
+    `,
+    sql`
+      insert into db_param_nodes (id, tenant_id, parent_id, name, kind, show_on_home, sort_order)
+      values
+        (${folderId}, ${tenantId}, null, 'Vertrieb', 'folder', false, 0),
+        (${buttonId}, ${tenantId}, ${folderId}, 'Direkt', 'button', true, 0)
+    `,
+  ]);
   return tenantId;
 }
 

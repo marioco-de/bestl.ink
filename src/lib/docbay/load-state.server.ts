@@ -20,6 +20,7 @@ import type {
 import { featuresFromRows, defaultFeatures } from "./features";
 import { parseJsonArray, parseJsonObj } from "./id";
 import { ensurePlatformSeeded, PLATFORM_LINK_HOST } from "./seed.server";
+import { mapShortRow } from "./shorts.server";
 
 function publicHost(subdomain: string, custom: string, customConnected: boolean): string {
   if (customConnected && custom) return custom;
@@ -375,17 +376,112 @@ export async function loadFullState(
     };
   }
 
-  const featRows = await sql`
-    select feature_key, enabled from db_features where tenant_id = ${tid}
-  `;
+  const [
+    featRows,
+    resourceRows,
+    paramRows,
+    tagRows,
+    workspaces,
+    domains,
+    utmPresets,
+    linkRows,
+    reqRows,
+    countRow,
+    goalRows,
+    emailSettingsRows,
+    emailTemplateRows,
+    webhookRows,
+    notificationRows,
+    auditRows,
+    memberRows,
+    shortRows,
+    apiKeyRows,
+    platformTenants,
+  ] = await Promise.all([
+    sql`select feature_key, enabled from db_features where tenant_id = ${tid}`,
+    sql`select * from db_resources where tenant_id = ${tid} order by created_at desc`,
+    sql`select * from db_param_nodes where tenant_id = ${tid} order by sort_order, created_at`,
+    sql`select id, name, color from db_tags where tenant_id = ${tid} order by name`,
+    listWorkspacesForUser(userId),
+    listTenantDomains(tid),
+    sql`select * from db_utm_presets where tenant_id = ${tid} order by name`,
+    sql`
+      select l.*, r.title as resource_title, r.slug as resource_slug, r.type as resource_type,
+             p.name as button_name
+      from db_links l
+      join db_resources r on r.id = l.resource_id
+      left join db_param_nodes p on p.id = l.button_id
+      where l.tenant_id = ${tid}
+      order by l.created_at desc
+    `,
+    sql`
+      select a.*, r.title as resource_title
+      from db_access_requests a
+      join db_resources r on r.id = a.resource_id
+      where a.tenant_id = ${tid}
+      order by a.created_at desc
+    `,
+    sql`
+      select
+        (select count(*)::int from db_resources where tenant_id = ${tid}) as resources,
+        (select count(*)::int from db_links where tenant_id = ${tid} and revoked = false) as links,
+        (select coalesce(sum(click_count),0)::int from db_links where tenant_id = ${tid}) as clicks,
+        (select coalesce(sum(human_click_count),0)::int from db_links where tenant_id = ${tid}) as human_clicks,
+        (select count(*)::int from db_access_requests where tenant_id = ${tid} and status = 'pending') as pending_requests,
+        (select count(*)::int from db_param_nodes where tenant_id = ${tid} and kind = 'button') as buttons,
+        (select count(*)::int from db_notifications where user_id = ${userId} and tenant_id = ${tid} and read = false) as unread_notifications,
+        (select count(*)::int from db_short_links where tenant_id = ${tid}) as shorts,
+        (select coalesce(sum(click_count),0)::int from db_short_links where tenant_id = ${tid}) as short_clicks
+    `,
+    sql`
+      select p.id as button_id, p.name,
+        count(l.id)::int as links,
+        coalesce(sum(l.human_click_count),0)::int as human_clicks,
+        count(*) filter (where l.human_click_count >= 3)::int as hot_links
+      from db_param_nodes p
+      left join db_links l on l.button_id = p.id and l.revoked = false
+      where p.tenant_id = ${tid} and p.kind = 'button'
+      group by p.id, p.name
+      order by p.name
+    `,
+    sql`select * from db_email_settings where tenant_id = ${tid}`,
+    sql`select * from db_email_templates where tenant_id = ${tid}`,
+    sql`select * from db_webhooks where tenant_id = ${tid} order by created_at desc`,
+    sql`
+      select * from db_notifications where user_id = ${userId} and tenant_id = ${tid}
+      order by created_at desc limit 50
+    `,
+    sql`
+      select * from db_audit_log where tenant_id = ${tid}
+      order by created_at desc limit 40
+    `,
+    sql`
+      select m.*, p.email, p.name
+      from db_tenant_members m
+      left join db_profiles p on p.user_id = m.user_id
+      where m.tenant_id = ${tid}
+    `,
+    sql`
+      select s.*, p.name as button_name
+      from db_short_links s
+      left join db_param_nodes p on p.id = s.button_id
+      where s.tenant_id = ${tid}
+      order by s.created_at desc
+    `,
+    sql`
+      select id, tenant_id, name, prefix, created_at
+      from db_api_keys where tenant_id = ${tid}
+      order by created_at desc
+    `,
+    superAdmin ? listPlatformTenants() : Promise.resolve(undefined),
+  ]);
+
   const features = featuresFromRows(
     featRows as { feature_key: string; enabled: boolean }[],
     defaultFeatures(),
   );
 
-  const resources = (
-    await sql`select * from db_resources where tenant_id = ${tid} order by created_at desc`
-  ).map((row) => {
+  const resources = resourceRows.map((row) => {
     const r = row as unknown as Resource;
     return {
       ...r,
@@ -399,9 +495,7 @@ export async function loadFullState(
     };
   });
 
-  const params = (
-    await sql`select * from db_param_nodes where tenant_id = ${tid} order by sort_order, created_at`
-  ).map((row) => {
+  const params = paramRows.map((row) => {
     const r = row as unknown as ParamNode;
     return {
       ...r,
@@ -410,11 +504,7 @@ export async function loadFullState(
     };
   });
 
-  const tags = (
-    await sql`select id, name, color from db_tags where tenant_id = ${tid} order by name`
-  ) as { id: string; name: string; color: string }[];
-  const workspaces = await listWorkspacesForUser(userId);
-  const domains = tenant.id === "platform" ? [] : await listTenantDomains(tid);
+  const tags = tagRows as { id: string; name: string; color: string }[];
   const primaryDomain = domains.find((d) => d.connected);
   if (primaryDomain) {
     tenant.public_host = primaryDomain.host;
@@ -422,20 +512,6 @@ export async function loadFullState(
     tenant.custom_domain_connected = true;
   }
 
-  const utmPresets = (await sql`
-    select * from db_utm_presets where tenant_id = ${tid} order by name
-  `) as FullState["utmPresets"];
-
-  const linkRows = await sql`
-    select l.*, r.title as resource_title, r.slug as resource_slug, r.type as resource_type,
-           p.name as button_name,
-           (select count(distinct ip_hash) from db_clicks c where c.link_id = l.id and c.is_bot = false) as unique_ips
-    from db_links l
-    join db_resources r on r.id = l.resource_id
-    left join db_param_nodes p on p.id = l.button_id
-    where l.tenant_id = ${tid}
-    order by l.created_at desc
-  `;
   let links = linkRows.map((r) => mapLink(r as Record<string, unknown>));
   if (member.role === "member" && !superAdmin) {
     links = links.filter(
@@ -445,37 +521,13 @@ export async function loadFullState(
     );
   }
 
-  const reqRows = await sql`
-    select a.*, r.title as resource_title
-    from db_access_requests a
-    join db_resources r on r.id = a.resource_id
-    where a.tenant_id = ${tid}
-    order by a.created_at desc
-  `;
   const requests = reqRows.map((row) => {
     const r = row as unknown as AccessRequest;
     return { ...r, created_at: new Date(r.created_at).toISOString() };
   });
 
-  const [resC] = await sql`select count(*)::int as c from db_resources where tenant_id = ${tid}`;
-  const [linkC] = await sql`select count(*)::int as c from db_links where tenant_id = ${tid} and revoked = false`;
-  const [clickC] = await sql`select coalesce(sum(click_count),0)::int as c from db_links where tenant_id = ${tid}`;
-  const [humanC] = await sql`select coalesce(sum(human_click_count),0)::int as c from db_links where tenant_id = ${tid}`;
-  const [pendC] = await sql`select count(*)::int as c from db_access_requests where tenant_id = ${tid} and status = 'pending'`;
-  const [btnC] = await sql`select count(*)::int as c from db_param_nodes where tenant_id = ${tid} and kind = 'button'`;
-  const [unrC] = await sql`select count(*)::int as c from db_notifications where user_id = ${userId} and tenant_id = ${tid} and read = false`;
+  const counts = (countRow[0] || {}) as Record<string, number>;
 
-  const goalRows = await sql`
-    select p.id as button_id, p.name,
-      count(l.id)::int as links,
-      coalesce(sum(l.human_click_count),0)::int as human_clicks,
-      count(*) filter (where l.human_click_count >= 3)::int as hot_links
-    from db_param_nodes p
-    left join db_links l on l.button_id = p.id and l.revoked = false
-    where p.tenant_id = ${tid} and p.kind = 'button'
-    group by p.id, p.name
-    order by p.name
-  `;
   const teamGoals = goalRows.map((r) => {
     const row = r as Record<string, unknown>;
     return {
@@ -487,7 +539,6 @@ export async function loadFullState(
     } satisfies TeamGoalRow;
   });
 
-  const emailSettingsRows = await sql`select * from db_email_settings where tenant_id = ${tid}`;
   let emailSettings: EmailSettings | null = null;
   if (emailSettingsRows[0]) {
     const e = emailSettingsRows[0] as unknown as EmailSettings;
@@ -500,13 +551,9 @@ export async function loadFullState(
     };
   }
 
-  const emailTemplates = (
-    await sql`select * from db_email_templates where tenant_id = ${tid}`
-  ) as EmailTemplate[];
+  const emailTemplates = emailTemplateRows as unknown as EmailTemplate[];
 
-  const webhooks = (
-    await sql`select * from db_webhooks where tenant_id = ${tid} order by created_at desc`
-  ).map((row) => {
+  const webhooks = webhookRows.map((row) => {
     const w = row as Record<string, unknown>;
     return {
       id: String(w.id),
@@ -518,12 +565,7 @@ export async function loadFullState(
     } satisfies Webhook;
   });
 
-  const notifications = (
-    await sql`
-      select * from db_notifications where user_id = ${userId} and tenant_id = ${tid}
-      order by created_at desc limit 50
-    `
-  ).map((row) => {
+  const notifications = notificationRows.map((row) => {
     const n = row as unknown as Notification;
     return {
       ...n,
@@ -532,12 +574,7 @@ export async function loadFullState(
     };
   });
 
-  const audit = (
-    await sql`
-      select * from db_audit_log where tenant_id = ${tid}
-      order by created_at desc limit 40
-    `
-  ).map((row) => {
+  const audit = auditRows.map((row) => {
     const a = row as Record<string, unknown>;
     const raw = parseJsonObj(a.meta);
     const meta: Record<string, string | number | boolean | null> = {};
@@ -563,12 +600,6 @@ export async function loadFullState(
     } satisfies AuditEntry;
   });
 
-  const memberRows = await sql`
-    select m.*, p.email, p.name
-    from db_tenant_members m
-    left join db_profiles p on p.user_id = m.user_id
-    where m.tenant_id = ${tid}
-  `;
   const members = memberRows.map((row) => {
     const r = row as Record<string, unknown>;
     return {
@@ -582,20 +613,17 @@ export async function loadFullState(
     };
   });
 
-  const { mapShortRow, listApiKeys } = await import("./shorts.server");
-  const shortRows = await sql`
-    select s.*, p.name as button_name
-    from db_short_links s
-    left join db_param_nodes p on p.id = s.button_id
-    where s.tenant_id = ${tid}
-    order by s.created_at desc
-  `;
   const shorts = shortRows.map((r) => mapShortRow(r as Record<string, unknown>));
-  const apiKeys = await listApiKeys(tid);
-  const [shortC] = await sql`select count(*)::int as c from db_short_links where tenant_id = ${tid}`;
-  const [shortClickC] = await sql`
-    select coalesce(sum(click_count),0)::int as c from db_short_links where tenant_id = ${tid}
-  `;
+  const apiKeys = apiKeyRows.map((r) => {
+    const x = r as Record<string, unknown>;
+    return {
+      id: String(x.id),
+      tenant_id: String(x.tenant_id),
+      name: String(x.name),
+      prefix: String(x.prefix),
+      created_at: new Date(x.created_at as string).toISOString(),
+    };
+  });
 
   return {
     tenant,
@@ -606,19 +634,19 @@ export async function loadFullState(
     tags,
     workspaces,
     domains,
-    utmPresets,
+    utmPresets: utmPresets as FullState["utmPresets"],
     links,
     requests,
     stats: {
-      resources: Number((resC as { c: number }).c),
-      links: Number((linkC as { c: number }).c),
-      clicks: Number((clickC as { c: number }).c),
-      human_clicks: Number((humanC as { c: number }).c),
-      pending_requests: Number((pendC as { c: number }).c),
-      buttons: Number((btnC as { c: number }).c),
-      unread_notifications: Number((unrC as { c: number }).c),
-      shorts: Number((shortC as { c: number }).c),
-      short_clicks: Number((shortClickC as { c: number }).c),
+      resources: Number(counts.resources ?? 0),
+      links: Number(counts.links ?? 0),
+      clicks: Number(counts.clicks ?? 0),
+      human_clicks: Number(counts.human_clicks ?? 0),
+      pending_requests: Number(counts.pending_requests ?? 0),
+      buttons: Number(counts.buttons ?? 0),
+      unread_notifications: Number(counts.unread_notifications ?? 0),
+      shorts: Number(counts.shorts ?? 0),
+      short_clicks: Number(counts.short_clicks ?? 0),
     },
     teamGoals,
     emailSettings,
@@ -631,7 +659,7 @@ export async function loadFullState(
     apiKeys,
     demoResetsInMs: null,
     isSuperAdmin: superAdmin,
-    platformTenants: superAdmin ? await listPlatformTenants() : undefined,
+    platformTenants,
   };
 }
 

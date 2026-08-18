@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { useNavigate, useRouter } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import { Building2, Check, ChevronDown, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
-import { createWorkspace } from "@/lib/docbay/api";
+import { createWorkspace, getState } from "@/lib/docbay/api";
+import { useControl } from "@/lib/docbay/control-store";
 import type { FullState } from "@/lib/docbay/types";
 import { cn } from "@/lib/utils";
 
@@ -16,7 +17,7 @@ export function WorkspaceSwitcher({
   compact?: boolean;
 }) {
   const navigate = useNavigate();
-  const router = useRouter();
+  const { setData } = useControl();
   const [open, setOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [company, setCompany] = useState("");
@@ -26,13 +27,18 @@ export function WorkspaceSwitcher({
     ? data.workspaces
     : [{ id: data.tenant.id, name: data.tenant.name, subdomain: data.tenant.subdomain, role: data.member.role }];
 
-  function go(id: string) {
+  async function go(id: string) {
     setOpen(false);
-    void navigate({
-      to: "/control",
-      search: id ? { tenant: id } : {},
-    });
-    void router.invalidate();
+    if (id === data.tenant.id) return;
+    try {
+      const next = (await getState({ data: { tenant_id: id } })) as FullState;
+      setData(next);
+      void navigate({
+        search: (prev: Record<string, unknown>) => ({ ...prev, tenant: id }),
+      } as never);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Workspace nicht geladen");
+    }
   }
 
   async function create() {
@@ -45,12 +51,17 @@ export function WorkspaceSwitcher({
       const next = (await createWorkspace({
         data: { company: company.trim() },
       })) as FullState;
+      setData(next);
       toast.success("Workspace angelegt");
       setCreating(false);
       setCompany("");
       setOpen(false);
-      void navigate({ to: "/control", search: { tenant: next.tenant.id } });
-      void router.invalidate();
+      void navigate({
+        search: (prev: Record<string, unknown>) => ({
+          ...prev,
+          tenant: next.tenant.id,
+        }),
+      } as never);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Fehler");
     } finally {

@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -25,12 +26,21 @@ export function ControlProvider({
   initial: FullState;
   children: ReactNode;
 }) {
-  const [data, setData] = useState(initial);
+  const [data, setDataState] = useState(initial);
   const [createOpen, setCreateOpen] = useState(false);
   const [createSeed, setCreateSeed] = useState("");
+  const tenantRef = useRef(initial.tenant.id);
+
+  const setData = useCallback((s: FullState) => {
+    tenantRef.current = s.tenant.id;
+    setDataState(s);
+  }, []);
 
   useEffect(() => {
-    setData(initial);
+    if (initial.tenant.id !== tenantRef.current) {
+      tenantRef.current = initial.tenant.id;
+      setDataState(initial);
+    }
   }, [initial]);
 
   const openCreate = useCallback((seed?: string) => {

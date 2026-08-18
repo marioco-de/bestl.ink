@@ -25,6 +25,7 @@ import type { FullState } from "@/lib/docbay/types";
 import { QrDrawer } from "./qr-drawer";
 import { TagPicker } from "./tag-picker";
 import { createTag } from "@/lib/docbay/api";
+import { upsertShort } from "@/lib/docbay/state-patch";
 
 type Extra = "campaign" | "device" | "lock" | "ttl" | null;
 
@@ -168,7 +169,7 @@ function Editor({
     const withProto = /^https?:\/\//i.test(dest) ? dest : `https://${dest}`;
     setBusy(true);
     try {
-      const next = await createShort({
+      const created = await createShort({
         data: {
           destination: withProto,
           slug: slug || undefined,
@@ -189,7 +190,7 @@ function Editor({
         },
       });
       toast.success(`Kurzlink liegt bereit · ${host}/${slug}`);
-      onSaved(next as FullState);
+      onSaved(upsertShort(data, created.short));
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Fehler");
     } finally {

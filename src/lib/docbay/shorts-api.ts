@@ -2,7 +2,7 @@ import { qrToSvg } from "@/lib/qr";
 import { createServerFn } from "@tanstack/react-start";
 import { getSql } from "@/lib/db";
 import { authMiddleware } from "@/lib/auth/middleware";
-import { getMembership, loadFullState } from "./load-state.server";
+import { getMembership } from "./load-state.server";
 import { uid } from "./id";
 import {
   normalizeSlug,
@@ -17,10 +17,27 @@ import {
   verifySecret,
   destinationAllowsIframe,
   findTenantBrandByHost,
+  mapShortRow,
 } from "./shorts.server";
 import { requestHostHeader } from "./request-host.server";
 import type { ShortLink } from "./types";
-import { featuresFromRows, defaultFeatures } from "./features";
+import { defaultFeatures, featuresFromRows } from "./features";
+
+async function featureOn(
+  tenantId: string,
+  key: "short_links" | "public_api",
+): Promise<boolean> {
+  const sql = await getSql();
+  const row = (
+    await sql`
+      select enabled from db_features
+      where tenant_id = ${tenantId} and feature_key = ${key}
+      limit 1
+    `
+  )[0] as { enabled?: boolean } | undefined;
+  if (row) return Boolean(row.enabled);
+  return defaultFeatures()[key];
+}
 
 type ShortInput = {
   destination: string;
@@ -63,8 +80,9 @@ export const createShort = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const mem = await getMembership(context.userId, data.tenant_id);
     if (!mem || mem.tenant.id === "platform") throw new Error("Kein Workspace");
-    const state = await loadFullState(context.userId, mem.tenant.id);
-    if (!state?.features.short_links) throw new Error("Kurzlinks deaktiviert");
+    if (!(await featureOn(mem.tenant.id, "short_links"))) {
+      throw new Error("Kurzlinks deaktiviert");
+    }
     const dest = assertHttpUrl(data.destination);
     let slug = data.slug ? normalizeSlug(data.slug) : await uniqueSlug(mem.tenant.id);
     if (!slug) slug = await uniqueSlug(mem.tenant.id);
@@ -92,7 +110,12 @@ export const createShort = createServerFn({ method: "POST" })
         ${context.userId}
       )
     `;
-    return loadFullState(context.userId, mem.tenant.id);
+    const row = (
+      await sql`select s.*, p.name as button_name from db_short_links s
+        left join db_param_nodes p on p.id = s.button_id
+        where s.id = ${id}`
+    )[0] as Record<string, unknown>;
+    return { short: mapShortRow(row) };
   });
 
 export const updateShort = createServerFn({ method: "POST" })
@@ -144,7 +167,12 @@ export const updateShort = createServerFn({ method: "POST" })
         utm_campaign = ${data.utm_campaign || null}
       where id = ${data.id} and tenant_id = ${mem.tenant.id}
     `;
-    return loadFullState(context.userId, mem.tenant.id);
+    const row = (
+      await sql`select s.*, p.name as button_name from db_short_links s
+        left join db_param_nodes p on p.id = s.button_id
+        where s.id = ${data.id}`
+    )[0] as Record<string, unknown>;
+    return { short: mapShortRow(row) };
   });
 
 export const deleteShort = createServerFn({ method: "POST" })
@@ -155,7 +183,7 @@ export const deleteShort = createServerFn({ method: "POST" })
     if (!mem) throw new Error("Kein Workspace");
     const sql = await getSql();
     await sql`delete from db_short_links where id = ${data.id} and tenant_id = ${mem.tenant.id}`;
-    return loadFullState(context.userId, mem.tenant.id);
+    return { id: data.id };
   });
 
 export const toggleShort = createServerFn({ method: "POST" })
@@ -169,7 +197,12 @@ export const toggleShort = createServerFn({ method: "POST" })
       update db_short_links set disabled = ${data.disabled}
       where id = ${data.id} and tenant_id = ${mem.tenant.id}
     `;
-    return loadFullState(context.userId, mem.tenant.id);
+    const row = (
+      await sql`select s.*, p.name as button_name from db_short_links s
+        left join db_param_nodes p on p.id = s.button_id
+        where s.id = ${data.id}`
+    )[0] as Record<string, unknown>;
+    return { short: mapShortRow(row) };
   });
 
 export const getShortAnalytics = createServerFn({ method: "GET" })
@@ -243,10 +276,9 @@ export const createWorkspaceApiKey = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const mem = await getMembership(context.userId, data.tenant_id);
     if (!mem || mem.member.role === "member") throw new Error("Keine Berechtigung");
-    const state = await loadFullState(context.userId, mem.tenant.id);
-    if (!state?.features.public_api) throw new Error("API deaktiviert");
+    if (!(await featureOn(mem.tenant.id, "public_api"))) throw new Error("API deaktiviert");
     const created = await createApiKey(mem.tenant.id, data.name || "API-Key");
-    return { token: created.token, state: await loadFullState(context.userId, mem.tenant.id) };
+    return { token: created.token, row: created.row };
   });
 
 export const deleteWorkspaceApiKey = createServerFn({ method: "POST" })
@@ -257,7 +289,7 @@ export const deleteWorkspaceApiKey = createServerFn({ method: "POST" })
     if (!mem) throw new Error("Kein Workspace");
     const sql = await getSql();
     await sql`delete from db_api_keys where id = ${data.id} and tenant_id = ${mem.tenant.id}`;
-    return loadFullState(context.userId, mem.tenant.id);
+    return { id: data.id };
   });
 
 export const resolveShort = createServerFn({ method: "POST" })

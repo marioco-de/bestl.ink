@@ -29,6 +29,7 @@ import {
   deleteWorkspaceApiKey,
 } from "@/lib/docbay/shorts-api";
 import type { FullState, ShortLink } from "@/lib/docbay/types";
+import { upsertShort, removeShort } from "@/lib/docbay/state-patch";
 import { formatDateDe, cn } from "@/lib/utils";
 import { TagChip } from "@/components/control/tag-picker";
 import { tagColor } from "@/lib/docbay/tags";
@@ -193,7 +194,7 @@ export function ShortsWorkspace({
                         const next = await toggleShort({
                           data: { id: s.id, disabled: !s.disabled, tenant_id: state.tenant.id },
                         });
-                        await refresh(next as FullState);
+                        await refresh(upsertShort(state, next.short));
                       }}
                     >
                       <Ban className="h-3.5 w-3.5" />
@@ -206,7 +207,7 @@ export function ShortsWorkspace({
                         const next = await deleteShort({
                           data: { id: s.id, tenant_id: state.tenant.id },
                         });
-                        await refresh(next as FullState);
+                        await refresh(removeShort(state, next.id));
                       }}
                     >
                       <Trash2 className="h-3.5 w-3.5 text-danger" />
@@ -239,7 +240,12 @@ export function ShortsWorkspace({
                     const res = await createWorkspaceApiKey({
                       data: { name: "API", tenant_id: state.tenant.id },
                     });
-                    if (res.state) await refresh(res.state as FullState);
+                    if (res.row) {
+                      await refresh({
+                        ...state,
+                        apiKeys: [res.row, ...state.apiKeys],
+                      });
+                    }
                     await navigator.clipboard.writeText(res.token).catch(() => undefined);
                     toast.success("Key erzeugt und kopiert");
                   } catch (e) {
@@ -277,7 +283,10 @@ export function ShortsWorkspace({
                       const next = await deleteWorkspaceApiKey({
                         data: { id: k.id, tenant_id: state.tenant.id },
                       });
-                      await refresh(next as FullState);
+                      await refresh({
+                        ...state,
+                        apiKeys: state.apiKeys.filter((x) => x.id !== next.id),
+                      });
                     }}
                   >
                     Löschen
@@ -414,10 +423,10 @@ function ShortEditor({
         utm_campaign: utmC || undefined,
         tenant_id: state.tenant.id,
       };
-      const next = initial.id
+      const result = initial.id
         ? await updateShort({ data: { ...payload, id: initial.id } })
         : await createShort({ data: payload });
-      await onSaved(next as FullState);
+      await onSaved(upsertShort(state, result.short));
       toast.success(initial.id ? "Aktualisiert" : "Kurzlink angelegt");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Fehler");
