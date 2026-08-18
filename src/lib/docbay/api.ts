@@ -30,6 +30,7 @@ import { findTenantBrandByHost } from "./shorts.server";
 import { isMarketingHost } from "./brand";
 import { parseRequireRequest } from "./doc-actions";
 import { ACCESS_TOKEN_LEN, buildPublicUrl, cardKindPath, resourceRestricted } from "./public-url";
+import { absoluteHttpUrl } from "./hosts";
 import { probeDomainDns } from "./dns-check.server";
 import {
   ensurePlatformVercelDomains,
@@ -533,6 +534,9 @@ export const createResource = createServerFn({ method: "POST" })
     const id = uid("res");
     const slug = data.slug.replace(/^\//, "").replace(/\/$/, "");
     let contentUrl = data.content_url ?? null;
+    if (data.type === "page" && contentUrl) {
+      contentUrl = absoluteHttpUrl(contentUrl) || contentUrl;
+    }
     let contentB64 = data.content_base64 ?? null;
     if (data.upload_id) {
       const { commitUpload, storageContentUrl } = await import("./storage.server");
@@ -649,7 +653,11 @@ export const updateResource = createServerFn({ method: "POST" })
         payload = ${JSON.stringify(data.payload ?? parseJsonObj(existing.payload))},
         tags = ${JSON.stringify(data.tags ?? parseJsonArray(existing.tags))},
         file_name = ${data.file_name ?? (existing.file_name as string | null)},
-        content_url = ${data.content_url ?? (existing.content_url as string | null)}
+        content_url = ${
+          data.content_url != null
+            ? (absoluteHttpUrl(data.content_url) || data.content_url)
+            : (existing.content_url as string | null)
+        }
       where id = ${data.id} and tenant_id = ${mem.tenant.id}
     `;
     await audit(mem.tenant.id, context.userId, "resource.updated", { id: data.id, slug });
@@ -1544,7 +1552,7 @@ export const resolveAccess = createServerFn({ method: "POST" })
           content_data_url = `data:${resource.mime_type || "application/pdf"};base64,${resource.content_base64}`;
         } else if (curl) content_data_url = curl;
       } else if (features.page_proxy) {
-        target_url = (resource.content_url as string) || null;
+        target_url = absoluteHttpUrl(resource.content_url as string);
       }
       return {
         ...base,

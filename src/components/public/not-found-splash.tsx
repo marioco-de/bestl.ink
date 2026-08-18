@@ -61,7 +61,7 @@ export function NotFoundSplash({
           <Link2Off className="h-7 w-7" strokeWidth={1.6} />
         </div>
 
-        <p className="font-mono text-[11px] tracking-wide text-fg-subtle">404 · {path}</p>
+        <p className="font-mono text-[11px] tracking-wide text-fg-subtle">404</p>
         <h1 className="mt-3 font-display text-[1.65rem] font-semibold leading-tight tracking-tight sm:text-3xl">
           {line}
         </h1>

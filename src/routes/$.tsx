@@ -44,6 +44,7 @@ import {
 } from "@/lib/docbay/cards";
 import { cardKindPath, stripCardExt } from "@/lib/docbay/public-url";
 import { BrandedFrame, BrandFlag } from "@/components/public/branded-frame";
+import { absoluteHttpUrl } from "@/lib/docbay/hosts";
 
 type VisitorId = { email: string; name: string };
 
@@ -727,15 +728,21 @@ function GrantedView({
               className="h-full min-h-[50dvh] w-full flex-1 border-0 bg-white"
             />
           )}
-          {resource.type === "page" && data.target_url && features.page_proxy && (
+          {resource.type === "page" && features.page_proxy && (
             <div className="relative h-full min-h-[50dvh] flex-1">
-              <iframe
-                title={resource.title}
-                src={data.target_url}
-                className="h-full w-full border-0"
-                sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
-                referrerPolicy="no-referrer"
-              />
+              {absoluteHttpUrl(data.target_url) ? (
+                <iframe
+                  title={resource.title}
+                  src={absoluteHttpUrl(data.target_url) || ""}
+                  className="h-full w-full border-0"
+                  sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <div className="flex h-full items-center justify-center px-6 text-center text-sm text-fg-muted">
+                  Ziel-URL fehlt oder ist ungültig. Bitte die Seite bearbeiten und eine volle Adresse mit https:// eintragen.
+                </div>
+              )}
               <div className="pointer-events-none absolute bottom-3 left-3 rounded-lg border border-border bg-bg/90 px-3 py-1.5 text-xs text-fg-muted">
                 URL bleibt {settings.domain}/{resource.slug}/
               </div>

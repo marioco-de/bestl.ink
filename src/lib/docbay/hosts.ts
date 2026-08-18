@@ -30,3 +30,18 @@ export function withHttp(raw: string): string {
   if (!t) return t;
   return /^https?:\/\//i.test(t) ? t : `https://${t}`;
 }
+
+/** Absolute http(s) URL, or null. Never a relative path. */
+export function absoluteHttpUrl(raw: string | null | undefined): string | null {
+  const t = (raw || "").trim();
+  if (!t || t.startsWith("/") || t.startsWith("#") || t.startsWith("?")) return null;
+  const href = /^https?:\/\//i.test(t) ? t : t.startsWith("//") ? `https:${t}` : `https://${t}`;
+  try {
+    const u = new URL(href);
+    if (u.protocol !== "http:" && u.protocol !== "https:") return null;
+    if (!u.hostname.includes(".")) return null;
+    return u.toString();
+  } catch {
+    return null;
+  }
+}
