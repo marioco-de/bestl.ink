@@ -47,6 +47,7 @@ type ShortInput = {
   tags?: string[];
   password?: string;
   expires_hours?: number | null;
+  expires_at?: string | null;
   max_clicks?: number | null;
   cloak?: boolean;
   ios_url?: string;
@@ -62,6 +63,21 @@ type ShortInput = {
   disabled?: boolean;
   tenant_id?: string;
 };
+
+function resolveExpires(
+  data: { expires_at?: string | null; expires_hours?: number | null },
+  fallback?: string | null,
+): string | null {
+  if (data.expires_at === null || data.expires_hours === null) return null;
+  if (data.expires_at) {
+    const d = new Date(data.expires_at);
+    if (!Number.isNaN(d.getTime())) return d.toISOString();
+  }
+  if (data.expires_hours && data.expires_hours > 0) {
+    return new Date(Date.now() + data.expires_hours * 3600_000).toISOString();
+  }
+  return fallback ?? null;
+}
 
 function assertHttpUrl(url: string): string {
   const u = url.trim();
@@ -90,10 +106,7 @@ export const createShort = createServerFn({ method: "POST" })
     const sql = await getSql();
     const id = uid("sh");
     const pw = data.password ? await (await import("./id")).hashSecret(data.password) : null;
-    const expires =
-      data.expires_hours && data.expires_hours > 0
-        ? new Date(Date.now() + data.expires_hours * 3600_000).toISOString()
-        : null;
+    const expires = resolveExpires(data);
     await sql`
       insert into db_short_links (
         id, tenant_id, slug, destination, title, note, tags, password_hash,
@@ -137,12 +150,7 @@ export const updateShort = createServerFn({ method: "POST" })
     const pw = data.password
       ? await (await import("./id")).hashSecret(data.password)
       : cur.password_hash;
-    const expires =
-      data.expires_hours === null
-        ? null
-        : data.expires_hours && data.expires_hours > 0
-          ? new Date(Date.now() + data.expires_hours * 3600_000).toISOString()
-          : cur.expires_at;
+    const expires = resolveExpires(data, cur.expires_at as string | null);
     await sql`
       update db_short_links set
         slug = ${slug || String(cur.slug)},

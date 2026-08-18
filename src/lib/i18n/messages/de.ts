@@ -93,7 +93,7 @@ export const de = {
     deviceOn: "Routing",
     lock: "Schloss",
     lockOn: "geschützt",
-    ttl: "Ablauf",
+    ttl: "Ablaufdatum",
     ttlOn: "befristet",
     save: "Link anlegen",
     workspace: "Workspace",

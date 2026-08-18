@@ -34,7 +34,7 @@ import { useT } from "@/lib/i18n";
 import { Toggle } from "@/components/ui/toggle";
 import type { FullState, ShortLink } from "@/lib/docbay/types";
 import { upsertShort, removeShort } from "@/lib/docbay/state-patch";
-import { formatDateDe, cn } from "@/lib/utils";
+import { formatDateDe, cn, toDatetimeLocal, fromDatetimeLocal } from "@/lib/utils";
 import { TagChip } from "@/components/control/tag-picker";
 import { tagColor } from "@/lib/docbay/tags";
 import { ActivityList, PresenceEye } from "@/components/control/presence-eye";
@@ -405,7 +405,7 @@ function ShortEditor({
   const [title, setTitle] = useState(initial.title || "");
   const [note, setNote] = useState(initial.note || "");
   const [password, setPassword] = useState("");
-  const [expiresHours, setExpiresHours] = useState("");
+  const [expiresAt, setExpiresAt] = useState(toDatetimeLocal(initial.expires_at));
   const [maxClicks, setMaxClicks] = useState(
     initial.max_clicks != null ? String(initial.max_clicks) : "",
   );
@@ -455,7 +455,7 @@ function ShortEditor({
         title,
         note,
         password: password || undefined,
-        expires_hours: expiresHours ? Number(expiresHours) : null,
+        expires_at: fromDatetimeLocal(expiresAt),
         max_clicks: maxClicks ? Number(maxClicks) : null,
         cloak,
         ios_url: ios || undefined,
@@ -580,12 +580,11 @@ function ShortEditor({
           <Input value={password} onChange={(e) => setPassword(e.target.value)} />
         </div>
         <div>
-          <Label>Ablauf (Stunden)</Label>
+          <Label>{t("short.ttl")}</Label>
           <Input
-            type="number"
-            min={0}
-            value={expiresHours}
-            onChange={(e) => setExpiresHours(e.target.value)}
+            type="datetime-local"
+            value={expiresAt}
+            onChange={(e) => setExpiresAt(e.target.value)}
           />
         </div>
         <div>

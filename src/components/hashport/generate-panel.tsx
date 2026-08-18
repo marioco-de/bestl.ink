@@ -14,6 +14,7 @@ import { TagPicker } from "@/components/control/tag-picker";
 import { RequestAccessToggle, Toggle } from "@/components/ui/toggle";
 import { parseRequireRequest, withRequireRequest } from "@/lib/docbay/doc-actions";
 import { useT } from "@/lib/i18n";
+import { fromDatetimeLocal } from "@/lib/utils";
 
 function collectButtons(
   nodes: ParamNode[],
@@ -49,7 +50,7 @@ export function GeneratePanel({
   const [note, setNote] = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [utmId, setUtmId] = useState("");
-  const [expiresHours, setExpiresHours] = useState("");
+  const [expiresAt, setExpiresAt] = useState("");
   const [oneTime, setOneTime] = useState(false);
   const [password, setPassword] = useState("");
   const [allowDownload, setAllowDownload] = useState(resource.allow_download);
@@ -158,7 +159,7 @@ export function GeneratePanel({
           utm_source: utm?.utm_source ?? undefined,
           utm_medium: utm?.utm_medium ?? undefined,
           utm_campaign: utm?.utm_campaign ?? undefined,
-          expires_hours: expiresHours ? Number(expiresHours) : null,
+          expires_at: fromDatetimeLocal(expiresAt),
           one_time: oneTime,
           password: password || undefined,
           allow_download: allowDownload,
@@ -175,7 +176,7 @@ export function GeneratePanel({
       const restricted = resourceRestricted(resource.type, resource.payload, {
         password: Boolean(password),
         nda: requireNda,
-        expires: Boolean(expiresHours),
+        expires: Boolean(expiresAt),
         oneTime,
       }) || requireRequest;
       const url = buildPublicUrl({
@@ -290,13 +291,11 @@ export function GeneratePanel({
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label>Ablauf (Stunden)</Label>
+              <Label>{t("short.ttl")}</Label>
               <Input
-                type="number"
-                min={0}
-                value={expiresHours}
-                onChange={(e) => setExpiresHours(e.target.value)}
-                placeholder="z.B. 168"
+                type="datetime-local"
+                value={expiresAt}
+                onChange={(e) => setExpiresAt(e.target.value)}
               />
             </div>
             {state.features.password_links && (

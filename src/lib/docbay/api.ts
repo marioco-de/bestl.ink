@@ -822,6 +822,7 @@ export const generateLink = createServerFn({ method: "POST" })
       utm_term?: string;
       utm_content?: string;
       expires_hours?: number | null;
+      expires_at?: string | null;
       one_time?: boolean;
       password?: string;
       allow_download?: boolean;
@@ -850,8 +851,12 @@ export const generateLink = createServerFn({ method: "POST" })
       token = genToken(ACCESS_TOKEN_LEN);
     }
     const id = uid("link");
-    const expires =
-      data.expires_hours && data.expires_hours > 0
+    const expires = data.expires_at
+      ? (() => {
+          const d = new Date(data.expires_at);
+          return Number.isNaN(d.getTime()) ? null : d.toISOString();
+        })()
+      : data.expires_hours && data.expires_hours > 0
         ? new Date(Date.now() + data.expires_hours * 3600_000).toISOString()
         : null;
     const pwHash = data.password ? await hashSecret(data.password) : null;

@@ -25,7 +25,7 @@ import { createShort } from "@/lib/docbay/shorts-api";
 import { genToken } from "@/lib/docbay/id";
 import { PLATFORM_LINK_HOST } from "@/lib/docbay/brand";
 import { orderedHosts, defaultHost, withHttp } from "@/lib/docbay/hosts";
-import { cn, slugify } from "@/lib/utils";
+import { cn, slugify, fromDatetimeLocal } from "@/lib/utils";
 import type { FullState } from "@/lib/docbay/types";
 import { LinkEditorShell, DashPinBlock } from "./link-editor-shell";
 import { TagPicker } from "./tag-picker";
@@ -122,7 +122,7 @@ function Editor({
   const [note, setNote] = useState("");
   const [tags, setTags] = useState<string[]>([]);
   const [password, setPassword] = useState("");
-  const [expiresHours, setExpiresHours] = useState("");
+  const [expiresAt, setExpiresAt] = useState("");
   const [ios, setIos] = useState("");
   const [android, setAndroid] = useState("");
   const [utmS, setUtmS] = useState("");
@@ -414,7 +414,7 @@ function Editor({
             button_id: buttonId,
             note: note.trim(),
             tags,
-            expires_hours: expiresHours ? Number(expiresHours) : null,
+            expires_at: fromDatetimeLocal(expiresAt),
             password: password || undefined,
           },
         });
@@ -431,7 +431,7 @@ function Editor({
           note,
           tags,
           password: password || undefined,
-          expires_hours: expiresHours ? Number(expiresHours) : null,
+          expires_at: fromDatetimeLocal(expiresAt),
           ios_url: ios || undefined,
           android_url: android || undefined,
           og_title: shareTitle || undefined,
@@ -470,7 +470,7 @@ function Editor({
     { id: "campaign", label: t("short.campaign"), icon: Megaphone, on: Boolean(utmS || utmM || utmC) },
     { id: "device", label: t("short.device"), icon: MonitorSmartphone, on: Boolean(ios || android) },
     { id: "lock", label: t("short.lock"), icon: KeyRound, on: Boolean(password) },
-    { id: "ttl", label: t("short.ttl"), icon: Clock, on: Boolean(expiresHours) },
+    { id: "ttl", label: t("short.ttl"), icon: Clock, on: Boolean(expiresAt) },
   ];
 
   const shortUrl =
@@ -804,7 +804,7 @@ function Editor({
             <Mini label={t("short.openPassword")} value={password} onChange={setPassword} />
           )}
           {extra === "ttl" && (
-            <Mini label={t("short.hoursUntil")} value={expiresHours} onChange={setExpiresHours} type="number" />
+            <Input type="datetime-local" value={expiresAt} onChange={(e) => setExpiresAt(e.target.value)} />
           )}
         </div>
       )}
@@ -844,7 +844,7 @@ function Editor({
           <Mini label={t("short.openPassword")} value={password} onChange={setPassword} />
         )}
         {extra === "ttl" && (
-          <Mini label={t("short.hoursUntil")} value={expiresHours} onChange={setExpiresHours} type="number" />
+          <Input type="datetime-local" value={expiresAt} onChange={(e) => setExpiresAt(e.target.value)} />
         )}
       </ExtraModal>
     )}

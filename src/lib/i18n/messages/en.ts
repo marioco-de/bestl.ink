@@ -95,7 +95,7 @@ export const en: Messages = {
     deviceOn: "Routing",
     lock: "Lock",
     lockOn: "protected",
-    ttl: "Expiry",
+    ttl: "Expiry date",
     ttlOn: "expires",
     save: "Create link",
     workspace: "Workspace",
