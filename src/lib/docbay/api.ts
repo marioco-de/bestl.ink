@@ -26,13 +26,13 @@ import { MAX_UPLOAD_BYTES, MAX_UPLOAD_LABEL } from "./upload";
 import { getGoogleClientId, getGoogleClientSecret } from "./secrets.server";
 import { requestHostHeader } from "./request-host.server";
 import { findTenantBrandByHost } from "./shorts.server";
-import { isMarketingHost, CNAME_TARGET } from "./brand";
+import { isMarketingHost } from "./brand";
 import { probeDomainDns } from "./dns-check.server";
 import {
   ensurePlatformVercelDomains,
   ensureVercelDomain,
   removeVercelDomain,
-  vercelDomainsConfigured,
+  syncVercelDomains,
 } from "./vercel-domains.server";
 
 async function audit(
@@ -459,13 +459,7 @@ export const verifyTenantDomain = createServerFn({ method: "POST" })
 
 export const vercelDomainSetup = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .handler(async () => {
-    void ensurePlatformVercelDomains();
-    return {
-      ready: await vercelDomainsConfigured(),
-      cname: CNAME_TARGET,
-    };
-  });
+  .handler(async () => syncVercelDomains());
 
 export const reorderTenantDomains = createServerFn({ method: "POST" })
   .middleware([authMiddleware])

@@ -39,13 +39,27 @@ function DomainPage() {
   const [checking, setChecking] = useState<string | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
   const [vercelReady, setVercelReady] = useState<boolean | null>(null);
+  const [vercelHint, setVercelHint] = useState("");
   const scanned = useRef<string>("");
 
   useEffect(() => {
     void vercelDomainSetup()
-      .then((s) => setVercelReady(s.ready))
-      .catch(() => setVercelReady(false));
-  }, []);
+      .then((s) => {
+        setVercelReady(s.ready);
+        const fail = s.registered.find((r) => !r.ok);
+        setVercelHint(
+          s.ready
+            ? fail
+              ? `${fail.host}: ${fail.detail}`
+              : ""
+            : s.lastError || t("domain.vercelMissing"),
+        );
+      })
+      .catch(() => {
+        setVercelReady(false);
+        setVercelHint(t("domain.vercelMissing"));
+      });
+  }, [t]);
 
   useEffect(() => {
     setCompany(data.tenant.brand_company || data.tenant.name);
@@ -190,7 +204,12 @@ function DomainPage() {
         <p className="mt-1 text-sm text-fg-muted">{t("domain.hint")}</p>
         {vercelReady === false && (
           <p className="mt-3 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-fg-muted">
-            {t("domain.vercelMissing")}
+            {vercelHint || t("domain.vercelMissing")}
+          </p>
+        )}
+        {vercelReady && vercelHint && (
+          <p className="mt-3 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-fg-muted">
+            {vercelHint}
           </p>
         )}
       </div>
