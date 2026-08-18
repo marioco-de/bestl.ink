@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
-import { Download, QrCode } from "lucide-react";
+import { Download, ImagePlus, QrCode, X } from "lucide-react";
 import {
   downloadQrRaster,
   downloadSvgFile,
   qrToStyledSvg,
   validateQrReadable,
+  QR_DOTS,
   type QrDot,
   type QrEye,
+  type QrFrame,
+  type QrLogoMode,
 } from "@/lib/qr";
 import { cn } from "@/lib/utils";
 
@@ -18,16 +21,28 @@ export function QrDrawer({ url, slug }: { url: string; slug: string }) {
   const [bg, setBg] = useState("#ffffff");
   const [dot, setDot] = useState<QrDot>("rounded");
   const [eye, setEye] = useState<QrEye>("rounded");
+  const [frame, setFrame] = useState<QrFrame>("none");
+  const [logo, setLogo] = useState("");
+  const [logoMode, setLogoMode] = useState<QrLogoMode>("off");
   const [readable, setReadable] = useState<boolean | null>(null);
 
   const svg = useMemo(() => {
     if (!slug) return "";
     try {
-      return qrToStyledSvg(url, { fg, bg, dot, eye, modulePx: 10 });
+      return qrToStyledSvg(url, {
+        fg,
+        bg,
+        dot,
+        eye,
+        frame,
+        logo,
+        logoMode: logo ? logoMode === "off" ? "center" : logoMode : "off",
+        modulePx: 10,
+      });
     } catch {
       return "";
     }
-  }, [url, slug, fg, bg, dot, eye]);
+  }, [url, slug, fg, bg, dot, eye, frame, logo, logoMode]);
 
   useEffect(() => {
     if (!svg) {
@@ -57,6 +72,12 @@ export function QrDrawer({ url, slug }: { url: string; slug: string }) {
       setDot={setDot}
       eye={eye}
       setEye={setEye}
+      frame={frame}
+      setFrame={setFrame}
+      logo={logo}
+      setLogo={setLogo}
+      logoMode={logo ? (logoMode === "off" ? "center" : logoMode) : "off"}
+      setLogoMode={setLogoMode}
       readable={readable}
       name={name}
     />
@@ -64,7 +85,6 @@ export function QrDrawer({ url, slug }: { url: string; slug: string }) {
 
   return (
     <>
-      {/* Desktop: sidebox sits under the modal; flag is fixed to its right edge. Hover slides both out. */}
       <div
         className="pointer-events-none absolute top-1/2 right-0 z-10 hidden -translate-y-1/2 @min-[40rem]/stage:block"
         onMouseEnter={() => setOpen(true)}
@@ -83,7 +103,6 @@ export function QrDrawer({ url, slug }: { url: string; slug: string }) {
         </div>
       </div>
 
-      {/* Mobile: flag at the bottom of the viewport */}
       <div className="fixed inset-x-0 bottom-0 z-30 @min-[40rem]/stage:hidden">
         <div className="flex flex-col items-center pb-[env(safe-area-inset-bottom)]">
           <div
@@ -125,10 +144,7 @@ function Flag({
       className={cn(
         "flex items-center justify-center gap-1.5 border border-border bg-bg-elevated text-[10px] font-medium tracking-wide text-fg-muted shadow-sm hover:text-fg",
         vertical
-          ? cn(
-              "pointer-events-auto h-36 w-8 flex-col border-l-0 py-4",
-              "rounded-r-md",
-            )
+          ? cn("pointer-events-auto h-36 w-8 flex-col border-l-0 py-4", "rounded-r-md")
           : "h-8 rounded-t-md border-b-0 px-3",
       )}
       aria-expanded={open}
@@ -154,6 +170,12 @@ function Panel({
   setDot,
   eye,
   setEye,
+  frame,
+  setFrame,
+  logo,
+  setLogo,
+  logoMode,
+  setLogoMode,
   readable,
   name,
 }: {
@@ -166,11 +188,17 @@ function Panel({
   setDot: (v: QrDot) => void;
   eye: QrEye;
   setEye: (v: QrEye) => void;
+  frame: QrFrame;
+  setFrame: (v: QrFrame) => void;
+  logo: string;
+  setLogo: (v: string) => void;
+  logoMode: QrLogoMode;
+  setLogoMode: (v: QrLogoMode) => void;
   readable: boolean | null;
   name: string;
 }) {
   return (
-    <aside className="flex w-[18rem] max-w-full flex-col gap-3 border border-r-0 border-border bg-bg-elevated p-3 shadow-xl @min-[40rem]/stage:rounded-none">
+    <aside className="flex max-h-[min(80dvh,40rem)] w-[19rem] max-w-full flex-col gap-3 overflow-y-auto border border-r-0 border-border bg-bg-elevated p-3 shadow-xl @min-[40rem]/stage:rounded-none">
       <div>
         <p className="text-xs font-medium">QR zum Mitnehmen</p>
         <p className="text-[11px] text-fg-subtle">
@@ -210,10 +238,7 @@ function Panel({
               key={c}
               type="button"
               onClick={() => setFg(c)}
-              className={cn(
-                "h-6 w-6 rounded-sm border",
-                fg === c ? "border-fg" : "border-border",
-              )}
+              className={cn("h-6 w-6 rounded-sm border", fg === c ? "border-fg" : "border-border")}
               style={{ background: c }}
               aria-label={c}
             />
@@ -239,25 +264,18 @@ function Panel({
 
       <div>
         <p className="mb-1.5 text-[11px] font-medium text-fg-muted">Punkte</p>
-        <div className="grid grid-cols-4 gap-1">
-          {(
-            [
-              ["square", "eckig"],
-              ["rounded", "weich"],
-              ["dot", "punkte"],
-              ["diamond", "raute"],
-            ] as const
-          ).map(([id, label]) => (
+        <div className="grid grid-cols-3 gap-1">
+          {QR_DOTS.map((d) => (
             <button
-              key={id}
+              key={d.id}
               type="button"
-              onClick={() => setDot(id)}
+              onClick={() => setDot(d.id)}
               className={cn(
-                "h-7 rounded-sm border text-[10px]",
-                dot === id ? "border-fg bg-fg text-bg" : "border-border text-fg-muted",
+                "h-7 rounded-sm border px-1 text-[10px]",
+                dot === d.id ? "border-fg bg-fg text-bg" : "border-border text-fg-muted",
               )}
             >
-              {label}
+              {d.label}
             </button>
           ))}
         </div>
@@ -265,12 +283,13 @@ function Panel({
 
       <div>
         <p className="mb-1.5 text-[11px] font-medium text-fg-muted">Auge</p>
-        <div className="grid grid-cols-3 gap-1">
+        <div className="grid grid-cols-4 gap-1">
           {(
             [
               ["square", "eckig"],
               ["rounded", "weich"],
               ["circle", "rund"],
+              ["octagon", "oktogon"],
             ] as const
           ).map(([id, label]) => (
             <button
@@ -286,6 +305,90 @@ function Panel({
             </button>
           ))}
         </div>
+      </div>
+
+      <div>
+        <p className="mb-1.5 text-[11px] font-medium text-fg-muted">Rahmen</p>
+        <div className="grid grid-cols-3 gap-1">
+          {(
+            [
+              ["none", "ohne"],
+              ["corners", "ecken"],
+              ["round", "rund"],
+            ] as const
+          ).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setFrame(id)}
+              className={cn(
+                "h-7 rounded-sm border text-[10px]",
+                frame === id ? "border-fg bg-fg text-bg" : "border-border text-fg-muted",
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <p className="mb-1.5 text-[11px] font-medium text-fg-muted">Logo / Bild</p>
+        <div className="flex items-center gap-2">
+          <label className="inline-flex h-8 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-sm border border-dashed border-border text-[11px] text-fg-muted hover:bg-bg-subtle hover:text-fg">
+            <ImagePlus className="h-3.5 w-3.5" />
+            {logo ? "Bild tauschen" : "Bild hochladen"}
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/svg+xml"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                e.target.value = "";
+                if (!f) return;
+                void fileToLogo(f).then((data) => {
+                  setLogo(data);
+                  setLogoMode("center");
+                });
+              }}
+            />
+          </label>
+          {logo && (
+            <button
+              type="button"
+              onClick={() => {
+                setLogo("");
+                setLogoMode("off");
+              }}
+              className="flex h-8 w-8 items-center justify-center rounded-sm border border-border text-fg-muted hover:text-fg"
+              aria-label="Logo entfernen"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+        {logo && (
+          <div className="mt-1.5 grid grid-cols-2 gap-1">
+            {(
+              [
+                ["center", "In der Mitte"],
+                ["behind", "Als Hintergrund"],
+              ] as const
+            ).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setLogoMode(id)}
+                className={cn(
+                  "h-7 rounded-sm border text-[10px]",
+                  logoMode === id ? "border-fg bg-fg text-bg" : "border-border text-fg-muted",
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-3 gap-1 pt-1">
@@ -308,4 +411,35 @@ function SaveBtn({ label, onClick }: { label: string; onClick: () => void }) {
       {label}
     </button>
   );
+}
+
+function fileToLogo(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("lesen"));
+    reader.onload = () => {
+      const src = String(reader.result || "");
+      const img = new Image();
+      img.onload = () => {
+        const size = 384;
+        const canvas = document.createElement("canvas");
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          resolve(src);
+          return;
+        }
+        const scale = Math.min(size / img.width, size / img.height);
+        const w = img.width * scale;
+        const h = img.height * scale;
+        ctx.clearRect(0, 0, size, size);
+        ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h);
+        resolve(canvas.toDataURL("image/png"));
+      };
+      img.onerror = () => resolve(src);
+      img.src = src;
+    };
+    reader.readAsDataURL(file);
+  });
 }
