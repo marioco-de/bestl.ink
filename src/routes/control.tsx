@@ -27,7 +27,6 @@ import {
   Users,
   Plus,
   Search,
-  Keyboard,
   Sun,
   Moon,
   Monitor,
@@ -37,6 +36,8 @@ import {
   Share2,
   ChevronDown,
   Shield,
+  Settings,
+  CircleHelp,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
@@ -164,6 +165,7 @@ function ControlShell() {
   const [drawer, setDrawer] = useState(false);
   const [cmd, setCmd] = useState(false);
   const [help, setHelp] = useState(false);
+  const [prefs, setPrefs] = useState(false);
   const { pref, cycle } = useTheme();
 
   const searchBag = {
@@ -268,8 +270,8 @@ function ControlShell() {
   };
 
   return (
-    <div className="@container/app flex min-h-dvh bg-bg" style={brandVars(data.tenant.brand_color)}>
-      <aside className="hidden w-52 shrink-0 flex-col border-r border-border bg-bg-elevated/80 @min-[52rem]/app:flex">
+    <div className="@container/app flex h-dvh overflow-hidden bg-bg" style={brandVars(data.tenant.brand_color)}>
+      <aside className="hidden h-full w-52 shrink-0 flex-col overflow-hidden border-r border-border bg-bg-elevated/80 @min-[52rem]/app:flex">
         <div className="flex items-center gap-2.5 px-4 py-4">
           <div className="metal flex h-8 w-8 items-center justify-center rounded-md">
             <Shield className="h-3.5 w-3.5" strokeWidth={2.2} />
@@ -298,7 +300,7 @@ function ControlShell() {
             </kbd>
           </Button>
         </div>
-        <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-2">
+        <nav className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-2">
           {primaryNav.map((item) => {
             if (item.to === "/control/links") {
               return (
@@ -378,57 +380,83 @@ function ControlShell() {
               );
             })}
         </nav>
-        <div className="space-y-1 border-t border-border p-3">
+        <div className="relative shrink-0 space-y-1 border-t border-border p-3">
           {data.isSuperAdmin && (
             <p className="flex items-center gap-1.5 px-2 text-[11px] text-fg-muted">
               <Building2 className="h-3 w-3" /> {t("common.platform")}
             </p>
           )}
-          <p className="truncate px-2 font-mono text-[10px] text-fg-subtle">
-            {data.tenant.public_host}
-          </p>
-          <button
-            type="button"
-            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-fg-subtle transition-colors hover:bg-bg-subtle hover:text-fg"
-            onClick={cycle}
-          >
-            <ThemeIcon className="h-3.5 w-3.5" />
-            {t("nav.theme", {
-              value:
-                pref === "system"
-                  ? t("nav.themeSystem")
-                  : pref === "light"
-                    ? t("nav.themeLight")
-                    : t("nav.themeDark"),
-            })}
-          </button>
-          <button
-            type="button"
-            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-fg-subtle transition-colors hover:bg-bg-subtle hover:text-fg"
-            onClick={() => setLocale(locale === "de" ? "en" : "de")}
-          >
-            <Globe2 className="h-3.5 w-3.5" />
-            {t("nav.language")}: {locale.toUpperCase()}
-          </button>
-          <button
-            type="button"
-            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-fg-subtle transition-colors hover:bg-bg-subtle hover:text-fg"
-            onClick={() => setHelp(true)}
-          >
-            <Keyboard className="h-3.5 w-3.5" /> {t("nav.shortcuts")}
-          </button>
-          <button
-            type="button"
-            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-fg-subtle transition-colors hover:bg-bg-subtle hover:text-fg"
-            onClick={() => void signOut("/login")}
-          >
-            <LogOut className="h-3.5 w-3.5" /> {t("nav.signOut")}
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              className="flex min-w-0 flex-1 items-center gap-1.5 rounded-md px-2 py-1.5 text-xs text-fg-subtle transition-colors hover:bg-bg-subtle hover:text-fg"
+              onClick={() => void signOut("/login")}
+            >
+              <LogOut className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">{t("nav.signOut")}</span>
+            </button>
+            <button
+              type="button"
+              className={cn(
+                "flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-fg-subtle hover:bg-bg-subtle hover:text-fg",
+                prefs && "bg-bg-subtle text-fg",
+              )}
+              aria-label={t("nav.settings")}
+              onClick={() => setPrefs((v) => !v)}
+            >
+              <Settings className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-fg-subtle hover:bg-bg-subtle hover:text-fg"
+              aria-label={t("nav.shortcuts")}
+              onClick={() => setHelp(true)}
+            >
+              <CircleHelp className="h-3.5 w-3.5" />
+            </button>
+          </div>
+          {prefs && (
+            <>
+              <button
+                type="button"
+                className="fixed inset-0 z-30"
+                aria-label={t("common.close")}
+                onClick={() => setPrefs(false)}
+              />
+              <div className="absolute bottom-12 right-3 z-40 w-[11.5rem] space-y-0.5 rounded-md border border-border bg-bg-elevated p-1 shadow-lg">
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-fg-muted hover:bg-bg-subtle hover:text-fg"
+                  onClick={() => {
+                    cycle();
+                  }}
+                >
+                  <ThemeIcon className="h-3.5 w-3.5" />
+                  {t("nav.theme", {
+                    value:
+                      pref === "system"
+                        ? t("nav.themeSystem")
+                        : pref === "light"
+                          ? t("nav.themeLight")
+                          : t("nav.themeDark"),
+                  })}
+                </button>
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-fg-muted hover:bg-bg-subtle hover:text-fg"
+                  onClick={() => setLocale(locale === "de" ? "en" : "de")}
+                >
+                  <Globe2 className="h-3.5 w-3.5" />
+                  {t("nav.language")}: {locale.toUpperCase()}
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </aside>
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="glass sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-border py-2.5 pl-4 pr-2.5 @min-[52rem]/app:pl-6">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+        <header className="glass z-20 flex shrink-0 items-center justify-between gap-3 border-b border-border py-2.5 pl-4 pr-2.5 @min-[52rem]/app:pl-6">
           <div className="flex min-w-0 items-center gap-2">
             <button
               type="button"
@@ -459,7 +487,7 @@ function ControlShell() {
         </header>
         <main
           key={pathname}
-          className="page-in flex-1 px-4 py-6 @min-[52rem]/app:px-8 @min-[52rem]/app:py-8"
+          className="page-in min-h-0 flex-1 overflow-y-auto px-4 py-6 @min-[52rem]/app:px-8 @min-[52rem]/app:py-8"
           style={
             pathname.startsWith("/control/links")
               ? hueStyle(TAB_HUES[linksTab] || "azure")
