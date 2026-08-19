@@ -30,7 +30,7 @@ import { actionsPayload, parseChatMode, parseDocActions, parseRequireRequest, wi
 import { RequestAccessToggle } from "@/components/ui/toggle";
 import { useT } from "@/lib/i18n";
 import { PresenceEye } from "@/components/control/presence-eye";
-import { RowMenu, VisitMeta } from "@/components/control/row-menu";
+import { RowMenu, ClicksChip, LastClicked } from "@/components/control/row-menu";
 
 export const Route = createFileRoute("/control/resources")({
   validateSearch: (s: Record<string, unknown>) => ({
@@ -210,12 +210,9 @@ function ResourceRow({
             {r.type === "page" ? "/" : ""}
           </p>
         </div>
-        <div className="flex shrink-0 items-center gap-3" onClick={(e) => e.stopPropagation()}>
-          <VisitMeta
-            clicks={clicks}
-            at={last ? formatDateDe(last) : null}
-            lastLabel={t("links.lastVisit")}
-          />
+        <div className="flex shrink-0 items-center gap-2" onClick={(e) => e.stopPropagation()}>
+          <LastClicked at={last} />
+          <ClicksChip clicks={clicks} label={t("links.clicks")} onClick={() => setOpen(true)} />
           <div className="flex flex-wrap items-center gap-1">
             <Button size="sm" onClick={onGenerate}>
               <Link2 className="h-3.5 w-3.5" />

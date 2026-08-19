@@ -28,9 +28,46 @@ export function formatDateDe(iso: string | null | undefined): string {
   return new Intl.DateTimeFormat("de-DE", {
     day: "numeric",
     month: "long",
+    year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
   }).format(d);
+}
+
+export function lastClickedRel(iso: string): {
+  key:
+    | "lastToday"
+    | "lastYesterday"
+    | "lastTwoDays"
+    | "lastWeek"
+    | "lastWeeks"
+    | "lastMonth"
+    | "lastMonths"
+    | "lastYear"
+    | "lastYears";
+  n: number;
+  time: string;
+} {
+  const then = new Date(iso);
+  const now = new Date();
+  const time = `${then.getHours()}:${String(then.getMinutes()).padStart(2, "0")}`;
+  const start = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const days = Math.max(0, Math.round((start(now) - start(then)) / 86400000));
+  if (days <= 0) return { key: "lastToday", n: 0, time };
+  if (days === 1) return { key: "lastYesterday", n: 1, time };
+  if (days === 2) return { key: "lastTwoDays", n: 2, time };
+  if (days < 365) {
+    const months = Math.max(1, Math.round(days / 30));
+    if (months >= 12) return { key: "lastYear", n: 1, time };
+    if (months >= 2) return { key: "lastMonths", n: months, time };
+    if (months === 1 && days >= 25) return { key: "lastMonth", n: 1, time };
+    const weeks = Math.max(1, Math.round(days / 7));
+    if (weeks >= 2) return { key: "lastWeeks", n: weeks, time };
+    return { key: "lastWeek", n: 1, time };
+  }
+  const years = Math.max(1, Math.round(days / 365));
+  if (years === 1) return { key: "lastYear", n: 1, time };
+  return { key: "lastYears", n: years, time };
 }
 
 export function formatBytes(n: number | null | undefined): string {

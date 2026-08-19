@@ -23,7 +23,7 @@ import { suggestCardSlug } from "@/lib/docbay/public-url";
 import type { FullState, Resource, JsonObject } from "@/lib/docbay/types";
 import { TagChip, TagPicker } from "@/components/control/tag-picker";
 import { tagColor } from "@/lib/docbay/tags";
-import { RowMenu, VisitMeta } from "@/components/control/row-menu";
+import { RowMenu, ClicksChip, LastClicked } from "@/components/control/row-menu";
 import { PresenceEye } from "@/components/control/presence-eye";
 import { useT } from "@/lib/i18n";
 import {
@@ -138,20 +138,22 @@ export function CardsWorkspace({ kind }: { kind: "event" | "contact" }) {
                     )}
                   </div>
                 </button>
-                <div className="flex shrink-0 items-center gap-3">
-                  <VisitMeta
-                    clicks={state.links
-                      .filter((l) => l.resource_id === r.id && !l.revoked)
-                      .reduce((a, l) => a + l.human_click_count, 0)}
-                    at={(() => {
-                      const last = state.links
+                <div className="flex shrink-0 items-center gap-2">
+                  <LastClicked
+                    at={
+                      state.links
                         .filter((l) => l.resource_id === r.id && l.last_clicked_at)
                         .map((l) => l.last_clicked_at as string)
                         .sort()
-                        .at(-1);
-                      return last ? formatDateDe(last) : null;
-                    })()}
-                    lastLabel={t("links.lastVisit")}
+                        .at(-1) || null
+                    }
+                  />
+                  <ClicksChip
+                    clicks={state.links
+                      .filter((l) => l.resource_id === r.id && !l.revoked)
+                      .reduce((a, l) => a + l.human_click_count, 0)}
+                    label={t("links.clicks")}
+                    onClick={() => undefined}
                   />
                   <div className="flex items-center gap-1">
                     <Button size="sm" onClick={() => setGenerateFor(r)}>

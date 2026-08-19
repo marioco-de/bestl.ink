@@ -2,6 +2,8 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { MoreVertical, MousePointerClick, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatDateDe, lastClickedRel } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 
 export function RowMenu({
   items,
@@ -94,6 +96,22 @@ export function RowMenu({
           document.body,
         )}
     </div>
+  );
+}
+
+export function LastClicked({ at }: { at?: string | null }) {
+  const t = useT();
+  if (!at) return null;
+  const rel = lastClickedRel(at);
+  const phrase = t(`links.${rel.key}`, { n: rel.n, time: rel.time });
+  const exact = formatDateDe(at);
+  return (
+    <span className="hidden max-w-[14rem] truncate text-xs text-fg-subtle @min-[40rem]/hub:inline">
+      {t("links.lastClicked")}{" "}
+      <span className="cursor-default underline decoration-dotted decoration-fg-subtle/60" title={exact}>
+        {phrase}
+      </span>
+    </span>
   );
 }
 

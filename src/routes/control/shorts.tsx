@@ -37,7 +37,7 @@ import { formatDateDe, cn, toDatetimeLocal, fromDatetimeLocal } from "@/lib/util
 import { TagChip } from "@/components/control/tag-picker";
 import { tagColor } from "@/lib/docbay/tags";
 import { ActivityList, PresenceEye } from "@/components/control/presence-eye";
-import { RowMenu, ClicksChip } from "@/components/control/row-menu";
+import { RowMenu, ClicksChip, LastClicked } from "@/components/control/row-menu";
 import { AnalyticsPanel } from "@/components/control/analytics-panel";
 import { DeviceSplitFields } from "@/components/control/device-split";
 import { UtmFields } from "@/components/control/utm-fields";
@@ -315,6 +315,7 @@ function ShortRow({
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2" onClick={(e) => e.stopPropagation()}>
+          <LastClicked at={s.last_clicked_at} />
           <ClicksChip
             clicks={s.human_click_count}
             label={t("links.clicks")}

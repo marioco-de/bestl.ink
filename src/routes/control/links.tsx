@@ -20,7 +20,7 @@ import { tagColor } from "@/lib/docbay/tags";
 import { useT } from "@/lib/i18n";
 import { QuickShorten } from "@/components/control/quick-shorten";
 import { ActivityList, PresenceEye } from "@/components/control/presence-eye";
-import { RowMenu, ClicksChip } from "@/components/control/row-menu";
+import { RowMenu, ClicksChip, LastClicked } from "@/components/control/row-menu";
 import { AnalyticsPanel } from "@/components/control/analytics-panel";
 import { useControl } from "@/lib/docbay/control-store";
 
@@ -268,6 +268,7 @@ function DocLinkRow({
           <p className="mt-0.5 truncate font-mono text-xs text-fg-muted">{url}</p>
         </div>
         <div className="flex shrink-0 items-center gap-2" onClick={(e) => e.stopPropagation()}>
+          <LastClicked at={l.last_clicked_at} />
           <ClicksChip
             clicks={l.human_click_count}
             label={t("links.clicks")}
