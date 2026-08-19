@@ -75,6 +75,7 @@ export const de = {
     options: "Optionen",
     addUrl: "URL",
     newLink: "Neuer Link",
+    copyLink: "Link kopieren",
     placeholder: "https://… einfügen",
     createTitle: "Kurzlink anlegen",
     createHint: "Eine Adresse. Der Rest ist Beiwerk.",

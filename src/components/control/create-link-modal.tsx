@@ -28,6 +28,7 @@ import { orderedHosts, defaultHost, withHttp } from "@/lib/docbay/hosts";
 import { cn, slugify, fromDatetimeLocal } from "@/lib/utils";
 import type { FullState } from "@/lib/docbay/types";
 import { LinkEditorShell, DashPinBlock } from "./link-editor-shell";
+import { CreatedLinkCard } from "./created-link-card";
 import { TagPicker } from "./tag-picker";
 import { createTag, createResource, generateLink, createParamNode, uploadBegin, uploadChunk } from "@/lib/docbay/api";
 import { pinShortDash } from "@/lib/docbay/dashboard-api";
@@ -599,6 +600,9 @@ function Editor({
         </>
       }
     >
+      {createdUrl && (
+        <CreatedLinkCard url={createdUrl} slug={slug} hue={kindMeta(kind).hue} />
+      )}
       <section className="space-y-2">
         <div className="flex items-center justify-between gap-2">
           <p className="text-xs font-medium">{t("short.title")}</p>

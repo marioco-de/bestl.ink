@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input, Textarea, Label } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { LinkEditorShell } from "@/components/control/link-editor-shell";
+import { CreatedLinkCard } from "@/components/control/created-link-card";
 import { defaultHost } from "@/lib/docbay/hosts";
 import { generateLink, bulkGenerateLinks, createParamNode, createTag, saveNdaTemplate, uploadBegin, uploadChunk, updateResource } from "@/lib/docbay/api";
 import type { FullState, ParamNode, Resource } from "@/lib/docbay/types";
@@ -14,6 +15,7 @@ import { TagPicker } from "@/components/control/tag-picker";
 import { RequestAccessToggle, Toggle } from "@/components/ui/toggle";
 import { parseRequireRequest, withRequireRequest } from "@/lib/docbay/doc-actions";
 import { useT } from "@/lib/i18n";
+import { kindMeta, type CreateKind } from "@/lib/docbay/create-kind";
 import { fromDatetimeLocal } from "@/lib/utils";
 
 function collectButtons(
@@ -201,31 +203,22 @@ export function GeneratePanel({
   }
 
   if (result) {
+    const hue = kindMeta((resource.type as CreateKind) || "document").hue;
     return (
       <LinkEditorShell
-        title="Link bereit"
+        title={t("short.createTitle")}
         onClose={onClose}
         url={result.url}
         slug={resource.slug}
+        created
         preview={{
           title: resource.title,
           text: note,
           image: "",
           host: state.tenant.public_host || "",
         }}
-        footer={
-          <Button
-            className="w-full"
-            onClick={() => {
-              void navigator.clipboard.writeText(result.url);
-              toast.success("Kopiert");
-            }}
-          >
-            <Copy className="h-4 w-4" /> Kopieren
-          </Button>
-        }
       >
-        <p className="break-all font-mono text-sm">{result.url}</p>
+        <CreatedLinkCard url={result.url} slug={resource.slug} hue={hue} />
       </LinkEditorShell>
     );
   }
