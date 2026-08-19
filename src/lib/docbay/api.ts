@@ -2070,11 +2070,12 @@ export const listChatInbox = createServerFn({ method: "POST" })
         assigned_to: null as string | null,
         status: "open",
         tags: [] as string[],
+        read_at: null as string | null,
       };
     });
     try {
       const metas = await sql`
-        select resource_id, visitor_key, priority, assigned_to, status, tags
+        select resource_id, visitor_key, priority, assigned_to, status, tags, read_at
         from db_chat_threads where tenant_id = ${mem.tenant.id}
       `;
       const map = new Map<string, Record<string, unknown>>();
@@ -2082,19 +2083,24 @@ export const listChatInbox = createServerFn({ method: "POST" })
         const r = raw as Record<string, unknown>;
         map.set(`${r.resource_id}:${r.visitor_key || ""}`, r);
       }
-      return mapped
-        .map((th) => {
-          const m = map.get(`${th.resource_id}:${th.thread_key}`);
-          if (!m) return th;
-          return {
-            ...th,
-            priority: String(m.priority || "none"),
-            assigned_to: m.assigned_to ? String(m.assigned_to) : null,
-            status: String(m.status || "open"),
-            tags: Array.isArray(m.tags) ? (m.tags as string[]) : [],
-          };
-        })
-        .filter((th) => th.status !== "archived");
+      return mapped.map((th) => {
+        const m = map.get(`${th.resource_id}:${th.thread_key}`);
+        if (!m) return th;
+        const rawTags = m.tags;
+        const tags = Array.isArray(rawTags)
+          ? (rawTags as string[])
+          : typeof rawTags === "string"
+            ? (JSON.parse(rawTags) as string[])
+            : [];
+        return {
+          ...th,
+          priority: String(m.priority || "none"),
+          assigned_to: m.assigned_to ? String(m.assigned_to) : null,
+          status: String(m.status || "open"),
+          tags,
+          read_at: m.read_at ? new Date(m.read_at as string).toISOString() : null,
+        };
+      });
     } catch {
       return mapped;
     }
@@ -2114,6 +2120,7 @@ export const saveChatThread = createServerFn({ method: "POST" })
       status?: string;
       tags?: string[];
       tenant_id?: string;
+      read_at?: string | null;
     }) => d,
   )
   .handler(async ({ context, data }) => {
@@ -2121,19 +2128,21 @@ export const saveChatThread = createServerFn({ method: "POST" })
     if (!mem || mem.tenant.id === "platform") throw new Error("Kein Workspace");
     const sql = await getSql();
     const key = data.visitor_key || "";
+    const tagsJson = JSON.stringify(data.tags ?? []);
     await sql`
       insert into db_chat_threads (
-        tenant_id, resource_id, visitor_key, priority, assigned_to, status, tags, updated_at
+        tenant_id, resource_id, visitor_key, priority, assigned_to, status, tags, read_at, updated_at
       ) values (
         ${mem.tenant.id}, ${data.resource_id}, ${key},
         ${data.priority || "none"}, ${data.assigned_to ?? null},
-        ${data.status || "open"}, ${JSON.stringify(data.tags ?? [])}, now()
+        ${data.status || "open"}, ${tagsJson}::jsonb, ${data.read_at ?? null}::timestamptz, now()
       )
       on conflict (resource_id, visitor_key) do update set
         priority = excluded.priority,
         assigned_to = excluded.assigned_to,
         status = excluded.status,
         tags = excluded.tags,
+        read_at = coalesce(excluded.read_at, db_chat_threads.read_at),
         updated_at = now()
     `;
     return { ok: true };

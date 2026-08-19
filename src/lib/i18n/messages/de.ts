@@ -386,6 +386,9 @@ export const de = {
     needEmailHint: "Damit das Team antworten kann.",
     start: "Chat starten",
     emailPh: "sarah.b@example.net",
+    showArchived: "Archivierte anzeigen",
+    hideArchived: "Archivierte ausblenden",
+    assigned: "Zugewiesen",
   },
   doc: {
     actions: "Aktionen",

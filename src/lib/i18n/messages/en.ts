@@ -387,6 +387,9 @@ export const en: Messages = {
     needEmailHint: "So the team can write back.",
     start: "Start chat",
     emailPh: "you@company.com",
+    showArchived: "Show archived",
+    hideArchived: "Hide archived",
+    assigned: "Assigned",
   },
   doc: {
     actions: "Actions",
