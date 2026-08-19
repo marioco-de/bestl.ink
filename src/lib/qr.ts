@@ -1,5 +1,17 @@
 import QRCode from "qrcode";
 
+export function withQrFlag(url: string): string {
+  try {
+    const u = new URL(url);
+    if (u.searchParams.get("qr") === "1") return u.toString();
+    u.searchParams.set("qr", "1");
+    return u.toString();
+  } catch {
+    if (!url) return url;
+    return url.includes("?") ? `${url}&qr=1` : `${url}?qr=1`;
+  }
+}
+
 export function encodeQrMatrix(text: string, ecc: "M" | "Q" | "H" = "M"): boolean[][] {
   const qr = QRCode.create(text, { errorCorrectionLevel: ecc });
   const size = qr.modules.size;

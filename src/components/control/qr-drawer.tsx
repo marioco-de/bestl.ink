@@ -5,6 +5,7 @@ import {
   downloadSvgFile,
   qrToStyledSvg,
   validateQrReadable,
+  withQrFlag,
   QR_DOTS,
   type QrDot,
   type QrEye,
@@ -37,7 +38,7 @@ export function QrDrawer({
   const svg = useMemo(() => {
     if (!slug) return "";
     try {
-      return qrToStyledSvg(url, {
+      return qrToStyledSvg(withQrFlag(url), {
         fg,
         bg,
         dot,

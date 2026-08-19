@@ -1,4 +1,4 @@
-import { qrToSvg } from "@/lib/qr";
+import { qrToSvg, withQrFlag } from "@/lib/qr";
 import { createServerFn } from "@tanstack/react-start";
 import { getSql } from "@/lib/db";
 import { authMiddleware } from "@/lib/auth/middleware";
@@ -227,50 +227,15 @@ export const getShortAnalytics = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const mem = await getMembership(context.userId, data.tenant_id);
     if (!mem) throw new Error("Kein Workspace");
-    const sql = await getSql();
-    const visits = await sql`
-      select is_bot, device, os, browser, country, referrer, created_at
-      from db_short_visits
-      where short_id = ${data.id} and tenant_id = ${mem.tenant.id}
-      order by created_at desc
-      limit 2000
-    `;
-    const short = (
-      await sql`select slug, destination, title, utm_source, utm_medium, utm_campaign, utm_term, utm_content
-        from db_short_links where id = ${data.id} and tenant_id = ${mem.tenant.id} limit 1`
-    )[0] as Record<string, unknown> | undefined;
-    const rows = visits.map((v) => {
-      const r = v as Record<string, unknown>;
-      return {
-        is_bot: Boolean(r.is_bot),
-        device: String(r.device ?? ""),
-        os: String(r.os ?? ""),
-        browser: String(r.browser ?? ""),
-        country: String(r.country ?? ""),
-        referrer: String(r.referrer ?? ""),
-        created_at: new Date(r.created_at as string).toISOString(),
-      };
-    });
-    const { buildAnalytics } = await import("./analytics");
-    return buildAnalytics(rows, {
-      range: data.range,
-      linkName: short ? `${short.slug}` : data.id,
-      dest: short ? String(short.destination || "") : "",
-      utm: {
-        utm_source: short?.utm_source ? String(short.utm_source) : null,
-        utm_medium: short?.utm_medium ? String(short.utm_medium) : null,
-        utm_campaign: short?.utm_campaign ? String(short.utm_campaign) : null,
-        utm_term: short?.utm_term ? String(short.utm_term) : null,
-        utm_content: short?.utm_content ? String(short.utm_content) : null,
-      },
-    });
+    const { loadShortAnalytics } = await import("./shorts.server");
+    return loadShortAnalytics(mem.tenant.id, data.id, data.range);
   });
 
 export const qrForUrl = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .inputValidator((d: { url: string }) => d)
   .handler(async ({ data }) => {
-    return { svg: qrToSvg(data.url) };
+    return { svg: qrToSvg(withQrFlag(data.url)) };
   });
 
 export const createWorkspaceApiKey = createServerFn({ method: "POST" })
@@ -306,6 +271,7 @@ export const resolveShort = createServerFn({ method: "POST" })
       ip_hint?: string;
       country?: string;
       lang?: string;
+      qr?: boolean;
     }) => d,
   )
   .handler(async ({ data }) => {
@@ -350,6 +316,7 @@ export const resolveShort = createServerFn({ method: "POST" })
       ipHint: data.ip_hint,
       referrer: data.referrer,
       country,
+      trigger: data.qr ? "qr" : "link",
     });
     const featRows = (await (await getSql())`
       select feature_key, enabled from db_features where tenant_id = ${short.tenant_id}

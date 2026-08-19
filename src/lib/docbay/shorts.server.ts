@@ -282,19 +282,22 @@ export async function recordShortVisit(input: {
   ipHint?: string;
   referrer?: string;
   country?: string;
+  trigger?: string;
 }): Promise<void> {
   const sql = await getSql();
   const bot = isBotUa(input.ua);
   const parsed = parseUa(input.ua);
   const ipHash = await hashSecret(input.ipHint || input.ua || "unknown");
+  const trigger = input.trigger === "qr" ? "qr" : "link";
   await sql`
     insert into db_short_visits (
       id, short_id, tenant_id, is_bot, device, os, browser, country,
-      referrer, ip_hash, user_agent
+      referrer, ip_hash, user_agent, trigger
     ) values (
       ${uid("sv")}, ${input.short.id}, ${input.short.tenant_id}, ${bot},
       ${parsed.device}, ${parsed.os}, ${parsed.browser}, ${input.country || ""},
-      ${(input.referrer || "").slice(0, 400)}, ${ipHash}, ${input.ua.slice(0, 400)}
+      ${(input.referrer || "").slice(0, 400)}, ${ipHash}, ${input.ua.slice(0, 400)},
+      ${trigger}
     )
   `;
   await sql`
@@ -313,6 +316,21 @@ export async function recordShortVisit(input: {
     });
   } catch {
     /* activity table may lag a deploy */
+  }
+  if (!bot) {
+    void import("./webhooks.server")
+      .then(({ fireWebhooks }) =>
+        fireWebhooks(input.short.tenant_id, "click", {
+          short_id: input.short.id,
+          slug: input.short.slug,
+          destination: input.short.destination,
+          bot,
+          trigger,
+          country: input.country || "",
+          device: parsed.device,
+        }),
+      )
+      .catch(() => undefined);
   }
 }
 
@@ -424,5 +442,123 @@ export async function destinationAllowsIframe(url: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+export async function tenantFromApiRequest(request: Request): Promise<string | null> {
+  const auth = request.headers.get("authorization") || "";
+  const bearer = auth.toLowerCase().startsWith("bearer ")
+    ? auth.slice(7).trim()
+    : "";
+  const key = bearer || request.headers.get("x-api-key") || "";
+  return findTenantByApiKey(key);
+}
+
+export async function getShortForTenant(tenantId: string, id: string): Promise<ShortLink | null> {
+  const sql = await getSql();
+  const row = (
+    await sql`
+      select * from db_short_links
+      where tenant_id = ${tenantId} and (id = ${id} or slug = ${id})
+      limit 1
+    `
+  )[0] as Record<string, unknown> | undefined;
+  return row ? mapShortRow(row) : null;
+}
+
+export async function deleteShortForTenant(tenantId: string, id: string): Promise<boolean> {
+  const sql = await getSql();
+  const rows = await sql`
+    delete from db_short_links where tenant_id = ${tenantId} and (id = ${id} or slug = ${id})
+    returning id
+  `;
+  return rows.length > 0;
+}
+
+export async function patchShortForTenant(
+  tenantId: string,
+  id: string,
+  data: {
+    destination?: string;
+    slug?: string;
+    title?: string;
+    note?: string;
+    disabled?: boolean;
+    cloak?: boolean;
+  },
+): Promise<ShortLink> {
+  const sql = await getSql();
+  const cur = (
+    await sql`
+      select * from db_short_links
+      where tenant_id = ${tenantId} and (id = ${id} or slug = ${id})
+      limit 1
+    `
+  )[0] as Record<string, unknown> | undefined;
+  if (!cur) throw new Error("Nicht gefunden");
+  const dest = data.destination ? assertHttpUrl(data.destination) : String(cur.destination);
+  let slug = data.slug ? normalizeSlug(data.slug) : String(cur.slug);
+  if (!slug) slug = String(cur.slug);
+  const shortId = String(cur.id);
+  if (slug !== String(cur.slug) && (await slugTaken(tenantId, slug, shortId))) {
+    throw new Error("Slug bereits vergeben");
+  }
+  await sql`
+    update db_short_links set
+      slug = ${slug},
+      destination = ${dest},
+      title = ${data.title ?? String(cur.title ?? "")},
+      note = ${data.note ?? String(cur.note ?? "")},
+      disabled = ${data.disabled ?? Boolean(cur.disabled)},
+      cloak = ${data.cloak ?? Boolean(cur.cloak)}
+    where id = ${shortId} and tenant_id = ${tenantId}
+  `;
+  const row = (
+    await sql`select * from db_short_links where id = ${shortId}`
+  )[0] as Record<string, unknown>;
+  return mapShortRow(row);
+}
+
+export async function loadShortAnalytics(tenantId: string, id: string, range?: string) {
+  const sql = await getSql();
+  const short = await getShortForTenant(tenantId, id);
+  if (!short) throw new Error("Nicht gefunden");
+  const visits = await sql`
+    select is_bot, device, os, browser, country, referrer, created_at,
+           coalesce(trigger, 'link') as trigger
+    from db_short_visits
+    where short_id = ${short.id} and tenant_id = ${tenantId}
+    order by created_at desc
+    limit 2000
+  `;
+  const meta = (
+    await sql`select slug, destination, utm_source, utm_medium, utm_campaign, utm_term, utm_content
+      from db_short_links where id = ${short.id} limit 1`
+  )[0] as Record<string, unknown> | undefined;
+  const rows = visits.map((v) => {
+    const r = v as Record<string, unknown>;
+    return {
+      is_bot: Boolean(r.is_bot),
+      device: String(r.device ?? ""),
+      os: String(r.os ?? ""),
+      browser: String(r.browser ?? ""),
+      country: String(r.country ?? ""),
+      referrer: String(r.referrer ?? ""),
+      trigger: String(r.trigger || "link"),
+      created_at: new Date(r.created_at as string).toISOString(),
+    };
+  });
+  const { buildAnalytics } = await import("./analytics");
+  return buildAnalytics(rows, {
+    range,
+    linkName: String(meta?.slug || short.slug),
+    dest: String(meta?.destination || short.destination),
+    utm: {
+      utm_source: meta?.utm_source ? String(meta.utm_source) : null,
+      utm_medium: meta?.utm_medium ? String(meta.utm_medium) : null,
+      utm_campaign: meta?.utm_campaign ? String(meta.utm_campaign) : null,
+      utm_term: meta?.utm_term ? String(meta.utm_term) : null,
+      utm_content: meta?.utm_content ? String(meta.utm_content) : null,
+    },
+  });
 }
 

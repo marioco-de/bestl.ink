@@ -36,6 +36,8 @@ import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as ApiCardsResourceIdRouteImport } from './routes/api/cards/$resourceId'
 import { Route as ApiFilesResourceIdRouteImport } from './routes/api/files/$resourceId'
 import { Route as ApiV1ShortsRouteImport } from './routes/api/v1/shorts'
+import { Route as ApiV1ShortsIdRouteImport } from './routes/api/v1/shorts/$id'
+import { Route as ApiV1ShortsIdAnalyticsRouteImport } from './routes/api/v1/shorts/$id.analytics'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -172,6 +174,16 @@ const ApiV1ShortsRoute = ApiV1ShortsRouteImport.update({
   path: '/api/v1/shorts',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiV1ShortsIdRoute = ApiV1ShortsIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => ApiV1ShortsRoute,
+} as any)
+const ApiV1ShortsIdAnalyticsRoute = ApiV1ShortsIdAnalyticsRouteImport.update({
+  id: '/analytics',
+  path: '/analytics',
+  getParentRoute: () => ApiV1ShortsIdRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -200,7 +212,9 @@ export interface FileRoutesByFullPath {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/cards/$resourceId': typeof ApiCardsResourceIdRoute
   '/api/files/$resourceId': typeof ApiFilesResourceIdRoute
-  '/api/v1/shorts': typeof ApiV1ShortsRoute
+  '/api/v1/shorts': typeof ApiV1ShortsRouteWithChildren
+  '/api/v1/shorts/$id': typeof ApiV1ShortsIdRouteWithChildren
+  '/api/v1/shorts/$id/analytics': typeof ApiV1ShortsIdAnalyticsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -228,7 +242,9 @@ export interface FileRoutesByTo {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/cards/$resourceId': typeof ApiCardsResourceIdRoute
   '/api/files/$resourceId': typeof ApiFilesResourceIdRoute
-  '/api/v1/shorts': typeof ApiV1ShortsRoute
+  '/api/v1/shorts': typeof ApiV1ShortsRouteWithChildren
+  '/api/v1/shorts/$id': typeof ApiV1ShortsIdRouteWithChildren
+  '/api/v1/shorts/$id/analytics': typeof ApiV1ShortsIdAnalyticsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -258,7 +274,9 @@ export interface FileRoutesById {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/cards/$resourceId': typeof ApiCardsResourceIdRoute
   '/api/files/$resourceId': typeof ApiFilesResourceIdRoute
-  '/api/v1/shorts': typeof ApiV1ShortsRoute
+  '/api/v1/shorts': typeof ApiV1ShortsRouteWithChildren
+  '/api/v1/shorts/$id': typeof ApiV1ShortsIdRouteWithChildren
+  '/api/v1/shorts/$id/analytics': typeof ApiV1ShortsIdAnalyticsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -290,6 +308,8 @@ export interface FileRouteTypes {
     | '/api/cards/$resourceId'
     | '/api/files/$resourceId'
     | '/api/v1/shorts'
+    | '/api/v1/shorts/$id'
+    | '/api/v1/shorts/$id/analytics'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -318,6 +338,8 @@ export interface FileRouteTypes {
     | '/api/cards/$resourceId'
     | '/api/files/$resourceId'
     | '/api/v1/shorts'
+    | '/api/v1/shorts/$id'
+    | '/api/v1/shorts/$id/analytics'
   id:
     | '__root__'
     | '/'
@@ -347,6 +369,8 @@ export interface FileRouteTypes {
     | '/api/cards/$resourceId'
     | '/api/files/$resourceId'
     | '/api/v1/shorts'
+    | '/api/v1/shorts/$id'
+    | '/api/v1/shorts/$id/analytics'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -362,7 +386,7 @@ export interface RootRouteChildren {
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiCardsResourceIdRoute: typeof ApiCardsResourceIdRoute
   ApiFilesResourceIdRoute: typeof ApiFilesResourceIdRoute
-  ApiV1ShortsRoute: typeof ApiV1ShortsRoute
+  ApiV1ShortsRoute: typeof ApiV1ShortsRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
@@ -556,6 +580,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiV1ShortsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/v1/shorts/$id': {
+      id: '/api/v1/shorts/$id'
+      path: '/$id'
+      fullPath: '/api/v1/shorts/$id'
+      preLoaderRoute: typeof ApiV1ShortsIdRouteImport
+      parentRoute: typeof ApiV1ShortsRoute
+    }
+    '/api/v1/shorts/$id/analytics': {
+      id: '/api/v1/shorts/$id/analytics'
+      path: '/analytics'
+      fullPath: '/api/v1/shorts/$id/analytics'
+      preLoaderRoute: typeof ApiV1ShortsIdAnalyticsRouteImport
+      parentRoute: typeof ApiV1ShortsIdRoute
+    }
   }
 }
 
@@ -596,6 +634,30 @@ const ControlRouteChildren: ControlRouteChildren = {
 const ControlRouteWithChildren =
   ControlRoute._addFileChildren(ControlRouteChildren)
 
+interface ApiV1ShortsIdRouteChildren {
+  ApiV1ShortsIdAnalyticsRoute: typeof ApiV1ShortsIdAnalyticsRoute
+}
+
+const ApiV1ShortsIdRouteChildren: ApiV1ShortsIdRouteChildren = {
+  ApiV1ShortsIdAnalyticsRoute: ApiV1ShortsIdAnalyticsRoute,
+}
+
+const ApiV1ShortsIdRouteWithChildren = ApiV1ShortsIdRoute._addFileChildren(
+  ApiV1ShortsIdRouteChildren,
+)
+
+interface ApiV1ShortsRouteChildren {
+  ApiV1ShortsIdRoute: typeof ApiV1ShortsIdRouteWithChildren
+}
+
+const ApiV1ShortsRouteChildren: ApiV1ShortsRouteChildren = {
+  ApiV1ShortsIdRoute: ApiV1ShortsIdRouteWithChildren,
+}
+
+const ApiV1ShortsRouteWithChildren = ApiV1ShortsRoute._addFileChildren(
+  ApiV1ShortsRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   SplatRoute: SplatRoute,
@@ -609,7 +671,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiCardsResourceIdRoute: ApiCardsResourceIdRoute,
   ApiFilesResourceIdRoute: ApiFilesResourceIdRoute,
-  ApiV1ShortsRoute: ApiV1ShortsRoute,
+  ApiV1ShortsRoute: ApiV1ShortsRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

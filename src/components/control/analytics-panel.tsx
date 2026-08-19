@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { MousePointerClick } from "lucide-react";
+import { Download, List, MousePointerClick } from "lucide-react";
 import { FullScreenModal } from "@/components/ui/fullscreen-modal";
 import type { AnalyticsBundle, CountRow } from "@/lib/docbay/analytics";
 import { getShortAnalytics } from "@/lib/docbay/shorts-api";
@@ -8,6 +8,33 @@ import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 const RANGES = ["24h", "7d", "30d"] as const;
+
+function downloadCsv(stats: AnalyticsBundle, name: string) {
+  const cols = ["time", "trigger", "country", "device", "os", "browser", "referrer", "bot"];
+  const lines = [
+    cols.join(","),
+    ...stats.events.map((e) =>
+      [
+        e.created_at,
+        e.trigger === "qr" ? "qr" : "link",
+        e.country,
+        e.device,
+        e.os,
+        e.browser,
+        e.referrer,
+        e.is_bot ? "1" : "0",
+      ]
+        .map((v) => `"${String(v || "").replace(/"/g, '""')}"`)
+        .join(","),
+    ),
+  ];
+  const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `analytics-${(name || "link").replace(/\W+/g, "-").slice(0, 40)}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
 
 function Chart({ series }: { series: { t: string; v: number }[] }) {
   const w = 640;
@@ -102,6 +129,7 @@ export function AnalyticsPanel({
   const t = useT();
   const [range, setRange] = useState<(typeof RANGES)[number]>("24h");
   const [stats, setStats] = useState<AnalyticsBundle | null>(null);
+  const [eventsOpen, setEventsOpen] = useState(false);
 
   useEffect(() => {
     setStats(null);
@@ -133,7 +161,7 @@ export function AnalyticsPanel({
             { id: "devices", label: t("analytics.devices"), rows: stats.devices },
             { id: "browsers", label: t("analytics.browsers"), rows: stats.browsers },
             { id: "os", label: t("analytics.os"), rows: stats.os },
-            { id: "triggers", label: t("analytics.triggers"), rows: [] },
+            { id: "triggers", label: t("analytics.triggers"), rows: stats.triggers },
           ]
         : [],
     [stats, t],
@@ -183,6 +211,26 @@ export function AnalyticsPanel({
             </p>
             <p className="font-display text-3xl font-semibold tabular">{stats ? clicks : "…"}</p>
           </div>
+          {stats && (
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border px-2.5 text-xs hover:bg-bg-subtle"
+                onClick={() => setEventsOpen((v) => !v)}
+              >
+                <List className="h-3.5 w-3.5" />
+                {t("analytics.viewEvents")}
+              </button>
+              <button
+                type="button"
+                className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border px-2.5 text-xs hover:bg-bg-subtle"
+                onClick={() => downloadCsv(stats, title)}
+              >
+                <Download className="h-3.5 w-3.5" />
+                {t("analytics.exportCsv")}
+              </button>
+            </div>
+          )}
         </div>
         {stats ? <Chart series={stats.series} /> : <div className="h-44" />}
       </div>
@@ -192,6 +240,50 @@ export function AnalyticsPanel({
           <CardTabs tabs={refs} empty={t("analytics.empty")} />
           <CardTabs tabs={geo} empty={t("analytics.empty")} />
           <CardTabs tabs={devices} empty={t("analytics.empty")} />
+        </div>
+      )}
+      {stats && eventsOpen && (
+        <div className="overflow-hidden rounded-xl border border-border">
+          <p className="border-b border-border px-3 py-2 text-xs font-medium">{t("analytics.events")}</p>
+          <div className="max-h-80 overflow-auto">
+            <table className="w-full min-w-[40rem] text-left text-xs">
+              <thead className="sticky top-0 bg-bg-elevated text-fg-muted">
+                <tr>
+                  <th className="px-3 py-2 font-medium">{t("analytics.colTime")}</th>
+                  <th className="px-3 py-2 font-medium">{t("analytics.colTrigger")}</th>
+                  <th className="px-3 py-2 font-medium">{t("analytics.colCountry")}</th>
+                  <th className="px-3 py-2 font-medium">{t("analytics.colDevice")}</th>
+                  <th className="px-3 py-2 font-medium">{t("analytics.colOs")}</th>
+                  <th className="px-3 py-2 font-medium">{t("analytics.colBrowser")}</th>
+                  <th className="px-3 py-2 font-medium">{t("analytics.colReferrer")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {stats.events.length === 0 && (
+                  <tr>
+                    <td className="px-3 py-6 text-fg-subtle" colSpan={7}>
+                      {t("analytics.empty")}
+                    </td>
+                  </tr>
+                )}
+                {stats.events.map((e, i) => (
+                  <tr key={`${e.created_at}-${i}`} className="border-t border-border/70">
+                    <td className="whitespace-nowrap px-3 py-1.5 tabular text-fg-muted">
+                      {e.created_at.slice(0, 16).replace("T", " ")}
+                    </td>
+                    <td className="px-3 py-1.5">
+                      {e.trigger === "qr" ? t("analytics.triggerQr") : t("analytics.triggerLink")}
+                    </td>
+                    <td className="px-3 py-1.5">{e.country || "—"}</td>
+                    <td className="px-3 py-1.5">{e.device || "—"}</td>
+                    <td className="px-3 py-1.5">{e.os || "—"}</td>
+                    <td className="px-3 py-1.5">{e.browser || "—"}</td>
+                    <td className="max-w-[12rem] truncate px-3 py-1.5">{e.referrer || "(direct)"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </FullScreenModal>

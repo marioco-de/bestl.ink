@@ -2,24 +2,15 @@ import { createFileRoute } from "@tanstack/react-router";
 import { getSql } from "@/lib/db";
 import {
   mapShortRow,
-  findTenantByApiKey,
+  tenantFromApiRequest,
   createShortForTenant,
 } from "@/lib/docbay/shorts.server";
-
-async function tenantFromRequest(request: Request): Promise<string | null> {
-  const auth = request.headers.get("authorization") || "";
-  const bearer = auth.toLowerCase().startsWith("bearer ")
-    ? auth.slice(7).trim()
-    : "";
-  const key = bearer || request.headers.get("x-api-key") || "";
-  return findTenantByApiKey(key);
-}
 
 export const Route = createFileRoute("/api/v1/shorts")({
   server: {
     handlers: {
       GET: async ({ request }) => {
-        const tenantId = await tenantFromRequest(request);
+        const tenantId = await tenantFromApiRequest(request);
         if (!tenantId) {
           return Response.json({ error: "Unauthorized" }, { status: 401 });
         }
@@ -33,7 +24,7 @@ export const Route = createFileRoute("/api/v1/shorts")({
         });
       },
       POST: async ({ request }) => {
-        const tenantId = await tenantFromRequest(request);
+        const tenantId = await tenantFromApiRequest(request);
         if (!tenantId) {
           return Response.json({ error: "Unauthorized" }, { status: 401 });
         }

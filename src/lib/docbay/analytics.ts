@@ -5,10 +5,13 @@ export type VisitRow = {
   browser: string;
   country: string;
   referrer: string;
+  trigger?: string;
   created_at: string;
 };
 
 export type CountRow = { name: string; value: number };
+
+export type AnalyticsEvent = VisitRow;
 
 export type AnalyticsBundle = {
   total: number;
@@ -23,6 +26,8 @@ export type AnalyticsBundle = {
   links: CountRow[];
   destinations: CountRow[];
   utm: CountRow[];
+  triggers: CountRow[];
+  events: AnalyticsEvent[];
 };
 
 const EU = new Set([
@@ -83,7 +88,8 @@ export function buildAnalytics(
   } = {},
 ): AnalyticsBundle {
   const since = rangeSince(opts.range);
-  const rows = all.filter((r) => !r.is_bot && (!since || new Date(r.created_at) >= since));
+  const ranged = all.filter((r) => !since || new Date(r.created_at) >= since);
+  const rows = ranged.filter((r) => !r.is_bot);
   const hourly = opts.range === "24h";
   const buckets: { t: string; v: number }[] = [];
   if (hourly) {
@@ -129,5 +135,7 @@ export function buildAnalytics(
     links: opts.linkName ? [{ name: opts.linkName, value: rows.length }] : [],
     destinations: opts.dest ? [{ name: opts.dest, value: rows.length }] : [],
     utm: utmEntries,
+    triggers: countBy(rows, (r) => (r.trigger === "qr" ? "QR" : "Link")),
+    events: ranged.slice(0, 200),
   };
 }

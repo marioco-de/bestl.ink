@@ -67,34 +67,7 @@ async function notify(
   `;
 }
 
-async function fireWebhooks(
-  tenantId: string,
-  event: string,
-  payload: Record<string, unknown>,
-) {
-  const sql = await getSql();
-  const rows = await sql`
-    select * from db_webhooks where tenant_id = ${tenantId} and enabled = true
-  `;
-  for (const row of rows) {
-    const w = row as { url: string; events: string; secret: string | null };
-    const events = parseJsonArray(w.events);
-    if (!events.includes(event)) continue;
-    try {
-      await fetch(w.url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(w.secret ? { "X-Bestlink-Secret": w.secret } : {}),
-        },
-        body: JSON.stringify({ event, ...payload, at: new Date().toISOString() }),
-        signal: AbortSignal.timeout(2500),
-      });
-    } catch {
-      /* ignore */
-    }
-  }
-}
+import { fireWebhooks } from "./webhooks.server";
 
 export const bootstrap = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
@@ -1205,6 +1178,27 @@ export const deleteWebhook = createServerFn({ method: "POST" })
     return loadFullState(context.userId, mem.tenant.id);
   });
 
+export const listWebhookLog = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .inputValidator((d: { id: string; tenant_id?: string }) => d)
+  .handler(async ({ context, data }) => {
+    const mem = await getMembership(context.userId, data.tenant_id);
+    if (!mem) throw new Error("Kein Workspace");
+    const { listWebhookDeliveries } = await import("./webhooks.server");
+    return listWebhookDeliveries(mem.tenant.id, data.id);
+  });
+
+export const retryWebhookLog = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .inputValidator((d: { id: string; tenant_id?: string }) => d)
+  .handler(async ({ context, data }) => {
+    const mem = await getMembership(context.userId, data.tenant_id);
+    if (!mem) throw new Error("Kein Workspace");
+    const { retryWebhookDelivery } = await import("./webhooks.server");
+    await retryWebhookDelivery(mem.tenant.id, data.id);
+    return { ok: true };
+  });
+
 export const markNotificationsRead = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .inputValidator((d: { tenant_id?: string } | undefined) => d ?? {})
@@ -1394,6 +1388,7 @@ export const resolveAccess = createServerFn({ method: "POST" })
       user_agent?: string;
       ip_hint?: string;
       host?: string;
+      qr?: boolean;
     }) => d,
   )
   .handler(async ({ data }) => {
@@ -1635,10 +1630,11 @@ export const resolveAccess = createServerFn({ method: "POST" })
     const kindEarly = String(resource.type);
     const isCard = kindEarly === "event" || kindEarly === "contact";
 
+    const trigger = data.qr ? "qr" : "link";
     if (!isCard) {
       await sql`
-        insert into db_clicks (id, link_id, tenant_id, is_bot, user_agent, ip_hash)
-        values (${uid("click")}, ${String(link.id)}, ${tenantId}, ${bot}, ${ua}, ${ipHash})
+        insert into db_clicks (id, link_id, tenant_id, is_bot, user_agent, ip_hash, trigger)
+        values (${uid("click")}, ${String(link.id)}, ${tenantId}, ${bot}, ${ua}, ${ipHash}, ${trigger})
       `;
       await sql`
         update db_links set
@@ -1669,12 +1665,15 @@ export const resolveAccess = createServerFn({ method: "POST" })
         }
       }
 
-      await fireWebhooks(tenantId, "click", {
-        token: link.token,
-        resource: resource.title,
-        bot,
-        note: link.note,
-      });
+      if (!bot) {
+        void fireWebhooks(tenantId, "click", {
+          token: link.token,
+          resource: resource.title,
+          bot,
+          trigger,
+          note: link.note,
+        });
+      }
     }
 
     let content_data_url: string | null = null;
@@ -2210,7 +2209,7 @@ export const getLinkAnalytics = createServerFn({ method: "POST" })
     if (!mem) throw new Error("Kein Workspace");
     const sql = await getSql();
     const clicks = await sql`
-      select is_bot, user_agent, referer, created_at
+      select is_bot, user_agent, referer, created_at, coalesce(trigger, 'link') as trigger
       from db_clicks
       where link_id = ${data.link_id} and tenant_id = ${mem.tenant.id}
       order by created_at desc
@@ -2235,6 +2234,7 @@ export const getLinkAnalytics = createServerFn({ method: "POST" })
         browser: parsed.browser,
         country: "",
         referrer: String(r.referer ?? ""),
+        trigger: String(r.trigger || "link"),
         created_at: new Date(r.created_at as string).toISOString(),
       };
     });

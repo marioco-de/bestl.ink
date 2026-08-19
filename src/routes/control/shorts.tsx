@@ -151,7 +151,7 @@ export function ShortsWorkspace({
           </CardHeader>
           <CardContent className="space-y-3">
             <p className="text-sm text-fg-muted">
-              POST /api/v1/shorts mit{" "}
+              POST /api/v1/shorts, PATCH/DELETE /api/v1/shorts/:id, GET …/:id/analytics.{" "}
               <span className="font-mono text-xs">Authorization: Bearer ltis_…</span>
             </p>
             <div className="flex flex-wrap gap-2">

@@ -78,6 +78,7 @@ type Search = {
   utm_source?: string;
   utm_medium?: string;
   utm_campaign?: string;
+  qr?: string;
 };
 
 export const Route = createFileRoute("/$")({
@@ -86,8 +87,9 @@ export const Route = createFileRoute("/$")({
     utm_source: typeof s.utm_source === "string" ? s.utm_source : undefined,
     utm_medium: typeof s.utm_medium === "string" ? s.utm_medium : undefined,
     utm_campaign: typeof s.utm_campaign === "string" ? s.utm_campaign : undefined,
+    qr: typeof s.qr === "string" ? s.qr : undefined,
   }),
-  loaderDeps: ({ search }) => ({ access: search.access }),
+  loaderDeps: ({ search }) => ({ access: search.access, qr: search.qr }),
   loader: async ({ params, deps }) => {
     const slug = (params._splat || "").replace(/\/$/, "");
     const missCtx = await lookupMiss({
@@ -125,6 +127,7 @@ export const Route = createFileRoute("/$")({
           token: deps.access ?? null,
           user_agent: ua,
           host,
+          qr: deps.qr === "1" || deps.qr === "true",
         },
       });
       return { kind: "resource" as const, resource };
@@ -137,6 +140,7 @@ export const Route = createFileRoute("/$")({
             host,
             referrer: typeof document !== "undefined" ? document.referrer : "",
             lang: typeof navigator !== "undefined" ? navigator.language : "",
+            qr: deps.qr === "1" || deps.qr === "true",
           },
         });
         if (
@@ -213,6 +217,7 @@ function ShortHit({
           host: location.host,
           referrer: document.referrer,
           lang: navigator.language,
+          qr: new URLSearchParams(location.search).get("qr") === "1",
         },
       });
       if (next.access === "password") {
