@@ -23,7 +23,7 @@ export function ShortcutsHelp({ onClose }: { onClose: () => void }) {
       />
       <div className="relative z-10 w-full max-w-md rounded-xl border border-border bg-bg-elevated p-4 shadow-2xl">
         <h2 className="font-display text-lg font-semibold">Tastenkürzel</h2>
-        <p className="mt-1 text-sm text-fg-muted">Wie bei Dub – ohne die Seite neu zu laden.</p>
+        <p className="mt-1 text-sm text-fg-muted">Tastenkürzel, ohne die Seite neu zu laden.</p>
         <ul className="mt-4 space-y-1.5">
           {ROWS.map((r) => (
             <li key={r.keys} className="flex items-center justify-between text-sm">

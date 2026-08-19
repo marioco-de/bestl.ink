@@ -2,12 +2,12 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import {
   Copy,
+  CopyPlus,
   Plus,
   QrCode,
   Trash2,
   Pencil,
-  Ban,
-  BarChart3,
+  Archive,
   KeyRound,
   Bookmark,
 } from "lucide-react";
@@ -24,7 +24,6 @@ import {
   updateShort,
   deleteShort,
   toggleShort,
-  getShortAnalytics,
   qrForUrl,
   createWorkspaceApiKey,
   deleteWorkspaceApiKey,
@@ -38,7 +37,8 @@ import { formatDateDe, cn, toDatetimeLocal, fromDatetimeLocal } from "@/lib/util
 import { TagChip } from "@/components/control/tag-picker";
 import { tagColor } from "@/lib/docbay/tags";
 import { ActivityList, PresenceEye } from "@/components/control/presence-eye";
-import { RowMenu, VisitMeta } from "@/components/control/row-menu";
+import { RowMenu, ClicksChip } from "@/components/control/row-menu";
+import { AnalyticsPanel } from "@/components/control/analytics-panel";
 import { DeviceSplitFields } from "@/components/control/device-split";
 import { UtmFields } from "@/components/control/utm-fields";
 import { packUtm, unpackUtm, type UtmRow } from "@/lib/docbay/utm";
@@ -233,9 +233,12 @@ export function ShortsWorkspace({
         />
       )}
       {statsFor && (
-        <StatsModal
-          short={statsFor}
+        <AnalyticsPanel
+          kind="short"
+          id={statsFor.id}
           tenantId={state.tenant.id}
+          title={statsFor.title || statsFor.slug}
+          description={`https://${host}/${statsFor.slug}`}
           onClose={() => setStatsFor(null)}
         />
       )}
@@ -311,68 +314,88 @@ function ShortRow({
             <span className="text-fg-subtle"> → {s.destination}</span>
           </p>
         </div>
-        <div className="flex shrink-0 items-center gap-3" onClick={(e) => e.stopPropagation()}>
-          <VisitMeta
+        <div className="flex shrink-0 items-center gap-2" onClick={(e) => e.stopPropagation()}>
+          <ClicksChip
             clicks={s.human_click_count}
-            at={s.last_clicked_at ? formatDateDe(s.last_clicked_at) : null}
-            lastLabel={t("links.lastVisit")}
+            label={t("links.clicks")}
+            onClick={() => onStats(s)}
           />
-          <div className="flex flex-wrap items-center gap-1">
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() => {
-                void navigator.clipboard.writeText(url);
-                toast.success("Kopiert");
-              }}
-            >
-              <Copy className="h-3.5 w-3.5" />
-            </Button>
-            {state.features.qr_codes && (
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={async () => {
-                  try {
-                    const res = await qrForUrl({ data: { url } });
-                    onQr({ url, svg: res.svg });
-                  } catch (e) {
-                    toast.error(e instanceof Error ? e.message : "QR-Fehler");
-                  }
-                }}
-              >
-                <QrCode className="h-3.5 w-3.5" />
-              </Button>
-            )}
-            <Button size="sm" variant="secondary" onClick={() => onStats(s)}>
-              <BarChart3 className="h-3.5 w-3.5" />
-            </Button>
-            <RowMenu
-              items={[
-                { label: t("links.edit"), icon: Pencil, onClick: () => onEdit(s) },
-                {
-                  label: s.disabled ? t("links.enable") : t("links.disable"),
-                  icon: Ban,
-                  onClick: () => {
-                    void toggleShort({
-                      data: { id: s.id, disabled: !s.disabled, tenant_id: state.tenant.id },
-                    }).then((next) => refresh(upsertShort(state, next.short)));
-                  },
+          <RowMenu
+            items={[
+              { label: t("links.edit"), icon: Pencil, kbd: "E", onClick: () => onEdit(s) },
+              {
+                label: t("links.qr"),
+                icon: QrCode,
+                kbd: "Q",
+                onClick: () => {
+                  void qrForUrl({ data: { url } })
+                    .then((res) => onQr({ url, svg: res.svg }))
+                    .catch((e) => toast.error(e instanceof Error ? e.message : "QR-Fehler"));
                 },
-                {
-                  label: t("links.delete"),
-                  icon: Trash2,
-                  danger: true,
-                  onClick: () => {
-                    if (!confirm("Kurzlink löschen?")) return;
-                    void deleteShort({
-                      data: { id: s.id, tenant_id: state.tenant.id },
-                    }).then((next) => refresh(removeShort(state, next.id)));
-                  },
+              },
+              {
+                label: t("links.copyId"),
+                icon: Copy,
+                kbd: "I",
+                onClick: () => {
+                  void navigator.clipboard.writeText(s.id);
+                  toast.success(t("common.copy"));
                 },
-              ]}
-            />
-          </div>
+              },
+              {
+                label: t("links.duplicate"),
+                icon: CopyPlus,
+                kbd: "D",
+                onClick: () => {
+                  void createShort({
+                    data: {
+                      destination: s.destination,
+                      title: s.title,
+                      note: s.note,
+                      tags: s.tags,
+                      ios_url: s.ios_url || undefined,
+                      android_url: s.android_url || undefined,
+                      og_title: s.og_title || undefined,
+                      og_description: s.og_description || undefined,
+                      og_image: s.og_image || undefined,
+                      cloak: s.cloak,
+                      button_id: s.button_id,
+                      utm_source: s.utm_source || undefined,
+                      utm_medium: s.utm_medium || undefined,
+                      utm_campaign: s.utm_campaign || undefined,
+                      tenant_id: state.tenant.id,
+                    },
+                  })
+                    .then((next) => refresh(upsertShort(state, next.short)))
+                    .then(() => toast.success(t("links.duplicate")))
+                    .catch((e) => toast.error(e instanceof Error ? e.message : t("common.error")));
+                },
+              },
+              {
+                label: t("links.archive"),
+                icon: Archive,
+                kbd: "A",
+                sep: true,
+                onClick: () => {
+                  void toggleShort({
+                    data: { id: s.id, disabled: !s.disabled, tenant_id: state.tenant.id },
+                  }).then((next) => refresh(upsertShort(state, next.short)));
+                },
+              },
+              {
+                label: t("links.delete"),
+                icon: Trash2,
+                kbd: "X",
+                danger: true,
+                onClick: () => {
+                  if (!confirm("Kurzlink löschen?")) return;
+                  void deleteShort({
+                    data: { id: s.id, tenant_id: state.tenant.id },
+                  }).then((next) => refresh(removeShort(state, next.id)));
+                },
+              },
+            ]}
+          />
         </div>
       </div>
       {open && (
@@ -629,61 +652,4 @@ function ShortEditor({
   );
 }
 
-function StatsModal({
-  short,
-  tenantId,
-  onClose,
-}: {
-  short: ShortLink;
-  tenantId: string;
-  onClose: () => void;
-}) {
-  const [stats, setStats] = useState<Awaited<ReturnType<typeof getShortAnalytics>> | null>(
-    null,
-  );
-  useEffect(() => {
-    void getShortAnalytics({ data: { id: short.id, tenant_id: tenantId } }).then(setStats);
-  }, [short.id, tenantId]);
 
-  return (
-    <FullScreenModal
-      title="Analytics"
-      description={short.title || short.slug}
-      onClose={onClose}
-    >
-      {!stats && <p className="text-sm text-fg-muted">Lade…</p>}
-      {stats && (
-        <div className="space-y-4">
-          <p className="text-sm">
-            {stats.human} Human · {stats.total} gesamt
-          </p>
-          {(
-            [
-              ["Geräte", stats.devices],
-              ["OS", stats.os],
-              ["Browser", stats.browsers],
-              ["Länder", stats.countries],
-              ["Referrer", stats.referrers],
-            ] as const
-          ).map(([label, rows]) => (
-            <div key={label}>
-              <p className="mb-1 text-xs font-medium text-fg-muted">{label}</p>
-              {rows.length === 0 && (
-                <p className="text-xs text-fg-subtle">Noch keine Daten</p>
-              )}
-              {rows.slice(0, 6).map((r) => (
-                <div
-                  key={r.name}
-                  className="flex justify-between text-xs text-fg-muted"
-                >
-                  <span className="truncate">{r.name}</span>
-                  <span className="tabular">{r.value}</span>
-                </div>
-              ))}
-            </div>
-          ))}
-        </div>
-      )}
-    </FullScreenModal>
-  );
-}

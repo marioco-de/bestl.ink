@@ -43,6 +43,7 @@ function prioClass(p?: string) {
 }
 
 function isUnread(th: Thread) {
+  if (th.last_sender !== "visitor") return false;
   if (!th.read_at) return true;
   return new Date(th.last_at).getTime() > new Date(th.read_at).getTime();
 }

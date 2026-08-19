@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { MoreVertical, MousePointerClick, type LucideIcon } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export function RowMenu({
@@ -12,6 +11,8 @@ export function RowMenu({
     icon: LucideIcon;
     onClick: () => void;
     danger?: boolean;
+    kbd?: string;
+    sep?: boolean;
   }[];
 }) {
   const [open, setOpen] = useState(false);
@@ -21,26 +22,25 @@ export function RowMenu({
   useEffect(() => {
     if (!open || !btnRef.current) return;
     const r = btnRef.current.getBoundingClientRect();
-    const menuH = items.length * 32 + 12;
+    const menuH = items.length * 36 + 16;
     const openUp = r.bottom + menuH > window.innerHeight - 8;
     setPos({
       top: openUp ? r.top - menuH - 4 : r.bottom + 4,
-      left: Math.max(8, r.right - 160),
+      left: Math.max(8, r.right - 220),
     });
   }, [open, items.length]);
 
   if (items.length === 0) return null;
   return (
     <div className="relative">
-      <Button
+      <button
         ref={btnRef}
-        size="sm"
-        variant="ghost"
-        className="h-8 w-8 px-0"
+        type="button"
+        className="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-fg-muted hover:bg-bg-subtle hover:text-fg"
         onClick={() => setOpen((v) => !v)}
       >
         <MoreVertical className="h-4 w-4" />
-      </Button>
+      </button>
       {open &&
         createPortal(
           <>
@@ -51,27 +51,42 @@ export function RowMenu({
               onClick={() => setOpen(false)}
             />
             <div
-              className="fixed z-50 min-w-[10rem] rounded-md border border-border bg-bg-elevated p-1 shadow-lg"
+              className="fixed z-50 min-w-[13.5rem] rounded-xl border border-border bg-bg-elevated p-1 shadow-lg"
               style={{ top: pos.top, left: pos.left }}
             >
-              {items.map((item) => {
+              {items.map((item, i) => {
                 const Icon = item.icon;
                 return (
-                  <button
-                    key={item.label}
-                    type="button"
-                    className={cn(
-                      "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-xs hover:bg-bg-subtle",
-                      item.danger ? "text-danger" : "text-fg",
-                    )}
-                    onClick={() => {
-                      setOpen(false);
-                      item.onClick();
-                    }}
-                  >
-                    <Icon className="h-3.5 w-3.5" />
-                    {item.label}
-                  </button>
+                  <div key={item.label}>
+                    {item.sep && i > 0 && <div className="my-1 border-t border-border" />}
+                    <button
+                      type="button"
+                      className={cn(
+                        "flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm hover:bg-bg-subtle",
+                        i === 0 && "ring-1 ring-inset ring-hue-azure/70",
+                        item.danger ? "text-danger" : "text-fg",
+                      )}
+                      onClick={() => {
+                        setOpen(false);
+                        item.onClick();
+                      }}
+                    >
+                      <Icon className="h-4 w-4 shrink-0 opacity-80" />
+                      <span className="flex-1">{item.label}</span>
+                      {item.kbd && (
+                        <kbd
+                          className={cn(
+                            "rounded-md border px-1.5 py-0.5 text-[10px] font-medium",
+                            item.danger
+                              ? "border-danger/30 bg-danger/10 text-danger"
+                              : "border-border bg-bg-subtle text-fg-muted",
+                          )}
+                        >
+                          {item.kbd}
+                        </kbd>
+                      )}
+                    </button>
+                  </div>
                 );
               })}
             </div>
@@ -79,6 +94,27 @@ export function RowMenu({
           document.body,
         )}
     </div>
+  );
+}
+
+export function ClicksChip({
+  clicks,
+  onClick,
+  label,
+}: {
+  clicks: number;
+  onClick: () => void;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-bg px-2.5 text-xs font-medium text-fg hover:bg-bg-subtle"
+    >
+      <MousePointerClick className="h-3.5 w-3.5 text-hue-azure" />
+      {label.replace("{n}", String(clicks))}
+    </button>
   );
 }
 

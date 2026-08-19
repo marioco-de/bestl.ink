@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Ban, Copy, ExternalLink } from "lucide-react";
+import { Ban, Copy, QrCode } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { useControlData, useSetControlData } from "@/lib/docbay/use-control";
 import { revokeLink, getPresence } from "@/lib/docbay/api";
+import { qrForUrl } from "@/lib/docbay/shorts-api";
 import { formatDateDe, cn } from "@/lib/utils";
 import type { FullState } from "@/lib/docbay/types";
 import { ShortsWorkspace } from "./shorts";
@@ -19,7 +20,8 @@ import { tagColor } from "@/lib/docbay/tags";
 import { useT } from "@/lib/i18n";
 import { QuickShorten } from "@/components/control/quick-shorten";
 import { ActivityList, PresenceEye } from "@/components/control/presence-eye";
-import { RowMenu, VisitMeta } from "@/components/control/row-menu";
+import { RowMenu, ClicksChip } from "@/components/control/row-menu";
+import { AnalyticsPanel } from "@/components/control/analytics-panel";
 import { useControl } from "@/lib/docbay/control-store";
 
 type Tab = "urls" | "docs" | "pages" | "events" | "contacts" | "shared";
@@ -234,7 +236,9 @@ function DocLinkRow({
   onRevoke: () => void;
 }) {
   const t = useT();
+  const data = useControlData();
   const [more, setMore] = useState(false);
+  const [stats, setStats] = useState(false);
   const ndas = l.ndas || [];
 
   return (
@@ -263,39 +267,59 @@ function DocLinkRow({
           </div>
           <p className="mt-0.5 truncate font-mono text-xs text-fg-muted">{url}</p>
         </div>
-        <div className="flex shrink-0 items-center gap-3" onClick={(e) => e.stopPropagation()}>
-          <VisitMeta
+        <div className="flex shrink-0 items-center gap-2" onClick={(e) => e.stopPropagation()}>
+          <ClicksChip
             clicks={l.human_click_count}
-            at={l.last_clicked_at ? formatDateDe(l.last_clicked_at) : null}
-            lastLabel={t("links.lastVisit")}
-            extra={ndas.length ? ` · ${ndas.length} NDA` : null}
+            label={t("links.clicks")}
+            onClick={() => setStats(true)}
           />
-          <div className="flex flex-wrap items-center gap-1">
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() => {
-                void navigator.clipboard.writeText(url);
-                toast.success("Kopiert");
-              }}
-            >
-              <Copy className="h-3.5 w-3.5" />
-            </Button>
-            <Button size="sm" variant="ghost" asChild>
-              <a href={url} target="_blank" rel="noreferrer">
-                <ExternalLink className="h-3.5 w-3.5" />
-              </a>
-            </Button>
-            {!l.revoked && (
-              <RowMenu
-                items={[
-                  { label: t("links.revoke"), icon: Ban, danger: true, onClick: () => void onRevoke() },
-                ]}
-              />
-            )}
-          </div>
+          <RowMenu
+            items={[
+              {
+                label: t("links.qr"),
+                icon: QrCode,
+                kbd: "Q",
+                onClick: () => {
+                  void qrForUrl({ data: { url } }).then((res) => {
+                    const blob = new Blob([res.svg], { type: "image/svg+xml" });
+                    const a = document.createElement("a");
+                    a.href = URL.createObjectURL(blob);
+                    a.download = `${l.token || "qr"}.svg`;
+                    a.click();
+                  });
+                },
+              },
+              {
+                label: t("links.copyId"),
+                icon: Copy,
+                kbd: "I",
+                onClick: () => {
+                  void navigator.clipboard.writeText(l.id);
+                  toast.success(t("common.copy"));
+                },
+              },
+              {
+                label: t("links.revoke"),
+                icon: Ban,
+                kbd: "X",
+                sep: true,
+                danger: true,
+                onClick: () => void onRevoke(),
+              },
+            ]}
+          />
         </div>
       </div>
+      {stats && (
+        <AnalyticsPanel
+          kind="link"
+          id={l.id}
+          tenantId={data.tenant.id}
+          title={l.resource_title || url}
+          description={url}
+          onClose={() => setStats(false)}
+        />
+      )}
       {more && (
         <div className="mt-2 space-y-2 border-t border-border/70 pt-2 text-xs text-fg-muted">
           {l.note && <p>{l.note}</p>}

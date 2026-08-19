@@ -104,12 +104,12 @@ const FEATURES = [
   {
     icon: Fingerprint,
     title: "Device- & Geo-Routing",
-    text: "iOS, Android oder Land → andere Ziel-URL. Wie Dub, ohne Extra-Tool.",
+    text: "iOS, Android oder Land → andere Ziel-URL. Ein Link, mehrere Ziele.",
   },
   {
     icon: Webhook,
     title: "REST API & Bookmarklet",
-    text: "Shlink/YOURLS-kompatibler Workflow: API-Keys, POST /api/v1/shorts.",
+    text: "API-Keys, Bookmarklet, POST /api/v1/shorts – kürzen direkt aus dem Browser.",
   },
   {
     icon: Fingerprint,

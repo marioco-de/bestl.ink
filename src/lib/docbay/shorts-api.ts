@@ -221,9 +221,9 @@ export const toggleShort = createServerFn({ method: "POST" })
     return { short: mapShortRow(row) };
   });
 
-export const getShortAnalytics = createServerFn({ method: "GET" })
+export const getShortAnalytics = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .inputValidator((d: { id: string; tenant_id?: string }) => d)
+  .inputValidator((d: { id: string; tenant_id?: string; range?: string }) => d)
   .handler(async ({ context, data }) => {
     const mem = await getMembership(context.userId, data.tenant_id);
     if (!mem) throw new Error("Kein Workspace");
@@ -233,8 +233,12 @@ export const getShortAnalytics = createServerFn({ method: "GET" })
       from db_short_visits
       where short_id = ${data.id} and tenant_id = ${mem.tenant.id}
       order by created_at desc
-      limit 500
+      limit 2000
     `;
+    const short = (
+      await sql`select slug, destination, title, utm_source, utm_medium, utm_campaign, utm_term, utm_content
+        from db_short_links where id = ${data.id} and tenant_id = ${mem.tenant.id} limit 1`
+    )[0] as Record<string, unknown> | undefined;
     const rows = visits.map((v) => {
       const r = v as Record<string, unknown>;
       return {
@@ -247,36 +251,19 @@ export const getShortAnalytics = createServerFn({ method: "GET" })
         created_at: new Date(r.created_at as string).toISOString(),
       };
     });
-    const countBy = (key: keyof (typeof rows)[0]) => {
-      const m: Record<string, number> = {};
-      for (const r of rows) {
-        if (r.is_bot) continue;
-        const k = String(r[key] || "—");
-        m[k] = (m[k] ?? 0) + 1;
-      }
-      return Object.entries(m)
-        .map(([name, value]) => ({ name, value }))
-        .sort((a, b) => b.value - a.value);
-    };
-    const byDay: Record<string, number> = {};
-    for (const r of rows) {
-      if (r.is_bot) continue;
-      const d = r.created_at.slice(0, 10);
-      byDay[d] = (byDay[d] ?? 0) + 1;
-    }
-    return {
-      total: rows.length,
-      human: rows.filter((r) => !r.is_bot).length,
-      devices: countBy("device"),
-      os: countBy("os"),
-      browsers: countBy("browser"),
-      countries: countBy("country"),
-      referrers: countBy("referrer"),
-      days: Object.entries(byDay)
-        .map(([name, value]) => ({ name, value }))
-        .sort((a, b) => a.name.localeCompare(b.name)),
-      recent: rows.slice(0, 30),
-    };
+    const { buildAnalytics } = await import("./analytics");
+    return buildAnalytics(rows, {
+      range: data.range,
+      linkName: short ? `${short.slug}` : data.id,
+      dest: short ? String(short.destination || "") : "",
+      utm: {
+        utm_source: short?.utm_source ? String(short.utm_source) : null,
+        utm_medium: short?.utm_medium ? String(short.utm_medium) : null,
+        utm_campaign: short?.utm_campaign ? String(short.utm_campaign) : null,
+        utm_term: short?.utm_term ? String(short.utm_term) : null,
+        utm_content: short?.utm_content ? String(short.utm_content) : null,
+      },
+    });
   });
 
 export const qrForUrl = createServerFn({ method: "POST" })

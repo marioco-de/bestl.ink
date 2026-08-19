@@ -2204,37 +2204,45 @@ export const replyChat = createServerFn({ method: "POST" })
 
 export const getLinkAnalytics = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .inputValidator((d: { link_id: string }) => d)
+  .inputValidator((d: { link_id: string; range?: string; tenant_id?: string }) => d)
   .handler(async ({ context, data }) => {
-    const mem = await getMembership(context.userId);
+    const mem = await getMembership(context.userId, data.tenant_id);
     if (!mem) throw new Error("Kein Workspace");
     const sql = await getSql();
-    const views = (
-      await sql`
-      select page, avg(duration_ms)::int as avg_ms, count(*)::int as c
-      from db_view_events
+    const clicks = await sql`
+      select is_bot, user_agent, referer, created_at
+      from db_clicks
       where link_id = ${data.link_id} and tenant_id = ${mem.tenant.id}
-      group by page order by page
-    `
-    ).map((r) => {
-      const row = r as { page: number; avg_ms: number; c: number };
+      order by created_at desc
+      limit 2000
+    `;
+    const link = (
+      await sql`
+        select l.token, r.title, r.slug
+        from db_links l join db_resources r on r.id = l.resource_id
+        where l.id = ${data.link_id} and l.tenant_id = ${mem.tenant.id} limit 1
+      `
+    )[0] as Record<string, unknown> | undefined;
+    const { parseUa } = await import("./shorts.server");
+    const { buildAnalytics } = await import("./analytics");
+    const rows = clicks.map((v) => {
+      const r = v as Record<string, unknown>;
+      const parsed = parseUa(String(r.user_agent || ""));
       return {
-        page: Number(row.page),
-        avg_ms: Number(row.avg_ms),
-        c: Number(row.c),
+        is_bot: Boolean(r.is_bot),
+        device: parsed.device,
+        os: parsed.os,
+        browser: parsed.browser,
+        country: "",
+        referrer: String(r.referer ?? ""),
+        created_at: new Date(r.created_at as string).toISOString(),
       };
     });
-    const clicks = (
-      await sql`
-      select is_bot, count(*)::int as c from db_clicks
-      where link_id = ${data.link_id}
-      group by is_bot
-    `
-    ).map((r) => {
-      const row = r as { is_bot: boolean; c: number };
-      return { is_bot: Boolean(row.is_bot), c: Number(row.c) };
+    return buildAnalytics(rows, {
+      range: data.range,
+      linkName: link ? String(link.slug || link.title || data.link_id) : data.link_id,
+      dest: link ? String(link.title || "") : "",
     });
-    return { views, clicks };
   });
 
 export const recordDocAction = createServerFn({ method: "POST" })

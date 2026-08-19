@@ -10,6 +10,7 @@ export function FullScreenModal({
   footer,
   toolbar,
   wide,
+  xl,
   className,
 }: {
   title: string;
@@ -19,6 +20,7 @@ export function FullScreenModal({
   footer?: ReactNode;
   toolbar?: ReactNode;
   wide?: boolean;
+  xl?: boolean;
   className?: string;
 }) {
   useEffect(() => {
@@ -52,7 +54,9 @@ export function FullScreenModal({
           "relative flex h-dvh w-full flex-col bg-bg @min-[640px]/fs:rounded-xl @min-[640px]/fs:border @min-[640px]/fs:border-border @min-[640px]/fs:shadow-2xl",
           wide
             ? "@min-[640px]/fs:h-auto @min-[640px]/fs:max-w-3xl"
-            : "@min-[640px]/fs:h-[min(90dvh,800px)] @min-[640px]/fs:max-w-lg",
+            : xl
+              ? "@min-[640px]/fs:h-[min(92dvh,920px)] @min-[640px]/fs:max-w-5xl"
+              : "@min-[640px]/fs:h-[min(90dvh,800px)] @min-[640px]/fs:max-w-lg",
         )}
       >
         <header className="flex shrink-0 items-start justify-between gap-3 border-b border-border px-4 py-4 pt-[max(1rem,env(safe-area-inset-top))]">
