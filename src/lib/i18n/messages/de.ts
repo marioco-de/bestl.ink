@@ -249,6 +249,8 @@ export const de = {
     high: "Hoch",
     urgent: "Dringend",
     unassigned: "Nicht zugewiesen",
+    markUnread: "Als ungelesen markieren",
+    markRead: "Als gelesen markieren",
   },
   overview: {
     title: "Übersicht",

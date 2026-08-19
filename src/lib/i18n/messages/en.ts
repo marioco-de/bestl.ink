@@ -251,6 +251,8 @@ export const en: Messages = {
     high: "High",
     urgent: "Urgent",
     unassigned: "Unassigned",
+    markUnread: "Mark as unread",
+    markRead: "Mark as read",
   },
   overview: {
     title: "Overview",

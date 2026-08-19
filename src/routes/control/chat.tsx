@@ -1,6 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { MessageSquare, Send, Flag, UserPlus, CheckCircle2, Tag, Archive, Trash2 } from "lucide-react";
+import { useEffect, useState, type MouseEvent, type ReactNode } from "react";
+import {
+  MessageSquare,
+  Send,
+  Flag,
+  UserPlus,
+  CheckCircle2,
+  Tag,
+  Archive,
+  Trash2,
+  MailOpen,
+  Reply,
+  Circle,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,8 +28,11 @@ export const Route = createFileRoute("/control/chat")({
 
 type Thread = Awaited<ReturnType<typeof listChatInbox>>[number];
 type Msg = Awaited<ReturnType<typeof listChat>>[number];
+type MemberLite = { user_id: string; name?: string; email?: string };
+type TagLite = { name: string; color?: string };
 
 const PRIOS = ["none", "low", "normal", "high", "urgent"] as const;
+const UNREAD_TS = "1970-01-01T00:00:00.000Z";
 
 function prioClass(p?: string) {
   if (p === "urgent") return "text-danger";
@@ -28,9 +43,26 @@ function prioClass(p?: string) {
 }
 
 function isUnread(th: Thread) {
-  if (th.last_sender !== "visitor") return false;
   if (!th.read_at) return true;
   return new Date(th.last_at).getTime() > new Date(th.read_at).getTime();
+}
+
+/** Outline check vs filled circle with cut-out check. */
+function DoneIcon({ filled, className }: { filled?: boolean; className?: string }) {
+  if (!filled) return <CheckCircle2 className={className} />;
+  return (
+    <svg viewBox="0 0 24 24" className={className} aria-hidden>
+      <circle cx="12" cy="12" r="10" fill="currentColor" />
+      <path
+        d="m8.2 12.2 2.4 2.4 5.2-5.4"
+        fill="none"
+        stroke="var(--color-bg-elevated, #13181b)"
+        strokeWidth="2.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
 }
 
 function ChatInboxPage() {
@@ -42,6 +74,7 @@ function ChatInboxPage() {
   const [body, setBody] = useState("");
   const [busy, setBusy] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
+  const [menu, setMenu] = useState<{ x: number; y: number; th: Thread } | null>(null);
 
   async function loadInbox() {
     const rows = await listChatInbox({ data: { tenant_id: data.tenant.id } });
@@ -80,34 +113,39 @@ function ChatInboxPage() {
     return m?.name || m?.email || "";
   }
 
-  async function markRead(th: Thread) {
-    const now = new Date().toISOString();
+  function applyLocal(th: Thread, partial: Partial<Thread>) {
     setThreads((prev) =>
       prev.map((x) =>
-        x.resource_id === th.resource_id && x.thread_key === th.thread_key ? { ...x, read_at: now } : x,
+        x.resource_id === th.resource_id && x.thread_key === th.thread_key ? { ...x, ...partial } : x,
       ),
     );
+  }
+
+  async function patchThread(th: Thread, partial: Partial<Thread> & { read_at?: string | null }) {
+    applyLocal(th, partial);
     try {
       await saveChatThread({
         data: {
           resource_id: th.resource_id,
           visitor_key: th.thread_key,
           tenant_id: data.tenant.id,
-          priority: th.priority,
-          assigned_to: th.assigned_to,
-          status: th.status,
-          tags: th.tags,
-          read_at: now,
+          priority: partial.priority ?? th.priority,
+          assigned_to: partial.assigned_to === undefined ? th.assigned_to : partial.assigned_to,
+          status: partial.status ?? th.status,
+          tags: partial.tags ?? th.tags,
+          read_at: partial.read_at ?? undefined,
         },
       });
-    } catch {
-      /* poll retries */
+      await loadInbox();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t("common.error"));
     }
   }
 
   function openThread(th: Thread) {
     setActive({ resource_id: th.resource_id, thread_key: th.thread_key });
-    if (isUnread(th)) void markRead(th);
+    setMenu(null);
+    if (isUnread(th)) void patchThread(th, { read_at: new Date().toISOString() });
   }
 
   async function send() {
@@ -132,35 +170,19 @@ function ChatInboxPage() {
     }
   }
 
-  function ThreadRow({ th }: { th: Thread }) {
-    const unread = isUnread(th);
-    const assigned = memberLabel(th.assigned_to);
-    return (
-      <button
-        type="button"
-        onClick={() => openThread(th)}
-        className={cn(
-          "relative flex w-full flex-col gap-0.5 border-b border-border px-3 py-2.5 text-left",
-          active?.resource_id === th.resource_id && active.thread_key === th.thread_key
-            ? "bg-hue-violet/10"
-            : "hover:bg-bg-subtle",
-        )}
-      >
-        <span className="absolute right-2.5 top-2.5 flex flex-col items-center gap-1">
-          {unread && <span className="h-2 w-2 rounded-full bg-hue-violet" title={t("nav.chat")} />}
-          {th.priority && th.priority !== "none" && (
-            <Flag className={cn("h-3 w-3", prioClass(th.priority))} fill="currentColor" />
-          )}
-        </span>
-        <span className="truncate pr-7 text-sm font-medium">{th.resource_title}</span>
-        <span className="truncate text-[11px] text-fg-muted">
-          {th.last_visitor || th.thread_key || t("chat.visitor")} · {th.n}
-          {assigned ? ` · ${assigned}` : ""}
-        </span>
-        <span className="truncate text-[11px] text-fg-subtle">{th.last_body}</span>
-      </button>
-    );
-  }
+  const tools = {
+    tenantId: data.tenant.id,
+    members: data.members,
+    tags: data.tags,
+    onLocal: (partial: Partial<Thread>) => {
+      if (current) applyLocal(current, partial);
+    },
+    onChanged: () => void loadInbox(),
+    onDeleted: () => {
+      setActive(null);
+      void loadInbox();
+    },
+  };
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -169,13 +191,25 @@ function ChatInboxPage() {
         <p className="mt-1 text-sm text-fg-muted">{t("chat.hint")}</p>
       </div>
       <QuickShorten />
-      <div className="grid min-h-[28rem] overflow-hidden rounded-xl border border-border bg-bg-elevated md:grid-cols-[16rem_1fr]">
+      <div className="grid min-h-[28rem] overflow-hidden rounded-xl border border-border bg-bg-elevated md:grid-cols-[20rem_1fr]">
         <aside className="border-b border-border md:border-b-0 md:border-r">
           {openThreads.length === 0 && (
             <p className="p-4 text-sm text-fg-muted">{t("chat.empty")}</p>
           )}
           {openThreads.map((th) => (
-            <ThreadRow key={`${th.resource_id}:${th.thread_key}`} th={th} />
+            <ThreadRow
+              key={`${th.resource_id}:${th.thread_key}`}
+              th={th}
+              active={active}
+              tags={data.tags}
+              memberLabel={memberLabel}
+              onOpen={() => openThread(th)}
+              onPatch={(p) => void patchThread(th, p)}
+              onMenu={(e) => {
+                e.preventDefault();
+                setMenu({ x: e.clientX, y: e.clientY, th });
+              }}
+            />
           ))}
         </aside>
         <section className="flex min-h-[20rem] flex-col">
@@ -184,31 +218,9 @@ function ChatInboxPage() {
               <div className="flex items-start justify-between gap-2 border-b border-border px-4 py-2.5">
                 <div className="min-w-0">
                   <p className="text-sm font-medium">{current.resource_title}</p>
-                  <p className="text-[11px] text-fg-subtle">
-                    /{current.resource_slug}
-                    {current.assigned_to ? ` · ${t("chat.assigned")}: ${memberLabel(current.assigned_to)}` : ""}
-                  </p>
+                  <p className="text-[11px] text-fg-subtle">/{current.resource_slug}</p>
                 </div>
-                <ThreadTools
-                  thread={current}
-                  tenantId={data.tenant.id}
-                  members={data.members}
-                  tags={data.tags}
-                  onLocal={(partial) => {
-                    setThreads((prev) =>
-                      prev.map((x) =>
-                        x.resource_id === current.resource_id && x.thread_key === current.thread_key
-                          ? { ...x, ...partial }
-                          : x,
-                      ),
-                    );
-                  }}
-                  onChanged={() => void loadInbox()}
-                  onDeleted={() => {
-                    setActive(null);
-                    void loadInbox();
-                  }}
-                />
+                <ThreadTools thread={current} {...tools} />
               </div>
               <div className="flex-1 space-y-2 overflow-y-auto p-4">
                 {msgs.map((m) => (
@@ -265,12 +277,332 @@ function ChatInboxPage() {
             <p className="p-4 text-sm text-fg-muted">{t("chat.empty")}</p>
           ) : (
             archivedThreads.map((th) => (
-              <ThreadRow key={`a:${th.resource_id}:${th.thread_key}`} th={th} />
+              <ThreadRow
+                key={`a:${th.resource_id}:${th.thread_key}`}
+                th={th}
+                active={active}
+                tags={data.tags}
+                memberLabel={memberLabel}
+                onOpen={() => openThread(th)}
+                onPatch={(p) => void patchThread(th, p)}
+                onMenu={(e) => {
+                  e.preventDefault();
+                  setMenu({ x: e.clientX, y: e.clientY, th });
+                }}
+              />
             ))
           )}
         </div>
       )}
+      {menu && (
+        <RowContextMenu
+          x={menu.x}
+          y={menu.y}
+          th={menu.th}
+          members={data.members}
+          tags={data.tags}
+          unread={isUnread(menu.th)}
+          onClose={() => setMenu(null)}
+          onPatch={(p) => void patchThread(menu.th, p)}
+          onOpen={() => openThread(menu.th)}
+          onDeleted={() => {
+            setMenu(null);
+            setActive(null);
+            void loadInbox();
+          }}
+          tenantId={data.tenant.id}
+        />
+      )}
     </div>
+  );
+}
+
+function ThreadRow({
+  th,
+  active,
+  tags,
+  memberLabel,
+  onOpen,
+  onPatch,
+  onMenu,
+}: {
+  th: Thread;
+  active: { resource_id: string; thread_key: string } | null;
+  tags: TagLite[];
+  memberLabel: (id: string | null | undefined) => string;
+  onOpen: () => void;
+  onPatch: (p: Partial<Thread> & { read_at?: string | null }) => void;
+  onMenu: (e: MouseEvent) => void;
+}) {
+  const t = useT();
+  const unread = isUnread(th);
+  const done = th.status === "done";
+  const assigned = memberLabel(th.assigned_to);
+  const tagged = tags.filter((tg) => th.tags.includes(tg.name));
+  const important = th.priority && th.priority !== "none";
+
+  return (
+    <div
+      className={cn(
+        "flex min-h-[4.75rem] w-full items-stretch gap-1.5 border-b border-border px-2 py-2",
+        active?.resource_id === th.resource_id && active.thread_key === th.thread_key
+          ? "bg-hue-violet/10"
+          : "hover:bg-bg-subtle",
+        done && "opacity-70",
+      )}
+      onContextMenu={onMenu}
+    >
+      <div className="flex w-5 shrink-0 flex-col items-center justify-between py-0.5">
+        <button
+          type="button"
+          title={unread ? t("thread.markRead") : t("thread.markUnread")}
+          className="flex h-4 w-4 items-center justify-center"
+          onClick={(e) => {
+            e.stopPropagation();
+            onPatch({ read_at: unread ? new Date().toISOString() : UNREAD_TS });
+          }}
+        >
+          {unread ? (
+            <span className="h-2 w-2 rounded-full bg-hue-violet" />
+          ) : (
+            <Circle className="h-2.5 w-2.5 text-fg-subtle" />
+          )}
+        </button>
+        <button
+          type="button"
+          title={t("thread.done")}
+          className={cn("flex h-4 w-4 items-center justify-center", done && "opacity-50")}
+          onClick={(e) => {
+            e.stopPropagation();
+            onPatch({ status: done ? "open" : "done" });
+          }}
+        >
+          <DoneIcon filled={done} className={cn("h-3.5 w-3.5", done ? "text-hue-lime" : "text-fg-muted")} />
+        </button>
+        {th.last_sender === "visitor" ? (
+          <MailOpen className="h-3.5 w-3.5 text-fg-muted" />
+        ) : (
+          <Reply className="h-3.5 w-3.5 text-fg-muted" />
+        )}
+      </div>
+      <button
+        type="button"
+        onClick={onOpen}
+        className={cn("min-w-0 flex-1 text-left", done && "opacity-50")}
+      >
+        <span className="block truncate text-sm font-medium">{th.resource_title}</span>
+        <span className="block truncate text-[11px] text-fg-muted">
+          {th.last_visitor || th.thread_key || t("chat.visitor")} · {th.n}
+        </span>
+        {assigned ? (
+          <span className="block truncate text-[11px] text-hue-azure">{assigned}</span>
+        ) : null}
+        {tagged.length > 0 && (
+          <span className="mt-0.5 flex flex-wrap gap-1">
+            {tagged.map((tg) => (
+              <span
+                key={tg.name}
+                className="rounded-sm px-1 py-px text-[9px] font-medium"
+                style={{ background: `${tg.color || "#64748b"}22`, color: tg.color || undefined }}
+              >
+                {tg.name}
+              </span>
+            ))}
+          </span>
+        )}
+        <span className="mt-0.5 block truncate text-[11px] text-fg-subtle">{th.last_body}</span>
+      </button>
+      <div className="flex w-5 shrink-0 flex-col items-center justify-between py-0.5">
+        <span className="flex h-4 w-4 items-center justify-center">
+          {important ? (
+            <Flag className={cn("h-3.5 w-3.5", prioClass(th.priority))} fill="currentColor" />
+          ) : null}
+        </span>
+        <button
+          type="button"
+          title={t("thread.archive")}
+          className="flex h-4 w-4 items-center justify-center text-fg-muted hover:text-fg"
+          onClick={(e) => {
+            e.stopPropagation();
+            onPatch({ status: th.status === "archived" ? "open" : "archived" });
+          }}
+        >
+          <Archive className="h-3.5 w-3.5" />
+        </button>
+        <span className="flex h-4 w-4 items-center justify-center">
+          {th.assigned_to ? <UserPlus className="h-3.5 w-3.5 text-hue-azure" /> : null}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function RowContextMenu({
+  x,
+  y,
+  th,
+  members,
+  tags,
+  unread,
+  tenantId,
+  onClose,
+  onPatch,
+  onOpen,
+  onDeleted,
+}: {
+  x: number;
+  y: number;
+  th: Thread;
+  members: MemberLite[];
+  tags: TagLite[];
+  unread: boolean;
+  tenantId: string;
+  onClose: () => void;
+  onPatch: (p: Partial<Thread> & { read_at?: string | null }) => void;
+  onOpen: () => void;
+  onDeleted: () => void;
+}) {
+  const t = useT();
+  const [sub, setSub] = useState<null | "prio" | "user" | "tag">(null);
+  return (
+    <>
+      <button type="button" className="fixed inset-0 z-40" aria-label={t("common.close")} onClick={onClose} />
+      <div
+        className="fixed z-50 min-w-[13rem] rounded-md border border-border bg-bg-elevated py-1 shadow-lg"
+        style={{ left: Math.min(x, window.innerWidth - 220), top: Math.min(y, window.innerHeight - 280) }}
+      >
+        <MenuItem
+          onClick={() => {
+            onPatch({ read_at: unread ? new Date().toISOString() : UNREAD_TS });
+            onClose();
+          }}
+        >
+          {unread ? t("thread.markRead") : t("thread.markUnread")}
+        </MenuItem>
+        <MenuItem onClick={() => setSub(sub === "prio" ? null : "prio")}>{t("thread.priority")}</MenuItem>
+        {sub === "prio" &&
+          PRIOS.map((p) => (
+            <MenuItem
+              key={p}
+              indent
+              onClick={() => {
+                onPatch({ priority: p });
+                onClose();
+              }}
+            >
+              <Flag className={cn("h-3 w-3", prioClass(p))} fill={p === "none" ? "none" : "currentColor"} />
+              {t(`thread.${p}`)}
+            </MenuItem>
+          ))}
+        <MenuItem onClick={() => setSub(sub === "user" ? null : "user")}>{t("thread.delegate")}</MenuItem>
+        {sub === "user" && (
+          <>
+            <MenuItem
+              indent
+              onClick={() => {
+                onPatch({ assigned_to: null });
+                onClose();
+              }}
+            >
+              {t("thread.unassigned")}
+            </MenuItem>
+            {members.map((m) => (
+              <MenuItem
+                key={m.user_id}
+                indent
+                onClick={() => {
+                  onPatch({ assigned_to: m.user_id });
+                  onClose();
+                }}
+              >
+                {m.name || m.email || m.user_id}
+              </MenuItem>
+            ))}
+          </>
+        )}
+        <MenuItem
+          onClick={() => {
+            onPatch({ status: th.status === "done" ? "open" : "done" });
+            onClose();
+          }}
+        >
+          {t("thread.done")}
+        </MenuItem>
+        <MenuItem onClick={() => setSub(sub === "tag" ? null : "tag")}>{t("thread.tag")}</MenuItem>
+        {sub === "tag" &&
+          (tags.length ? (
+            tags.map((tg) => (
+              <MenuItem
+                key={tg.name}
+                indent
+                onClick={() => {
+                  const on = th.tags.includes(tg.name);
+                  onPatch({
+                    tags: on ? th.tags.filter((x) => x !== tg.name) : [...th.tags, tg.name],
+                  });
+                }}
+              >
+                {tg.name}
+              </MenuItem>
+            ))
+          ) : (
+            <p className="px-3 py-1.5 text-xs text-fg-muted">—</p>
+          ))}
+        <MenuItem
+          onClick={() => {
+            onPatch({ status: th.status === "archived" ? "open" : "archived" });
+            onClose();
+          }}
+        >
+          {t("thread.archive")}
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            if (!confirm(t("thread.delete"))) return;
+            void deleteChatThread({
+              data: {
+                resource_id: th.resource_id,
+                visitor_key: th.thread_key,
+                tenant_id: tenantId,
+              },
+            }).then(onDeleted);
+          }}
+        >
+          {t("thread.delete")}
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            onOpen();
+            onClose();
+          }}
+        >
+          {t("chat.pick")}
+        </MenuItem>
+      </div>
+    </>
+  );
+}
+
+function MenuItem({
+  children,
+  onClick,
+  indent,
+}: {
+  children: ReactNode;
+  onClick: () => void;
+  indent?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      className={cn(
+        "flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-bg-subtle",
+        indent && "pl-6",
+      )}
+      onClick={onClick}
+    >
+      {children}
+    </button>
   );
 }
 
@@ -285,8 +617,8 @@ function ThreadTools({
 }: {
   thread: Thread;
   tenantId: string;
-  members: { user_id: string; name?: string; email?: string }[];
-  tags: { name: string }[];
+  members: MemberLite[];
+  tags: TagLite[];
   onLocal: (partial: Partial<Thread>) => void;
   onChanged: () => void;
   onDeleted: () => void;
@@ -345,12 +677,7 @@ function ThreadTools({
         className={iconBtn}
         onClick={() => void patch({ status: done ? "open" : "done" })}
       >
-        <CheckCircle2
-          className={cn(
-            "h-4 w-4",
-            done && "fill-hue-lime text-hue-lime [&_path]:opacity-0",
-          )}
-        />
+        <DoneIcon filled={done} className={cn("h-4 w-4", done ? "text-hue-lime" : "text-fg-muted")} />
       </button>
       <button type="button" title={t("thread.tag")} className={iconBtn} onClick={() => setOpen(open === "tag" ? null : "tag")}>
         <Tag className={cn("h-4 w-4", thread.tags.length > 0 && "text-hue-violet")} />
