@@ -399,10 +399,9 @@ function GroupFrame({
   } | null>(null);
 
   useEffect(() => {
-    setTitle(g.title);
-    setColor(g.color);
+    if (open) return;
     setGeom({ x: g.x, y: g.y, w: g.w, h: g.h });
-  }, [g]);
+  }, [g.x, g.y, g.w, g.h, open]);
 
   function clearHold() {
     if (hold.current) window.clearTimeout(hold.current);
@@ -727,9 +726,9 @@ function WidgetCard({
   const mode = w.click_mode === "mint" ? "mint" : "copy";
 
   useEffect(() => {
+    if (settings) return;
     setGeom({ x: w.x, y: w.y, w: w.w, h: w.h });
-    setDraft(w);
-  }, [w]);
+  }, [w.x, w.y, w.w, w.h, settings]);
 
   function clearHold() {
     if (hold.current) window.clearTimeout(hold.current);
