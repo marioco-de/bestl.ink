@@ -197,6 +197,8 @@ export const de = {
     nda: "NDA-Dokumente",
     ndaHint: "Vorlagen für Links mit NDA. Beim Erzeugen auswählen oder hier hochladen.",
     ndaUpload: "NDA hochladen",
+    identity: "Name und Kürzel",
+    identityHint: "Name in der Oberfläche. Kürzel wird zu {slug}.bestl.ink.",
   },
   links: {
     hint: "URL einfügen oder C drücken – der Rest ist optional.",

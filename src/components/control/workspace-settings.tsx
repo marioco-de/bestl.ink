@@ -1,6 +1,8 @@
+import { useEffect, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Input, Label } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ColorPicker } from "@/components/control/color-picker";
 import { useControl } from "@/lib/docbay/control-store";
@@ -16,12 +18,21 @@ import { updateTenant, saveNdaTemplate, deleteNdaTemplate, uploadBegin, uploadCh
 import { useT } from "@/lib/i18n";
 import type { DashState, FullState } from "@/lib/docbay/types";
 import { normalizeHex } from "@/lib/docbay/palette";
+import { PLATFORM_LINK_HOST } from "@/lib/docbay/brand";
 
 export function WorkspaceSettings() {
   const t = useT();
   const { data, setData } = useControl();
   const dash = data.dash;
   const admin = data.member.role !== "member";
+  const [name, setName] = useState(data.tenant.name);
+  const [slug, setSlug] = useState(data.tenant.subdomain || data.tenant.slug);
+  const [savingId, setSavingId] = useState(false);
+
+  useEffect(() => {
+    setName(data.tenant.name);
+    setSlug(data.tenant.subdomain || data.tenant.slug);
+  }, [data.tenant.id]);
   const team = dash.teams.find((x) => x.id === dash.active_team_id) || dash.teams[0];
   const above = dash.sections.filter((s) => s.kind === "team" && s.zone === "above");
   const below = dash.sections.filter((s) => s.kind === "team" && s.zone === "below");
@@ -48,6 +59,65 @@ export function WorkspaceSettings() {
 
   return (
     <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle>{t("workspace.identity")}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form
+            className="space-y-4"
+            onSubmit={(e) => {
+              e.preventDefault();
+              setSavingId(true);
+              void updateTenant({
+                data: {
+                  name: name.trim(),
+                  brand_company: name.trim(),
+                  subdomain: slug.trim(),
+                  tenant_id: data.tenant.id !== "platform" ? data.tenant.id : undefined,
+                },
+              })
+                .then((s) => {
+                  const next = s as FullState;
+                  setData({
+                    ...next,
+                    workspaces: next.workspaces.map((w) =>
+                      w.id === next.tenant.id
+                        ? { ...w, name: next.tenant.name, subdomain: next.tenant.subdomain }
+                        : w,
+                    ),
+                  });
+                  toast.success(t("common.saved"));
+                })
+                .catch((err) => toast.error(err instanceof Error ? err.message : t("common.error")))
+                .finally(() => setSavingId(false));
+            }}
+          >
+            <p className="text-sm text-fg-muted">
+              {t("workspace.identityHint", { slug: slug.trim() || "firma" })}
+            </p>
+            <div>
+              <Label>{t("common.name")}</Label>
+              <Input value={name} onChange={(e) => setName(e.target.value)} />
+            </div>
+            <div>
+              <Label>{t("domain.slug")}</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  value={slug}
+                  onChange={(e) => setSlug(e.target.value)}
+                  className="font-mono"
+                  placeholder="muster-gmbh"
+                />
+                <span className="shrink-0 text-xs text-fg-subtle">.{PLATFORM_LINK_HOST}</span>
+              </div>
+            </div>
+            <Button type="submit" disabled={savingId}>
+              {t("common.save")}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
       <Card>
         <CardHeader>
           <CardTitle>{t("workspace.brand")}</CardTitle>

@@ -10,7 +10,6 @@ import { useControlData, useSetControlData } from "@/lib/docbay/use-control";
 import {
   addTenantDomain,
   removeTenantDomain,
-  updateTenant,
   updateTenantDomain,
   verifyTenantDomain,
   reorderTenantDomains,
@@ -32,8 +31,6 @@ function DomainPage() {
   const t = useT();
   const data = useControlData();
   const setGlobal = useSetControlData();
-  const [company, setCompany] = useState(data.tenant.brand_company || data.tenant.name);
-  const [subdomain, setSubdomain] = useState(data.tenant.subdomain || data.tenant.slug);
   const [newHost, setNewHost] = useState("");
   const [busy, setBusy] = useState(false);
   const [checking, setChecking] = useState<string | null>(null);
@@ -62,11 +59,6 @@ function DomainPage() {
         setVercelHint(t("domain.vercelMissing"));
       });
   }, [t]);
-
-  useEffect(() => {
-    setCompany(data.tenant.brand_company || data.tenant.name);
-    setSubdomain(data.tenant.subdomain || data.tenant.slug);
-  }, [data]);
 
   function patch(next: FullState) {
     setGlobal?.(next);
@@ -123,34 +115,6 @@ function DomainPage() {
     for (const d of pending) void checkDns(d.id, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data.tenant.id, data.domains.length]);
-
-  async function saveBrand(e: React.FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    try {
-      const s = (await updateTenant({
-        data: {
-          name: company.trim(),
-          brand_company: company.trim(),
-          subdomain: subdomain.trim(),
-          tenant_id: data.tenant.id !== "platform" ? data.tenant.id : undefined,
-        },
-      })) as FullState;
-      patch({
-        ...s,
-        workspaces: s.workspaces.map((w) =>
-          w.id === s.tenant.id
-            ? { ...w, name: s.tenant.name, subdomain: s.tenant.subdomain }
-            : w,
-        ),
-      });
-      toast.success(t("common.saved"));
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("common.error"));
-    } finally {
-      setBusy(false);
-    }
-  }
 
   async function addDomain() {
     const host = newHost.trim();
@@ -420,35 +384,6 @@ function DomainPage() {
               <Plus className="h-4 w-4" /> {t("domain.add")}
             </Button>
           </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("domain.workspace")}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={saveBrand} className="space-y-4">
-            <div>
-              <Label>{t("common.name")}</Label>
-              <Input value={company} onChange={(e) => setCompany(e.target.value)} />
-            </div>
-            <div>
-              <Label>{t("domain.slug")}</Label>
-              <div className="flex items-center gap-2">
-                <Input
-                  value={subdomain}
-                  onChange={(e) => setSubdomain(e.target.value)}
-                  className="font-mono"
-                  placeholder="muster-gmbh"
-                />
-                <span className="shrink-0 text-xs text-fg-subtle">.{PLATFORM_LINK_HOST}</span>
-              </div>
-            </div>
-            <Button type="submit" disabled={busy}>
-              {t("common.save")}
-            </Button>
-          </form>
         </CardContent>
       </Card>
     </div>

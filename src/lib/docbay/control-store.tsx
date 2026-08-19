@@ -13,6 +13,15 @@ import type { FullState } from "./types";
 import { cacheWorkspace, readWorkspaceCache, workspaceShell } from "./workspace-cache";
 import type { CreateKind } from "./create-kind";
 
+function isTyping(): boolean {
+  if (typeof document === "undefined") return false;
+  const el = document.activeElement as HTMLElement | null;
+  if (!el) return false;
+  const tag = el.tagName;
+  if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return true;
+  return Boolean(el.isContentEditable);
+}
+
 const Ctx = createContext<{
   data: FullState;
   setData: (s: FullState) => void;
@@ -58,6 +67,7 @@ export function ControlProvider({
       const fresh = (await getState({ data: { tenant_id: id } })) as FullState;
       cacheWorkspace(fresh);
       if (tenantRef.current === id) {
+        if (background && isTyping()) return;
         dataRef.current = fresh;
         setDataState(fresh);
       }
@@ -125,6 +135,7 @@ export function ControlProvider({
 
   useEffect(() => {
     const id = window.setInterval(() => {
+      if (isTyping()) return;
       const tid = tenantRef.current;
       if (!tid || tid === "platform") return;
       void hydrate(tid, true);
