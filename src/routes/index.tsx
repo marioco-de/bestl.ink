@@ -54,7 +54,7 @@ const FEATURES = [
   {
     icon: Server,
     title: "Hosting in Deutschland",
-    text: "Links und Dateien bleiben im Inland. DSGVO-Tracking ohne Cookies – anders als US-Tools wie Dub oder Bitly.",
+    text: "Links und Dateien bleiben im Inland. DSGVO-Tracking ohne Cookies – ohne Umweg über US-Clouds.",
   },
   {
     icon: Lock,
@@ -259,12 +259,12 @@ function HomePage() {
                   US-Cloud-Act, Auftragsverarbeitung nach deutschem Recht.
                 </p>
                 <p className="mt-3 max-w-xl text-sm leading-relaxed text-fg-muted">
-                  Dub (Dub Technologies, Inc.) sitzt in San Francisco – Recht
-                  Kalifornien. Bitly, Rebrandly, Short.io: USA. In der EU gibt
-                  es URL-Kürzer wie URLR (Frankreich) und Cuttly (Polen). Was
-                  fehlt: ein deutsches System, das Kürzen, geschützte Dokumente
-                  und Attribution verbindet – ohne die Daten ins Ausland zu
-                  schieben.
+                  In Europa gibt es nur sehr wenige Anbieter, die Links wirklich
+                  kürzen und schützen. Die Plattformen mit dem großen
+                  Funktionsumfang sitzen fast alle in den USA – und erfüllen die
+                  DSGVO nicht in dem Maß, den europäische Teams brauchen. BESTL.INK
+                  verbindet Kürzen, geschützte Dokumente und Attribution in
+                  Deutschland, ohne die Daten ins Ausland zu schieben.
                 </p>
               </div>
               <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
