@@ -10,13 +10,15 @@ export function CreatedLinkCard({
   url,
   slug,
   hue,
+  openQr = false,
 }: {
   url: string;
   slug: string;
   hue: string;
+  openQr?: boolean;
 }) {
   const t = useT();
-  const [qr, setQr] = useState(false);
+  const [qr, setQr] = useState(openQr);
 
   return (
     <div

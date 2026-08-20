@@ -46,6 +46,7 @@ export function LinkEditorShell({
   slug,
   preview,
   created = true,
+  checkUrl,
 }: {
   title: string;
   description?: string;
@@ -57,6 +58,7 @@ export function LinkEditorShell({
   slug: string;
   preview: { title: string; text: string; image: string; host: string };
   created?: boolean;
+  checkUrl?: string;
 }) {
   const t = useT();
   return (
@@ -106,11 +108,11 @@ export function LinkEditorShell({
               </div>
               <div className="snap-start space-y-4 px-4 py-6 @min-[40rem]/stage:hidden">
                 <OgPreviewCard preview={preview} />
-                {created && <QrDrawer url={url} slug={slug} variant="inline" />}
+                <QrDrawer url={checkUrl || url} slug={slug} variant="inline" mode="check" />
               </div>
             </div>
           </div>
-          <QrDrawer url={url} slug={slug} variant="desktop" />
+          <QrDrawer url={checkUrl || url} slug={slug} variant="desktop" mode="check" />
         </div>
       </div>
     </div>

@@ -4,6 +4,7 @@ import {
   downloadQrRaster,
   downloadSvgFile,
   qrToStyledSvg,
+  qrToSvg,
   validateQrReadable,
   withQrFlag,
   QR_DOTS,
@@ -13,6 +14,7 @@ import {
   type QrLogoMode,
 } from "@/lib/qr";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 
 const PRESETS = ["#111111", "#1d4ed8", "#0f766e", "#9f1239", "#7c3aed"];
 
@@ -20,77 +22,15 @@ export function QrDrawer({
   url,
   slug,
   variant = "all",
+  mode = "design",
 }: {
   url: string;
   slug: string;
   variant?: "all" | "desktop" | "mobile-flag" | "inline";
+  mode?: "design" | "check";
 }) {
   const [open, setOpen] = useState(false);
-  const [fg, setFg] = useState("#111111");
-  const [bg, setBg] = useState("#ffffff");
-  const [dot, setDot] = useState<QrDot>("rounded");
-  const [eye, setEye] = useState<QrEye>("rounded");
-  const [frame, setFrame] = useState<QrFrame>("none");
-  const [logo, setLogo] = useState("");
-  const [logoMode, setLogoMode] = useState<QrLogoMode>("off");
-  const [readable, setReadable] = useState<boolean | null>(null);
-
-  const svg = useMemo(() => {
-    if (!slug) return "";
-    try {
-      return qrToStyledSvg(withQrFlag(url), {
-        fg,
-        bg,
-        dot,
-        eye,
-        frame,
-        logo,
-        logoMode: logo ? logoMode === "off" ? "center" : logoMode : "off",
-        modulePx: 10,
-      });
-    } catch {
-      return "";
-    }
-  }, [url, slug, fg, bg, dot, eye, frame, logo, logoMode]);
-
-  useEffect(() => {
-    if (!svg) {
-      setReadable(null);
-      return;
-    }
-    let live = true;
-    setReadable(null);
-    void validateQrReadable({ text: url, svg, fg, bg }).then((ok) => {
-      if (live) setReadable(ok);
-    });
-    return () => {
-      live = false;
-    };
-  }, [svg, url, fg, bg]);
-
-  const name = `qr-${slug || "link"}`;
-
-  const panel = (
-    <Panel
-      svg={svg}
-      bg={bg}
-      fg={fg}
-      setFg={setFg}
-      setBg={setBg}
-      dot={dot}
-      setDot={setDot}
-      eye={eye}
-      setEye={setEye}
-      frame={frame}
-      setFrame={setFrame}
-      logo={logo}
-      setLogo={setLogo}
-      logoMode={logo ? (logoMode === "off" ? "center" : logoMode) : "off"}
-      setLogoMode={setLogoMode}
-      readable={readable}
-      name={name}
-    />
-  );
+  const panel = mode === "check" ? <CheckPanel url={url} /> : <DesignPanel url={url} slug={slug} />;
 
   return (
     <>
@@ -145,6 +85,38 @@ export function QrDrawer({
   );
 }
 
+function CheckPanel({ url }: { url: string }) {
+  const t = useT();
+  const svg = useMemo(() => {
+    if (!url || url.length < 8) return "";
+    try {
+      return qrToSvg(url, 8);
+    } catch {
+      return "";
+    }
+  }, [url]);
+
+  return (
+    <aside className="flex max-h-[min(80dvh,40rem)] w-[19rem] max-w-full flex-col gap-3 overflow-y-auto border border-r-0 border-border bg-bg-elevated p-3 shadow-xl @min-[40rem]/stage:rounded-none">
+      <div>
+        <p className="text-xs font-medium">{t("qr.checkTitle")}</p>
+        <p className="text-[11px] text-fg-subtle">{t("qr.checkHint")}</p>
+      </div>
+      <div className="flex aspect-square items-center justify-center rounded-md border border-border bg-white p-3">
+        {svg ? (
+          <div
+            className="flex h-full w-full items-center justify-center [&>svg]:h-full [&>svg]:w-full [&>svg]:max-h-full [&>svg]:max-w-full"
+            dangerouslySetInnerHTML={{ __html: svg }}
+          />
+        ) : (
+          <p className="text-center text-xs text-fg-subtle">{t("qr.needDest")}</p>
+        )}
+      </div>
+      <p className="text-[11px] leading-snug text-fg-muted">{t("qr.afterCreate")}</p>
+    </aside>
+  );
+}
+
 function Flag({
   vertical,
   open,
@@ -177,64 +149,62 @@ function Flag({
   );
 }
 
-function Panel({
-  svg,
-  bg,
-  fg,
-  setFg,
-  setBg,
-  dot,
-  setDot,
-  eye,
-  setEye,
-  frame,
-  setFrame,
-  logo,
-  setLogo,
-  logoMode,
-  setLogoMode,
-  readable,
-  name,
-}: {
-  svg: string;
-  bg: string;
-  fg: string;
-  setFg: (v: string) => void;
-  setBg: (v: string) => void;
-  dot: QrDot;
-  setDot: (v: QrDot) => void;
-  eye: QrEye;
-  setEye: (v: QrEye) => void;
-  frame: QrFrame;
-  setFrame: (v: QrFrame) => void;
-  logo: string;
-  setLogo: (v: string) => void;
-  logoMode: QrLogoMode;
-  setLogoMode: (v: QrLogoMode) => void;
-  readable: boolean | null;
-  name: string;
-}) {
+function DesignPanel({ url, slug }: { url: string; slug: string }) {
+  const t = useT();
+  const [fg, setFg] = useState("#111111");
+  const [bg, setBg] = useState("#ffffff");
+  const [dot, setDot] = useState<QrDot>("square");
+  const [eye, setEye] = useState<QrEye>("square");
+  const [frame, setFrame] = useState<QrFrame>("none");
+  const [logo, setLogo] = useState("");
+  const [logoMode, setLogoMode] = useState<QrLogoMode>("off");
+  const [readable, setReadable] = useState<boolean | null>(null);
+
+  const svg = useMemo(() => {
+    if (!url) return "";
+    try {
+      return qrToStyledSvg(withQrFlag(url), {
+        fg,
+        bg,
+        dot,
+        eye,
+        frame,
+        logo,
+        logoMode: logo ? (logoMode === "off" ? "center" : logoMode) : "off",
+        modulePx: 10,
+      });
+    } catch {
+      return "";
+    }
+  }, [url, fg, bg, dot, eye, frame, logo, logoMode]);
+
+  useEffect(() => {
+    if (!svg) {
+      setReadable(null);
+      return;
+    }
+    let live = true;
+    setReadable(null);
+    void validateQrReadable({ text: withQrFlag(url), svg, fg, bg }).then((ok) => {
+      if (live) setReadable(ok);
+    });
+    return () => {
+      live = false;
+    };
+  }, [svg, url, fg, bg]);
+
+  const name = `qr-${slug || "link"}`;
+
   return (
     <aside className="flex max-h-[min(80dvh,40rem)] w-[19rem] max-w-full flex-col gap-3 overflow-y-auto border border-r-0 border-border bg-bg-elevated p-3 shadow-xl @min-[40rem]/stage:rounded-none">
       <div>
-        <p className="text-xs font-medium">QR zum Mitnehmen</p>
-        <p className="text-[11px] text-fg-subtle">
-          {readable === true
-            ? "Lesbar – Scanner erkennt ihn."
-            : readable === false
-              ? "Schwer lesbar – Kontrast oder Form ändern."
-              : "Prüfe Lesbarkeit…"}
-        </p>
+        <p className="text-xs font-medium">{t("qr.designTitle")}</p>
+        {readable === false && (
+          <p className="text-[11px] text-fg-subtle">{t("qr.hardToRead")}</p>
+        )}
       </div>
       <div
-        className={cn(
-          "flex aspect-square items-center justify-center rounded-md border-2 p-3 transition-colors",
-          readable === true
-            ? "border-emerald-500"
-            : readable === false
-              ? "border-orange-400"
-              : "border-border",
-        )}
+        className="flex aspect-square items-center justify-center rounded-md border border-border p-3"
         style={{ background: bg }}
       >
         {svg ? (
@@ -243,7 +213,7 @@ function Panel({
             dangerouslySetInnerHTML={{ __html: svg }}
           />
         ) : (
-          <p className="text-xs text-fg-subtle">Slug fehlt</p>
+          <p className="text-xs text-fg-subtle">{t("qr.needDest")}</p>
         )}
       </div>
 

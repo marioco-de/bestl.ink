@@ -299,6 +299,15 @@ export const en: Messages = {
     zoom: "Zoom",
     fetching: "Loading preview…",
   },
+  qr: {
+    checkTitle: "Check destination",
+    checkHint: "Standard QR of the destination — not the short link. Scan to verify the target works.",
+    afterCreate: "Generate the QR for the short link after creating it, from the overview.",
+    needDest: "Enter a destination URL",
+    designTitle: "QR for the short link",
+    hardToRead: "Hard to scan — change contrast or shape.",
+    createAndDesign: "Create + open QR designer",
+  },
   thread: {
     priority: "Priority",
     delegate: "Delegate",

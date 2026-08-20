@@ -297,6 +297,15 @@ export const de = {
     zoom: "Zoom",
     fetching: "Vorschau wird geladen…",
   },
+  qr: {
+    checkTitle: "Ziel prüfen",
+    checkHint: "Standard-QR der Ziel-URL – nicht der gekürzte Link. Scannen, um zu sehen, ob das Ziel stimmt.",
+    afterCreate: "Den QR-Code für den gekürzten Link generieren Sie nach dem Erstellen in der Übersicht.",
+    needDest: "Ziel-URL eingeben",
+    designTitle: "QR für den gekürzten Link",
+    hardToRead: "Schwer lesbar – Kontrast oder Form ändern.",
+    createAndDesign: "Erstellen + QR-Designer öffnen",
+  },
   thread: {
     priority: "Priorität",
     delegate: "Delegieren",

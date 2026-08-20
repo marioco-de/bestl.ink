@@ -152,6 +152,8 @@ function Editor({
   const [contact, setContact] = useState(emptyContact);
   const [progress, setProgress] = useState<number | null>(null);
   const [ogLoading, setOgLoading] = useState(false);
+  const [createMenu, setCreateMenu] = useState(false);
+  const [openQrAfter, setOpenQrAfter] = useState(false);
   const titleTouched = useRef(false);
   const textTouched = useRef(false);
   const imageTouched = useRef(false);
@@ -557,6 +559,7 @@ function Editor({
       url={createdUrl || shortUrl}
       slug={slug}
       created={Boolean(createdUrl)}
+      checkUrl={kind === "url" || kind === "page" ? withHttp(destination.trim()) : destination.trim()}
       preview={{ title: previewTitle, text: previewText, image: shareImage, host }}
       footer={
         <>
@@ -621,26 +624,63 @@ function Editor({
               );
             })}
           </div>
-          <HueButton
-            hue={kindMeta(kind).hue}
-            className="h-9"
-            disabled={busy}
-            onClick={() => {
-              if (createdUrl) {
-                void navigator.clipboard.writeText(createdUrl);
-                toast.success("Kopiert");
-                return;
-              }
-              void save();
-            }}
-          >
-            {createdUrl ? t("common.copyAction") : busy ? t("common.loading") : t("short.createBtn")}
-          </HueButton>
+          <div className="relative flex shrink-0">
+            <HueButton
+              hue={kindMeta(kind).hue}
+              className={cn("h-9", !createdUrl && "rounded-r-none")}
+              disabled={busy}
+              onClick={() => {
+                if (createdUrl) {
+                  void navigator.clipboard.writeText(createdUrl);
+                  toast.success("Kopiert");
+                  return;
+                }
+                setOpenQrAfter(false);
+                void save();
+              }}
+            >
+              {createdUrl ? t("common.copyAction") : busy ? t("common.loading") : t("short.createBtn")}
+            </HueButton>
+            {!createdUrl && (
+              <>
+                <HueButton
+                  hue={kindMeta(kind).hue}
+                  type="button"
+                  className="h-9 w-8 rounded-l-none border-l border-l-white/25 px-0"
+                  disabled={busy}
+                  aria-label={t("qr.createAndDesign")}
+                  onClick={() => setCreateMenu((v) => !v)}
+                >
+                  <ChevronDown className="h-4 w-4" />
+                </HueButton>
+                {createMenu && (
+                  <>
+                    <button type="button" className="fixed inset-0 z-10" onClick={() => setCreateMenu(false)} />
+                    <ul className="absolute bottom-full right-0 z-20 mb-1 min-w-[16rem] overflow-hidden rounded-md border border-border bg-bg-elevated py-1 shadow-lg">
+                      <li>
+                        <button
+                          type="button"
+                          className="flex w-full items-center px-3 py-2 text-left text-xs hover:bg-bg-subtle"
+                          onClick={() => {
+                            setCreateMenu(false);
+                            setOpenQrAfter(true);
+                            void save();
+                          }}
+                        >
+                          {t("qr.createAndDesign")}
+                        </button>
+                      </li>
+                    </ul>
+                  </>
+                )}
+              </>
+            )}
+          </div>
         </>
       }
     >
       {createdUrl && (
-        <CreatedLinkCard url={createdUrl} slug={slug} hue={kindMeta(kind).hue} />
+        <CreatedLinkCard url={createdUrl} slug={slug} hue={kindMeta(kind).hue} openQr={openQrAfter} />
       )}
       {(kind === "url" || kind === "page") && (
         <section>
