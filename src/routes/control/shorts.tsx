@@ -27,6 +27,7 @@ import {
   qrForUrl,
   createWorkspaceApiKey,
   deleteWorkspaceApiKey,
+  fetchLinkPreview,
 } from "@/lib/docbay/shorts-api";
 import { pinShortDash } from "@/lib/docbay/dashboard-api";
 import { useT } from "@/lib/i18n";
@@ -39,6 +40,7 @@ import { tagColor } from "@/lib/docbay/tags";
 import { ActivityList, PresenceEye } from "@/components/control/presence-eye";
 import { RowMenu, ClicksChip, LastClicked } from "@/components/control/row-menu";
 import { AnalyticsPanel } from "@/components/control/analytics-panel";
+import { OgImageEditor } from "@/components/control/og-image-editor";
 import { DeviceSplitFields } from "@/components/control/device-split";
 import { UtmFields } from "@/components/control/utm-fields";
 import { packUtm, unpackUtm, type UtmRow } from "@/lib/docbay/utm";
@@ -465,6 +467,28 @@ function ShortEditor({
   const [dashDisplay, setDashDisplay] = useState<"text" | "icon" | "preview">("text");
   const t = useT();
 
+  useEffect(() => {
+    const raw = destination.trim();
+    if (raw.length < 8) return;
+    let href = raw;
+    if (!/^https?:\/\//i.test(href)) href = `https://${href}`;
+    try {
+      new URL(href);
+    } catch {
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      void fetchLinkPreview({ data: { url: href, tenant_id: state.tenant.id } })
+        .then((p) => {
+          if (p.title && !ogTitle) setOgTitle(p.title);
+          if (p.description && !ogDesc) setOgDesc(p.description);
+          if (p.image && !ogImage) setOgImage(p.image);
+        })
+        .catch(() => undefined);
+    }, 450);
+    return () => window.clearTimeout(timer);
+  }, [destination, state.tenant.id]);
+
   const buttons = useMemo(
     () => state.params.filter((p) => p.kind === "button"),
     [state.params],
@@ -622,16 +646,13 @@ function ShortEditor({
         <DeviceSplitFields value={splits} onChange={setSplits} />
       )}
       {state.features.og_previews && (
-        <>
+        <div className="space-y-3">
           <div>
-            <Label>OG-Titel</Label>
+            <Label>{t("short.ogTitle")}</Label>
             <Input value={ogTitle} onChange={(e) => setOgTitle(e.target.value)} />
           </div>
-          <div>
-            <Label>OG-Bild-URL</Label>
-            <Input value={ogImage} onChange={(e) => setOgImage(e.target.value)} />
-          </div>
-        </>
+          <OgImageEditor src={ogImage} tenantId={state.tenant.id} onChange={setOgImage} autoProcess={false} />
+        </div>
       )}
       <div>
         <Label>Attribution-Button</Label>

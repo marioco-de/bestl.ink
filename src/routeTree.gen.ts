@@ -35,6 +35,7 @@ import { Route as VcfSlugRouteImport } from './routes/vcf/$slug'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as ApiCardsResourceIdRouteImport } from './routes/api/cards/$resourceId'
 import { Route as ApiFilesResourceIdRouteImport } from './routes/api/files/$resourceId'
+import { Route as ApiOgIdRouteImport } from './routes/api/og/$id'
 import { Route as ApiV1ShortsRouteImport } from './routes/api/v1/shorts'
 import { Route as ApiV1ShortsIdRouteImport } from './routes/api/v1/shorts/$id'
 import { Route as ApiV1ShortsIdAnalyticsRouteImport } from './routes/api/v1/shorts/$id.analytics'
@@ -169,6 +170,11 @@ const ApiFilesResourceIdRoute = ApiFilesResourceIdRouteImport.update({
   path: '/api/files/$resourceId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiOgIdRoute = ApiOgIdRouteImport.update({
+  id: '/api/og/$id',
+  path: '/api/og/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiV1ShortsRoute = ApiV1ShortsRouteImport.update({
   id: '/api/v1/shorts',
   path: '/api/v1/shorts',
@@ -212,6 +218,7 @@ export interface FileRoutesByFullPath {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/cards/$resourceId': typeof ApiCardsResourceIdRoute
   '/api/files/$resourceId': typeof ApiFilesResourceIdRoute
+  '/api/og/$id': typeof ApiOgIdRoute
   '/api/v1/shorts': typeof ApiV1ShortsRouteWithChildren
   '/api/v1/shorts/$id': typeof ApiV1ShortsIdRouteWithChildren
   '/api/v1/shorts/$id/analytics': typeof ApiV1ShortsIdAnalyticsRoute
@@ -242,6 +249,7 @@ export interface FileRoutesByTo {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/cards/$resourceId': typeof ApiCardsResourceIdRoute
   '/api/files/$resourceId': typeof ApiFilesResourceIdRoute
+  '/api/og/$id': typeof ApiOgIdRoute
   '/api/v1/shorts': typeof ApiV1ShortsRouteWithChildren
   '/api/v1/shorts/$id': typeof ApiV1ShortsIdRouteWithChildren
   '/api/v1/shorts/$id/analytics': typeof ApiV1ShortsIdAnalyticsRoute
@@ -274,6 +282,7 @@ export interface FileRoutesById {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/cards/$resourceId': typeof ApiCardsResourceIdRoute
   '/api/files/$resourceId': typeof ApiFilesResourceIdRoute
+  '/api/og/$id': typeof ApiOgIdRoute
   '/api/v1/shorts': typeof ApiV1ShortsRouteWithChildren
   '/api/v1/shorts/$id': typeof ApiV1ShortsIdRouteWithChildren
   '/api/v1/shorts/$id/analytics': typeof ApiV1ShortsIdAnalyticsRoute
@@ -307,6 +316,7 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/api/cards/$resourceId'
     | '/api/files/$resourceId'
+    | '/api/og/$id'
     | '/api/v1/shorts'
     | '/api/v1/shorts/$id'
     | '/api/v1/shorts/$id/analytics'
@@ -337,6 +347,7 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/api/cards/$resourceId'
     | '/api/files/$resourceId'
+    | '/api/og/$id'
     | '/api/v1/shorts'
     | '/api/v1/shorts/$id'
     | '/api/v1/shorts/$id/analytics'
@@ -368,6 +379,7 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/api/cards/$resourceId'
     | '/api/files/$resourceId'
+    | '/api/og/$id'
     | '/api/v1/shorts'
     | '/api/v1/shorts/$id'
     | '/api/v1/shorts/$id/analytics'
@@ -386,6 +398,7 @@ export interface RootRouteChildren {
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiCardsResourceIdRoute: typeof ApiCardsResourceIdRoute
   ApiFilesResourceIdRoute: typeof ApiFilesResourceIdRoute
+  ApiOgIdRoute: typeof ApiOgIdRoute
   ApiV1ShortsRoute: typeof ApiV1ShortsRouteWithChildren
 }
 
@@ -573,6 +586,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiFilesResourceIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/og/$id': {
+      id: '/api/og/$id'
+      path: '/api/og/$id'
+      fullPath: '/api/og/$id'
+      preLoaderRoute: typeof ApiOgIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/v1/shorts': {
       id: '/api/v1/shorts'
       path: '/api/v1/shorts'
@@ -671,6 +691,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiCardsResourceIdRoute: ApiCardsResourceIdRoute,
   ApiFilesResourceIdRoute: ApiFilesResourceIdRoute,
+  ApiOgIdRoute: ApiOgIdRoute,
   ApiV1ShortsRoute: ApiV1ShortsRouteWithChildren,
 }
 export const routeTree = rootRouteImport

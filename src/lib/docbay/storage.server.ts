@@ -264,6 +264,17 @@ export async function deleteStoredFile(key: string): Promise<void> {
   }
 }
 
+export async function saveOgBlob(buf: Buffer, mime: string): Promise<string> {
+  const id = uid();
+  const key = `og/${id}`;
+  await putBlob(key, buf, mime || "image/webp");
+  return id;
+}
+
+export async function readOgBlob(id: string): Promise<{ buf: Buffer; mime: string } | null> {
+  return getBlob(`og/${id}`);
+}
+
 async function userFromRequest(request: Request): Promise<{ id: string } | null> {
   const session = await auth.api.getSession({ headers: request.headers });
   if (!session?.user) return null;

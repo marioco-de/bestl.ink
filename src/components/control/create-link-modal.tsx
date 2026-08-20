@@ -1,11 +1,10 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import {
   Building2,
   Check,
   ChevronDown,
   Clock,
-  ImageIcon,
   KeyRound,
   Megaphone,
   MonitorSmartphone,
@@ -21,13 +20,14 @@ import { Input, Textarea, Label } from "@/components/ui/input";
 import { useControl } from "@/lib/docbay/control-store";
 import { CreateKindBar } from "./create-kind-bar";
 import { kindMeta, type CreateKind } from "@/lib/docbay/create-kind";
-import { createShort } from "@/lib/docbay/shorts-api";
+import { createShort, fetchLinkPreview } from "@/lib/docbay/shorts-api";
 import { genToken } from "@/lib/docbay/id";
 import { PLATFORM_LINK_HOST } from "@/lib/docbay/brand";
 import { orderedHosts, defaultHost, withHttp } from "@/lib/docbay/hosts";
 import { cn, slugify, fromDatetimeLocal } from "@/lib/utils";
 import type { FullState } from "@/lib/docbay/types";
 import { LinkEditorShell, DashPinBlock } from "./link-editor-shell";
+import { OgImageEditor } from "./og-image-editor";
 import { CreatedLinkCard } from "./created-link-card";
 import { TagPicker } from "./tag-picker";
 import { createTag, createResource, generateLink, createParamNode, uploadBegin, uploadChunk } from "@/lib/docbay/api";
@@ -151,6 +151,45 @@ function Editor({
   const [event, setEvent] = useState(emptyEvent);
   const [contact, setContact] = useState(emptyContact);
   const [progress, setProgress] = useState<number | null>(null);
+  const [ogLoading, setOgLoading] = useState(false);
+  const titleTouched = useRef(false);
+  const textTouched = useRef(false);
+  const imageTouched = useRef(false);
+  const ogReq = useRef(0);
+
+  useEffect(() => {
+    if (kind !== "url" && kind !== "page") return;
+    const raw = destination.trim();
+    if (raw.length < 8) return;
+    let href = raw;
+    if (!/^https?:\/\//i.test(href)) href = `https://${href}`;
+    try {
+      const u = new URL(href);
+      if (u.protocol !== "http:" && u.protocol !== "https:") return;
+    } catch {
+      return;
+    }
+    const id = ++ogReq.current;
+    imageTouched.current = false;
+    setOgLoading(true);
+    const timer = window.setTimeout(() => {
+      void fetchLinkPreview({ data: { url: href, tenant_id: data.tenant.id } })
+        .then((p) => {
+          if (id !== ogReq.current) return;
+          if (!titleTouched.current && p.title) setShareTitle(p.title);
+          if (!textTouched.current && p.description) {
+            setShareText(p.description);
+            setDescOpen(true);
+          }
+          if (!imageTouched.current && p.image) setShareImage(p.image);
+        })
+        .catch(() => undefined)
+        .finally(() => {
+          if (id === ogReq.current) setOgLoading(false);
+        });
+    }, 450);
+    return () => window.clearTimeout(timer);
+  }, [destination, kind, data.tenant.id]);
 
   const workspaces = data.workspaces.length
     ? data.workspaces
@@ -603,6 +642,17 @@ function Editor({
       {createdUrl && (
         <CreatedLinkCard url={createdUrl} slug={slug} hue={kindMeta(kind).hue} />
       )}
+      {(kind === "url" || kind === "page") && (
+        <section>
+          <p className="mb-1.5 text-xs font-medium">{t("short.destLabel")}</p>
+          <Input
+            autoFocus
+            value={destination}
+            onChange={(e) => setDestination(e.target.value)}
+            placeholder={t("short.destPlaceholder")}
+          />
+        </section>
+      )}
       <section className="space-y-2">
         <div className="flex items-center justify-between gap-2">
           <p className="text-xs font-medium">{t("short.title")}</p>
@@ -622,6 +672,7 @@ function Editor({
           onChange={(e) => {
             const v = e.target.value;
             setShareTitle(v);
+            titleTouched.current = true;
             if (kind === "event") setEvent((prev) => ({ ...prev, title: v }));
           }}
           placeholder={t("short.shareTitlePh")}
@@ -631,25 +682,16 @@ function Editor({
             <p className="mb-1.5 text-xs font-medium">{t("short.publicDesc")}</p>
             <Textarea
               value={shareText}
-              onChange={(e) => setShareText(e.target.value)}
+              onChange={(e) => {
+                textTouched.current = true;
+                setShareText(e.target.value);
+              }}
               placeholder={t("short.publicDescPh")}
               className="min-h-[72px]"
             />
           </div>
         )}
       </section>
-
-      {(kind === "url" || kind === "page") && (
-        <section>
-          <p className="mb-1.5 text-xs font-medium">{t("short.destLabel")}</p>
-          <Input
-            autoFocus
-            value={destination}
-            onChange={(e) => setDestination(e.target.value)}
-            placeholder={t("short.destPlaceholder")}
-          />
-        </section>
-      )}
 
       {kind === "document" && (
         <section className="space-y-3">
@@ -794,23 +836,16 @@ function Editor({
 
       <section>
         <p className="mb-1.5 text-xs font-medium text-fg-muted">{t("short.shareWhen")}</p>
-        <div className="overflow-hidden rounded-md border border-border bg-bg">
-          <div className="flex aspect-[2/1] items-center justify-center bg-bg-subtle">
-            {shareImage ? (
-              <img src={shareImage} alt="" className="h-full w-full object-cover" />
-            ) : (
-              <ImageIcon className="h-6 w-6 text-fg-subtle" />
-            )}
-          </div>
-          <div className="space-y-1 p-2.5">
-            <input
-              className="w-full bg-transparent text-[11px] text-fg-subtle outline-none"
-              placeholder={t("short.shareImgPh")}
-              value={shareImage}
-              onChange={(e) => setShareImage(e.target.value)}
-            />
-          </div>
-        </div>
+        {ogLoading && <p className="mb-1.5 text-[11px] text-fg-subtle">{t("og.fetching")}</p>}
+        <OgImageEditor
+          src={shareImage}
+          tenantId={data.tenant.id}
+          loading={ogLoading}
+          onChange={(url) => {
+            imageTouched.current = true;
+            setShareImage(url);
+          }}
+        />
       </section>
 
       {extra && (

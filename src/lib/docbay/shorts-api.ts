@@ -238,6 +238,38 @@ export const qrForUrl = createServerFn({ method: "POST" })
     return { svg: qrToSvg(withQrFlag(data.url)) };
   });
 
+export const fetchLinkPreview = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .inputValidator((d: { url: string; tenant_id?: string }) => d)
+  .handler(async ({ context, data }) => {
+    const mem = await getMembership(context.userId, data.tenant_id);
+    if (!mem) throw new Error("Kein Workspace");
+    const { fetchOgFromUrl, ogPublicPath } = await import("./og-preview.server");
+    const og = await fetchOgFromUrl(data.url);
+    return {
+      title: og.title,
+      description: og.description,
+      source: og.source,
+      image: og.imageId ? ogPublicPath(og.imageId) : null,
+      imageId: og.imageId,
+    };
+  });
+
+export const saveOgImage = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .inputValidator((d: { data: string; tenant_id?: string }) => d)
+  .handler(async ({ context, data }) => {
+    const mem = await getMembership(context.userId, data.tenant_id);
+    if (!mem) throw new Error("Kein Workspace");
+    const raw = data.data.replace(/^data:image\/\w+;base64,/, "");
+    const buf = Buffer.from(raw, "base64");
+    if (buf.length < 32 || buf.length > 900_000) throw new Error("Bild ungültig oder zu groß");
+    const { saveOgBlob } = await import("./storage.server");
+    const { ogPublicPath } = await import("./og-preview.server");
+    const id = await saveOgBlob(buf, "image/webp");
+    return { id, url: ogPublicPath(id) };
+  });
+
 export const createWorkspaceApiKey = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .inputValidator((d: { name?: string; tenant_id?: string }) => d)

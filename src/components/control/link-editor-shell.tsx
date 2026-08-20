@@ -130,9 +130,12 @@ function OgPreviewCard({
         <p className="text-[11px] text-fg-subtle">{t("create.ogHint")}</p>
       </div>
       <div className="overflow-hidden rounded-md border border-border bg-bg">
-        <div className="flex aspect-[1.91/1] items-center justify-center bg-bg-subtle">
+        <div className="relative flex aspect-[1.91/1] items-center justify-center overflow-hidden bg-bg-subtle">
           {preview.image ? (
-            <img src={preview.image} alt="" className="h-full w-full object-cover" />
+            <>
+              <img src={preview.image} alt="" className="absolute inset-0 h-full w-full scale-125 object-cover blur-2xl" />
+              <img src={preview.image} alt="" className="relative z-10 h-full w-full object-contain" />
+            </>
           ) : (
             <ImageIcon className="h-7 w-7 text-fg-subtle" />
           )}
@@ -167,9 +170,12 @@ function OgPreviewDrawer({
         <p className="text-[11px] text-fg-subtle">{t("create.ogHint")}</p>
       </div>
       <div className="overflow-hidden rounded-md border border-border bg-bg">
-        <div className="flex aspect-[1.91/1] items-center justify-center bg-bg-subtle">
+        <div className="relative flex aspect-[1.91/1] items-center justify-center overflow-hidden bg-bg-subtle">
           {preview.image ? (
-            <img src={preview.image} alt="" className="h-full w-full object-cover" />
+            <>
+              <img src={preview.image} alt="" className="absolute inset-0 h-full w-full scale-125 object-cover blur-2xl" />
+              <img src={preview.image} alt="" className="relative z-10 h-full w-full object-contain" />
+            </>
           ) : (
             <ImageIcon className="h-7 w-7 text-fg-subtle" />
           )}
