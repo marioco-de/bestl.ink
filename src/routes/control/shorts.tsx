@@ -135,7 +135,9 @@ export function ShortsWorkspace({
           </button>
           <CsvImportButton
             tenantId={state.tenant.id}
-            onImported={(shorts) => void refresh(mergeImported(state, shorts))}
+            workspaces={state.workspaces}
+            domains={state.domains}
+            onImported={(shorts, extra) => void refresh(mergeImported(state, shorts, extra))}
           />
           <HueButton hue="azure" size="sm" onClick={() => openCreate()}>
             <Plus className="h-4 w-4" /> {t("short.addUrl")}

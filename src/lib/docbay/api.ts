@@ -312,6 +312,61 @@ export const addTenantDomain = createServerFn({ method: "POST" })
     return { ...state, vercel };
   });
 
+export const lookupDomainHosts = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .inputValidator((d: { hosts: string[] }) => d)
+  .handler(async ({ context, data }) => {
+    const hosts = [
+      ...new Set(
+        data.hosts
+          .map((h) => h.trim().toLowerCase().replace(/^www\./, ""))
+          .filter((h) => h.includes(".")),
+      ),
+    ].slice(0, 80);
+    if (!hosts.length) return { hits: [] as { host: string; tenant_id: string; tenant_name: string }[] };
+    const sql = await getSql();
+    const mems = (await sql`
+      select tenant_id from db_members where user_id = ${context.userId}
+    `) as { tenant_id?: string }[];
+    const ids = mems.map((m) => String(m.tenant_id)).filter(Boolean);
+    if (!ids.length) return { hits: [] };
+    const domainRows: { host?: string; tenant_id?: string; tenant_name?: string }[] = [];
+    const customRows: { host?: string; tenant_id?: string; tenant_name?: string }[] = [];
+    for (const id of ids) {
+      domainRows.push(
+        ...((await sql`
+          select d.host, d.tenant_id, t.name as tenant_name
+          from db_tenant_domains d
+          join db_tenants t on t.id = d.tenant_id
+          where d.tenant_id = ${id}
+        `) as { host?: string; tenant_id?: string; tenant_name?: string }[]),
+      );
+      customRows.push(
+        ...((await sql`
+          select custom_domain as host, id as tenant_id, name as tenant_name
+          from db_tenants
+          where id = ${id} and custom_domain is not null and custom_domain <> ''
+        `) as { host?: string; tenant_id?: string; tenant_name?: string }[]),
+      );
+    }
+    const want = new Set(hosts);
+    const hits: { host: string; tenant_id: string; tenant_name: string }[] = [];
+    const seen = new Set<string>();
+    for (const r of [...domainRows, ...customRows]) {
+      const host = String(r.host || "")
+        .toLowerCase()
+        .replace(/^www\./, "");
+      if (!want.has(host) || seen.has(host)) continue;
+      seen.add(host);
+      hits.push({
+        host,
+        tenant_id: String(r.tenant_id),
+        tenant_name: String(r.tenant_name || ""),
+      });
+    }
+    return { hits };
+  });
+
 export const updateTenantDomain = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .inputValidator(

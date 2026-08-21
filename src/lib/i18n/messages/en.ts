@@ -166,6 +166,13 @@ export const en: Messages = {
     rowErr: "Row {row}: {msg}",
     truncated: "Max 500 rows per import.",
     template: "Download template",
+    hintFoxly: "Foxly and BESTL exports: short URL → slug + domain, original URL → destination. Pick which domains to create and which workspace they belong to.",
+    domains: "Domains in the file",
+    toggleAll: "All on/off",
+    linkCount: "{n} links",
+    alreadyIn: "already in {name}",
+    orphans: "{n} links without a domain into the current workspace",
+    domainsAdded: "{n} domains created",
   },
   domain: {
     title: "Domains",

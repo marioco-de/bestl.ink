@@ -164,6 +164,13 @@ export const de = {
     rowErr: "Zeile {row}: {msg}",
     truncated: "Maximal 500 Zeilen pro Import.",
     template: "Vorlage herunterladen",
+    hintFoxly: "Foxly- und BESTL-Exporte: Kurz-URL → Slug + Domain, Original-Link → Ziel. Wähle, welche Domains angelegt werden und in welchem Workspace.",
+    domains: "Domains aus der Datei",
+    toggleAll: "Alle an/aus",
+    linkCount: "{n} Links",
+    alreadyIn: "bereits in {name}",
+    orphans: "{n} Links ohne Domain in den aktuellen Workspace",
+    domainsAdded: "{n} Domains angelegt",
   },
   domain: {
     title: "Domains",

@@ -19,13 +19,20 @@ export function parseCsv(text: string): { headers: string[]; rows: Record<string
   const delim = sniffCsvDelimiter(text);
   const records = splitCsvRecords(text, delim);
   if (records.length === 0) return { headers: [], rows: [] };
-  const headers = records[0]!.map((h) => h.trim().toLowerCase().replace(/^\ufeff/, ""));
+  const headers = records[0]!.map((h) =>
+    h.trim().toLowerCase().replace(/^\ufeff/, "").replace(/\s+/g, " "),
+  );
+  const cols = headers.length;
   const rows: Record<string, string>[] = [];
   for (const rec of records.slice(1)) {
     if (rec.every((c) => !c.trim())) continue;
+    let cells = rec;
+    if (cells.length > cols && cols > 0) {
+      cells = [...cells.slice(0, cols - 1), cells.slice(cols - 1).join(delim)];
+    }
     const row: Record<string, string> = {};
     headers.forEach((h, i) => {
-      row[h] = (rec[i] ?? "").trim();
+      row[h] = (cells[i] ?? "").trim();
     });
     rows.push(row);
   }
@@ -120,6 +127,21 @@ export const SHORT_CSV_HEADERS = [
   "short_url",
 ] as const;
 
+export const SKIP_DOMAIN_DEFAULT = new Set([
+  "foxly.link",
+  "bit.ly",
+  "dub.sh",
+  "dub.co",
+  "short.io",
+  "rebrand.ly",
+  "t.ly",
+  "tinyurl.com",
+  "ow.ly",
+  "cutt.ly",
+  "is.gd",
+  "rb.gy",
+]);
+
 function pick(row: Record<string, string>, keys: string[]): string {
   for (const k of keys) {
     const v = row[k];
@@ -128,9 +150,32 @@ function pick(row: Record<string, string>, keys: string[]): string {
   return "";
 }
 
+function blankish(v: string): string {
+  const t = v.trim();
+  if (!t || t === "-" || t === "—" || /^none$/i.test(t) || t === ".") return "";
+  return t;
+}
+
+export function parseShortUrl(raw: string): { host: string; slug: string; href: string } | null {
+  let u = raw.trim();
+  if (!u) return null;
+  if (!/^https?:\/\//i.test(u)) u = `https://${u}`;
+  try {
+    const url = new URL(u);
+    const host = url.hostname.toLowerCase().replace(/^www\./, "");
+    const slug = url.pathname.replace(/^\/+|\/+$/g, "").split("/")[0] || "";
+    if (!host.includes(".") || !slug) return null;
+    return { host, slug, href: url.toString() };
+  } catch {
+    return null;
+  }
+}
+
 export type CsvShortRow = {
   destination: string;
   slug?: string;
+  host?: string;
+  shortUrl?: string;
   title?: string;
   note?: string;
   tags?: string[];
@@ -143,35 +188,96 @@ export type CsvShortRow = {
   android_url?: string;
   cloak?: boolean;
   expires_at?: string;
+  space?: string;
 };
 
 export function csvRowToShort(row: Record<string, string>): CsvShortRow | null {
-  let dest = pick(row, ["destination", "url", "target", "long_url", "dest", "link"]);
+  const shortRaw = pick(row, [
+    "short link",
+    "short_link",
+    "short url",
+    "short_url",
+    "kurzlink",
+    "kürzel",
+  ]);
+  const parsed = parseShortUrl(shortRaw);
+  let dest = blankish(
+    pick(row, [
+      "original link",
+      "original_link",
+      "destination",
+      "url",
+      "target",
+      "long_url",
+      "long url",
+      "dest",
+      "ziel",
+    ]),
+  );
+  if (!dest && !parsed) return null;
+  if (dest && !/^https?:\/\//i.test(dest)) dest = `https://${dest}`;
   if (!dest) return null;
-  dest = dest.trim();
-  if (!/^https?:\/\//i.test(dest)) dest = `https://${dest}`;
-  const tagsRaw = pick(row, ["tags", "tag"]);
+  const tagsRaw = blankish(pick(row, ["tags", "tag"]));
   const tags = tagsRaw
     ? tagsRaw
         .split(/[,|]/)
         .map((t) => t.trim())
-        .filter(Boolean)
+        .filter((t) => t && t !== "-")
     : [];
   const cloakRaw = pick(row, ["cloak"]).toLowerCase();
+  const utm = blankish(pick(row, ["utm", "utm_campaign", "campaign"]));
+  const utmCampaign = /^(enable|enabled|on|ja)$/i.test(utm) ? "" : utm;
+  const note = blankish(pick(row, ["note", "notes", "comment"]));
+  const space = blankish(pick(row, ["space", "workspace", "folder"]));
+  const slug =
+    parsed?.slug ||
+    blankish(pick(row, ["slug", "short", "key", "code", "path"])) ||
+    undefined;
   return {
     destination: dest,
-    slug: pick(row, ["slug", "short", "key", "code", "path"]) || undefined,
-    title: pick(row, ["title", "name"]) || undefined,
-    note: pick(row, ["note", "notes", "comment"]) || undefined,
+    slug,
+    host: parsed?.host,
+    shortUrl: parsed?.href,
+    title: blankish(pick(row, ["title", "name"])) || undefined,
+    note: note || undefined,
     tags,
-    utm_source: pick(row, ["utm_source", "source"]) || undefined,
-    utm_medium: pick(row, ["utm_medium", "medium"]) || undefined,
-    utm_campaign: pick(row, ["utm_campaign", "campaign"]) || undefined,
-    utm_term: pick(row, ["utm_term", "term"]) || undefined,
-    utm_content: pick(row, ["utm_content", "content"]) || undefined,
-    ios_url: pick(row, ["ios_url", "ios"]) || undefined,
-    android_url: pick(row, ["android_url", "android"]) || undefined,
+    utm_source: blankish(pick(row, ["utm_source", "source"])) || undefined,
+    utm_medium: blankish(pick(row, ["utm_medium", "medium"])) || undefined,
+    utm_campaign: utmCampaign || blankish(pick(row, ["utm_campaign"])) || undefined,
+    utm_term: blankish(pick(row, ["utm_term", "term"])) || undefined,
+    utm_content: blankish(pick(row, ["utm_content", "content"])) || undefined,
+    ios_url: blankish(pick(row, ["ios_url", "ios"])) || undefined,
+    android_url: blankish(pick(row, ["android_url", "android"])) || undefined,
     cloak: cloakRaw === "1" || cloakRaw === "true" || cloakRaw === "yes" || cloakRaw === "ja",
-    expires_at: pick(row, ["expires_at", "expires", "expiry"]) || undefined,
+    expires_at: blankish(pick(row, ["expires_at", "expires", "expiry"])) || undefined,
+    space: space || undefined,
   };
+}
+
+export type CsvDomainGroup = {
+  host: string;
+  rows: CsvShortRow[];
+  spaces: string[];
+};
+
+export function groupCsvByDomain(rows: CsvShortRow[]): CsvDomainGroup[] {
+  const map = new Map<string, CsvShortRow[]>();
+  for (const r of rows) {
+    const host = (r.host || "").toLowerCase();
+    if (!host) continue;
+    const list = map.get(host) ?? [];
+    list.push(r);
+    map.set(host, list);
+  }
+  return [...map.entries()]
+    .map(([host, list]) => ({
+      host,
+      rows: list,
+      spaces: [...new Set(list.map((r) => r.space).filter((s): s is string => Boolean(s)))],
+    }))
+    .sort((a, b) => b.rows.length - a.rows.length);
+}
+
+export function orphanCsvRows(rows: CsvShortRow[]): CsvShortRow[] {
+  return rows.filter((r) => !r.host);
 }
