@@ -10,6 +10,7 @@ import {
   Archive,
   KeyRound,
   Bookmark,
+  Download,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -45,6 +46,7 @@ import { DeviceSplitFields } from "@/components/control/device-split";
 import { UtmFields } from "@/components/control/utm-fields";
 import { packUtm, unpackUtm, type UtmRow } from "@/lib/docbay/utm";
 import { packSplitRules, unpackSplitRules, type SplitRule } from "@/lib/docbay/device-split";
+import { CsvImportButton, exportShortsCsv, mergeImported } from "@/components/control/csv-links";
 
 export const Route = createFileRoute("/control/shorts")({
   validateSearch: (s: Record<string, unknown>) => ({
@@ -116,7 +118,25 @@ export function ShortsWorkspace({
       )}
 
       {hideChrome && (
-        <div className="flex justify-end">
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <button
+            type="button"
+            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border px-2.5 text-xs text-fg-muted hover:bg-bg-subtle hover:text-fg"
+            onClick={() => {
+              if (!state.shorts.length) {
+                toast.message(t("csv.ready", { n: "0" }));
+                return;
+              }
+              exportShortsCsv(state.shorts, host);
+            }}
+          >
+            <Download className="h-3.5 w-3.5" />
+            {t("csv.export")}
+          </button>
+          <CsvImportButton
+            tenantId={state.tenant.id}
+            onImported={(shorts) => void refresh(mergeImported(state, shorts))}
+          />
           <HueButton hue="azure" size="sm" onClick={() => openCreate()}>
             <Plus className="h-4 w-4" /> {t("short.addUrl")}
           </HueButton>

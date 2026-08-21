@@ -3,7 +3,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { getSql } from "@/lib/db";
 import { authMiddleware } from "@/lib/auth/middleware";
 import { getMembership } from "./load-state.server";
-import { uid } from "./id";
+import { uid, genToken } from "./id";
 import {
   normalizeSlug,
   slugTaken,
@@ -18,10 +18,12 @@ import {
   destinationAllowsIframe,
   findTenantBrandByHost,
   mapShortRow,
+  RESERVED_SLUGS,
 } from "./shorts.server";
 import { requestHostHeader } from "./request-host.server";
 import type { ShortLink } from "./types";
 import { defaultFeatures, featuresFromRows } from "./features";
+import type { CsvShortRow } from "@/lib/csv";
 
 async function featureOn(
   tenantId: string,
@@ -268,6 +270,98 @@ export const saveOgImage = createServerFn({ method: "POST" })
     const { ogPublicPath } = await import("./og-preview.server");
     const id = await saveOgBlob(buf, "image/webp");
     return { id, url: ogPublicPath(id) };
+  });
+
+const IMPORT_MAX = 500;
+
+export const importShorts = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .inputValidator((d: { tenant_id?: string; rows: CsvShortRow[] }) => d)
+  .handler(async ({ context, data }) => {
+    const mem = await getMembership(context.userId, data.tenant_id);
+    if (!mem || mem.tenant.id === "platform") throw new Error("Kein Workspace");
+    if (!(await featureOn(mem.tenant.id, "short_links"))) {
+      throw new Error("Kurzlinks deaktiviert");
+    }
+    const rows = data.rows.slice(0, IMPORT_MAX);
+    const sql = await getSql();
+    const created: ShortLink[] = [];
+    const errors: { row: number; message: string }[] = [];
+    const used = new Set<string>();
+    const existing = await sql`
+      select slug from db_short_links where tenant_id = ${mem.tenant.id}
+    `;
+    for (const r of existing as { slug?: string }[]) used.add(String(r.slug));
+    const resSlugs = await sql`
+      select slug from db_resources where tenant_id = ${mem.tenant.id}
+    `;
+    for (const r of resSlugs as { slug?: string }[]) used.add(String(r.slug));
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i]!;
+      try {
+        const dest = assertHttpUrl(row.destination);
+        let slug = row.slug ? normalizeSlug(row.slug) : "";
+        if (slug) {
+          if (used.has(slug) || RESERVED_SLUGS.has(slug)) {
+            throw new Error(`Slug „${slug}“ ist vergeben`);
+          }
+        } else {
+          for (let n = 0; n < 12; n++) {
+            const s = genToken(5);
+            if (!used.has(s) && !RESERVED_SLUGS.has(s)) {
+              slug = s;
+              break;
+            }
+          }
+          if (!slug) slug = genToken(8);
+        }
+        used.add(slug);
+        const id = uid("sh");
+        const expires = resolveExpires({ expires_at: row.expires_at || null });
+        await sql`
+          insert into db_short_links (
+            id, tenant_id, slug, destination, title, note, tags,
+            expires_at, cloak, ios_url, android_url,
+            utm_source, utm_medium, utm_campaign, utm_term, utm_content, created_by
+          ) values (
+            ${id}, ${mem.tenant.id}, ${slug}, ${dest}, ${row.title ?? ""}, ${row.note ?? ""},
+            ${JSON.stringify(row.tags ?? [])}, ${expires}, ${Boolean(row.cloak)},
+            ${row.ios_url || null}, ${row.android_url || null},
+            ${row.utm_source || null}, ${row.utm_medium || null}, ${row.utm_campaign || null},
+            ${row.utm_term || null}, ${row.utm_content || null}, ${context.userId}
+          )
+        `;
+        created.push(
+          mapShortRow({
+            id,
+            tenant_id: mem.tenant.id,
+            slug,
+            destination: dest,
+            title: row.title ?? "",
+            note: row.note ?? "",
+            tags: row.tags ?? [],
+            cloak: Boolean(row.cloak),
+            ios_url: row.ios_url || null,
+            android_url: row.android_url || null,
+            utm_source: row.utm_source || null,
+            utm_medium: row.utm_medium || null,
+            utm_campaign: row.utm_campaign || null,
+            utm_term: row.utm_term || null,
+            utm_content: row.utm_content || null,
+            click_count: 0,
+            human_click_count: 0,
+            created_at: new Date().toISOString(),
+          }),
+        );
+      } catch (e) {
+        errors.push({
+          row: i + 2,
+          message: e instanceof Error ? e.message : "Ungültige Zeile",
+        });
+      }
+    }
+    return { created, errors, truncated: data.rows.length > IMPORT_MAX };
   });
 
 export const createWorkspaceApiKey = createServerFn({ method: "POST" })
