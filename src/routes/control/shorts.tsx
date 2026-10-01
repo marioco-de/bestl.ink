@@ -12,6 +12,7 @@ import {
   Bookmark,
   Download,
 } from "lucide-react";
+import { svgDataUrl } from "@/lib/qr";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { HueButton } from "@/components/ui/hue-button";
@@ -286,9 +287,10 @@ export function ShortsWorkspace({
             </Button>
           }
         >
-          <div
+          <img
+            alt=""
             className="mx-auto max-w-xs rounded-md bg-bg p-3"
-            dangerouslySetInnerHTML={{ __html: qr.svg }}
+            src={svgDataUrl(qr.svg)}
           />
         </FullScreenModal>
       )}

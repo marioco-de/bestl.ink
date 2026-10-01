@@ -1,0 +1,65 @@
+version: "1"
+scan:
+  suppressions:
+    - rule: R-6A01A
+      path: src/lib/i18n/messages/de.ts
+      reason: UI copy. The string is the German label "Passwort", not a stored credential.
+    - rule: R-9D881
+      path: src/lib/auth/preview.ts
+      reason: >
+        Shared live-preview OAuth client required by the app-builder broker
+        (GROK_PREVIEW_CLIENT_ID/SECRET). Preview-only, limited to *.grok-sandbox.com.
+        The broker stores only SHA-256. Deployed apps override it with GROK_AUTH_*.
+        Removing the literal breaks preview sign-in, which has no per-app secret injection.
+    - rule: R-B43E7
+      path: vite.config.ts
+      reason: >
+        /auth/popup writes the handler Response, not the raw query string.
+        User-controlled error text is reduced to [A-Za-z0-9_.:-] before it is
+        JSON-encoded into a script type=application/json block, with < and > escaped.
+        The visible HTML is a static string.
+    - rule: R-882BF
+      path: src/routes/__root.tsx
+      reason: >
+        Both scripts are compile-time constants (theme boot + apex-to-www).
+        No request or user data is interpolated. Inline script is required
+        before hydration.
+    - rule: R-CDBCD
+      path: src/routes/__root.tsx
+      reason: THEME_BOOT_SCRIPT only interpolates the constant key "ltis-theme".
+    - rule: R-310C9
+      path: src/components/control/utm-fields.tsx
+      reason: Math.random() is a React list key for a form row, not a token, nonce, or secret.
+    - rule: R-EFEEF
+      path: scripts/grok-pwa-shared.mjs
+      reason: escapeHtml uses String.replaceAll with string literals, not a regular expression.
+    - rule: R-F7958
+      path: src/routes/api/v1/
+      reason: >
+        /api/v1/shorts is this app's current public REST API, not a deprecated
+        third-party client. routeTree.gen.ts is generated from that route.
+        The i18n and marketing strings only document the same path.
+        Renaming it would break the published API contract and does not patch a vulnerability.
+    - rule: R-87F6A
+      path: src/lib/docbay/api.ts
+      reason: >
+        The chat check only requires one @ and a dot, and rejects all whitespace,
+        so CRLF header injection cannot pass. The value is stored with a parameterized
+        query and is not placed in an SMTP header.
+    - rule: R-87F6A
+      path: src/routes/$.tsx
+      reason: >
+        Client-side shape check before the server re-validates in postChat.
+        The input is type=email. Whitespace is rejected. Not an SMTP sink.
+    - rule: R-87F6A
+      path: src/routes/login.tsx
+      reason: >
+        UX gate before Better Auth sign-in and password reset. Better Auth
+        validates the address server-side. This regex does not build a mail header.
+    - rule: R-41CFB
+      path: src/lib/auth/preview.ts
+      reason: >
+        Same preview-only OAuth client as R-9D881. Required for *.grok-sandbox.com
+        sign-in; the broker stores only SHA-256. Deployed apps override it with GROK_AUTH_*.
+
+

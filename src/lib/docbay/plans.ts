@@ -62,6 +62,7 @@ const CORE: FeatureKey[] = [
   "notifications",
   "short_links",
   "qr_codes",
+  "unbranded_redirect",
 ];
 
 const GROWTH: FeatureKey[] = [
@@ -83,7 +84,13 @@ const PRO: FeatureKey[] = [
   "smtp_email",
   "emailit_custom",
   "public_api",
-  "unbranded_redirect",
+  "splash_logo",
+];
+
+const ELITE: FeatureKey[] = [
+  ...PRO,
+  "hide_brand_flag",
+  "emailit_platform",
 ];
 
 /** Seed catalog — applied once when no plans exist. */
@@ -121,15 +128,22 @@ export function defaultPlanCatalog(): Omit<Plan, "id" | "created_at">[] {
       name: "Pro",
       slug: "pro-monthly",
       kind: "monthly",
-      description: "Monatlich · Sales-Teams",
+      description: "Monatlich · Sales-Teams, Logo auf dem Splash",
       features: pick(PRO),
+    },
+    {
+      name: "Elite",
+      slug: "elite-monthly",
+      kind: "monthly",
+      description: "Monatlich · White-Label: BESTL.INK-Hinweis ausblendbar",
+      features: pick(ELITE),
     },
     {
       name: "Business",
       slug: "business-monthly",
       kind: "monthly",
       description: "Monatlich · alle Features inkl. Platform-Emailit",
-      features: { ...defaultFeatures(), emailit_platform: true },
+      features: { ...defaultFeatures(), emailit_platform: true, splash_logo: true, hide_brand_flag: true, unbranded_redirect: true },
     },
   ];
 }

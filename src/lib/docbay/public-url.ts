@@ -5,6 +5,18 @@ import type { JsonObject } from "./types";
 export const ACCESS_TOKEN_LEN = 2;
 export const CARD_HASH_LEN = 4;
 
+/** http(s) only. Rejects javascript:, data:, and malformed URLs. */
+export function httpUrl(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  try {
+    const u = new URL(raw);
+    if (u.protocol !== "http:" && u.protocol !== "https:") return null;
+    return u.toString();
+  } catch {
+    return null;
+  }
+}
+
 export function eventStamp(start?: string | null): string {
   if (!start) return "";
   const d = new Date(start);

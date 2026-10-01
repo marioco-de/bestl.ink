@@ -10,9 +10,18 @@ const TOKEN_ALPHABET = "abcdefghijklmnopqrstuvwxyz0123456789";
 
 /** Production tokens: 10 chars (~3.6e15). Demo keeps short known tokens. */
 export function genToken(len = 10): string {
+  const alphabet = TOKEN_ALPHABET;
+  const span = alphabet.length;
+  const limit = Math.floor(256 / span) * span;
+  const bytes = new Uint8Array(len);
   let out = "";
-  for (let i = 0; i < len; i++) {
-    out += TOKEN_ALPHABET[Math.floor(Math.random() * TOKEN_ALPHABET.length)]!;
+  while (out.length < len) {
+    crypto.getRandomValues(bytes);
+    for (const b of bytes) {
+      if (b >= limit) continue;
+      out += alphabet[b % span]!;
+      if (out.length === len) break;
+    }
   }
   return out;
 }

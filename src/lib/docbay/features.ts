@@ -25,6 +25,8 @@ export const FEATURE_LABELS: Record<FeatureKey, string> = {
   og_previews: "OG / Link-Previews",
   public_api: "Public REST API",
   unbranded_redirect: "Redirect ohne BESTL.INK-Fahne",
+  splash_logo: "Eigenes Logo auf dem Splash-Screen",
+  hide_brand_flag: "BESTL.INK-Hinweis ausblenden (Elite)",
 };
 
 /** Defaults for a new paying tenant */
@@ -51,6 +53,8 @@ export function defaultFeatures(): FeatureMap {
   m.og_previews = true;
   m.public_api = true;
   m.unbranded_redirect = false;
+  m.splash_logo = false;
+  m.hide_brand_flag = false;
   // email providers off until super enables / tenant configures
   m.emailit_platform = false;
   m.emailit_custom = true;

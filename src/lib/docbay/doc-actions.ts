@@ -49,6 +49,15 @@ export function withChatMode(mode: ChatMode, prev?: JsonObject): JsonObject {
   return { ...(prev || {}), chat: mode };
 }
 
+export function parsePagePins(payload: JsonObject | undefined | null): boolean {
+  if (payload && typeof payload.page_pins === "boolean") return payload.page_pins;
+  return parseChatMode(payload) !== "off";
+}
+
+export function withPagePins(on: boolean, prev?: JsonObject): JsonObject {
+  return { ...(prev || {}), page_pins: on };
+}
+
 export function parseRequireRequest(
   payload: JsonObject | undefined | null,
   type?: string,

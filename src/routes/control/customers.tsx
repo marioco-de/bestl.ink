@@ -5,11 +5,13 @@ import {
   superSavePlan,
   superDeletePlan,
   superAssignPlan,
+  superAssignUserPlan,
   superSetFeature,
   superUpdateTenant,
   superUpdateUser,
   superResetPassword,
   superSetMemberRole,
+  superSetSplash,
 } from "@/lib/docbay/api";
 import { FEATURE_LABELS } from "@/lib/docbay/features";
 import { FEATURE_KEYS, type FeatureKey, type FeatureMap } from "@/lib/docbay/types";
@@ -19,6 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input, Textarea, Label } from "@/components/ui/input";
+import { Toggle } from "@/components/ui/toggle";
 import { FullScreenModal } from "@/components/ui/fullscreen-modal";
 import { formatDateDe } from "@/lib/utils";
 import { toast } from "sonner";
@@ -49,7 +52,7 @@ type Tab = "kunden" | "nutzer" | "plaene";
 function CustomersPage() {
   const initial = Route.useLoaderData();
   const [data, setData] = useState<SuperAdminPayload>(initial);
-  const [tab, setTab] = useState<Tab>("kunden");
+  const [tab, setTab] = useState<Tab>("nutzer");
   const [q, setQ] = useState("");
 
   async function apply(next: SuperAdminPayload) {
@@ -60,10 +63,10 @@ function CustomersPage() {
     <div className="mx-auto max-w-6xl space-y-6">
       <div>
         <h1 className="font-display text-2xl font-semibold tracking-tight">
-          Kundenverwaltung
+          Super Admin
         </h1>
         <p className="mt-1 text-sm text-fg-muted">
-          Workspaces, Nutzer, Rechtegruppen – AppSumo-Tiers und Monatspakete.
+          Alle registrierten Konten. Pro Workspace Rechte an- und ausschalten — der Splash gilt sofort für jede Weiterleitung.
         </p>
       </div>
 
@@ -73,9 +76,9 @@ function CustomersPage() {
         <div className="flex flex-wrap gap-1 rounded-md border border-border bg-bg-elevated p-1">
           {(
             [
-              ["kunden", "Kunden", Building2],
               ["nutzer", "Nutzer", Users],
-              ["plaene", "Rechtegruppen", Layers],
+              ["kunden", "Workspaces", Building2],
+              ["plaene", "Pakete", Layers],
             ] as const
           ).map(([id, label, Icon]) => (
             <button
@@ -382,6 +385,17 @@ function TenantEdit({
   );
 }
 
+function splashShows(row: SuperTenantRow | undefined): boolean {
+  if (!row) return true;
+  return !(row.tenant.splash?.mode === "off" && row.features.unbranded_redirect);
+}
+
+const SPLASH_RIGHTS: FeatureKey[] = [
+  "unbranded_redirect",
+  "splash_logo",
+  "hide_brand_flag",
+];
+
 function NutzerTab({
   data,
   q,
@@ -393,6 +407,8 @@ function NutzerTab({
 }) {
   const [edit, setEdit] = useState<SuperUserRow | null>(null);
   const [pwUser, setPwUser] = useState<SuperUserRow | null>(null);
+  const [rightsFor, setRightsFor] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
   const needle = q.trim().toLowerCase();
   const rows = data.users.filter((u) => {
     if (!needle) return true;
@@ -405,7 +421,7 @@ function NutzerTab({
     <div className="space-y-3">
       {rows.map((u) => (
         <Card key={u.user_id}>
-          <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <CardContent className="space-y-3 p-4">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <p className="font-medium">{u.name || "—"}</p>
@@ -419,6 +435,115 @@ function NutzerTab({
                 {" · "}
                 seit {formatDateDe(u.created_at)}
               </p>
+              {u.workspaces.length > 0 && (
+                <div className="mt-3 space-y-2">
+                  {u.workspaces.map((w) => {
+                    const ten = data.tenants.find((t) => t.tenant.id === w.tenant_id);
+                    const open = rightsFor === `${u.user_id}:${w.tenant_id}`;
+                    const keys = [
+                      ...SPLASH_RIGHTS,
+                      ...FEATURE_KEYS.filter((k) => !SPLASH_RIGHTS.includes(k)),
+                    ];
+                    return (
+                      <div key={w.tenant_id} className="rounded-lg border border-border p-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="min-w-0 flex-1 truncate text-sm font-medium">
+                            {w.tenant_name}
+                            <span className="ml-2 text-[11px] font-normal text-fg-subtle">{w.role}</span>
+                          </span>
+                          <select
+                            className="h-8 max-w-[220px] rounded-md border border-border bg-bg-elevated px-1.5 text-xs"
+                            value={ten?.plan_id ?? ""}
+                            disabled={busy === `plan:${w.tenant_id}`}
+                            onChange={async (e) => {
+                              const planId = e.target.value || null;
+                              setBusy(`plan:${w.tenant_id}`);
+                              try {
+                                onChange(
+                                  await superAssignPlan({
+                                    data: { tenant_id: w.tenant_id, plan_id: planId },
+                                  }),
+                                );
+                                toast.success("Paket zugewiesen");
+                              } catch (err) {
+                                toast.error(err instanceof Error ? err.message : "Fehler");
+                              } finally {
+                                setBusy(null);
+                              }
+                            }}
+                          >
+                            <option value="">Kein Paket</option>
+                            {data.plans.map((p) => (
+                              <option key={p.id} value={p.id}>
+                                {PLAN_KIND_LABELS[p.kind]} · {p.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="mt-3">
+                          <Toggle
+                            checked={splashShows(ten)}
+                            label="Splash bei Weiterleitung"
+                            hint="Aus: Besucher gehen direkt zum Ziel, ohne BESTL.INK-Seite."
+                            onChange={(show) => {
+                              const id = `splash:${w.tenant_id}`;
+                              setBusy(id);
+                              void superSetSplash({ data: { tenant_id: w.tenant_id, show } })
+                                .then((next) => {
+                                  onChange(next);
+                                  toast.success(show ? "Splash an" : "Splash aus");
+                                })
+                                .catch((err) =>
+                                  toast.error(err instanceof Error ? err.message : "Fehler"),
+                                )
+                                .finally(() => setBusy(null));
+                            }}
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          className="mt-2 text-xs text-fg-muted underline-offset-2 hover:underline"
+                          onClick={() =>
+                            setRightsFor(open ? null : `${u.user_id}:${w.tenant_id}`)
+                          }
+                        >
+                          {open ? "Rechte einklappen" : "Alle Rechte"}
+                        </button>
+                        {open && ten && (
+                          <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                            {keys.map((key) => {
+                              const on = ten.features[key];
+                              const id = `${w.tenant_id}:${key}`;
+                              return (
+                                <Toggle
+                                  key={key}
+                                  checked={on}
+                                  label={FEATURE_LABELS[key]}
+                                  onChange={(enabled) => {
+                                    setBusy(id);
+                                    void superSetFeature({
+                                      data: {
+                                        tenant_id: w.tenant_id,
+                                        feature_key: key,
+                                        enabled,
+                                      },
+                                    })
+                                      .then((next) => onChange(next))
+                                      .catch((err) =>
+                                        toast.error(err instanceof Error ? err.message : "Fehler"),
+                                      )
+                                      .finally(() => setBusy(null));
+                                  }}
+                                />
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
             <div className="flex flex-wrap gap-2">
               <Button size="sm" variant="secondary" onClick={() => setEdit(u)}>
@@ -427,6 +552,37 @@ function NutzerTab({
               <Button size="sm" variant="secondary" onClick={() => setPwUser(u)}>
                 <KeyRound className="h-3.5 w-3.5" /> Passwort
               </Button>
+              {u.workspaces.length > 0 && (
+                <select
+                  className="h-10 rounded-lg border border-border bg-bg-elevated px-2 text-sm"
+                  defaultValue=""
+                  onChange={async (e) => {
+                    const planId = e.target.value || null;
+                    e.currentTarget.value = "";
+                    if (!planId && planId !== "") return;
+                    try {
+                      onChange(
+                        await superAssignUserPlan({
+                          data: { user_id: u.user_id, plan_id: planId || null },
+                        }),
+                      );
+                      toast.success("Alle Workspaces upgegradet");
+                    } catch (err) {
+                      toast.error(err instanceof Error ? err.message : "Fehler");
+                    }
+                  }}
+                >
+                  <option value="" disabled>
+                    Alle upgraden…
+                  </option>
+                  <option value="">Paket entfernen</option>
+                  {data.plans.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {PLAN_KIND_LABELS[p.kind]} · {p.name}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
           </CardContent>
         </Card>

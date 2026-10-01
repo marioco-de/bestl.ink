@@ -22,6 +22,7 @@ import { featuresFromRows, defaultFeatures } from "./features";
 import { parseJsonArray, parseJsonObj } from "./id";
 import { ensurePlatformSeeded, PLATFORM_LINK_HOST } from "./seed.server";
 import { mapShortRow } from "./shorts.server";
+import { parseSplash, DEFAULT_SPLASH } from "./splash";
 import { emptyDash, loadDashState } from "./dashboard.server";
 import { loadPresenceMap } from "./activity.server";
 
@@ -62,6 +63,7 @@ export function mapTenant(r: Record<string, unknown>): Tenant {
         ? String(r.dash_user_buttons)
         : "anywhere"
     ) as Tenant["dash_user_buttons"],
+    splash: parseSplash(r.splash),
   };
 }
 
@@ -226,7 +228,8 @@ export async function getMembership(
     rows = await sql`
       select m.*, t.id as t_id, t.name as t_name, t.slug, t.subdomain, t.domain,
              t.custom_domain, t.custom_domain_connected, t.domain_connected,
-             t.is_demo, t.demo_reset_at, t.brand_logo_url, t.brand_color, t.brand_company, t.created_at as t_created
+             t.is_demo, t.demo_reset_at, t.brand_logo_url, t.brand_color, t.brand_company, t.created_at as t_created,
+             t.plan_id, t.suspended, t.notes, t.dash_user_buttons, t.splash
       from db_tenant_members m
       join db_tenants t on t.id = m.tenant_id
       where m.user_id = ${userId} and m.tenant_id = ${tenantId}
@@ -236,7 +239,8 @@ export async function getMembership(
     rows = await sql`
       select m.*, t.id as t_id, t.name as t_name, t.slug, t.subdomain, t.domain,
              t.custom_domain, t.custom_domain_connected, t.domain_connected,
-             t.is_demo, t.demo_reset_at, t.brand_logo_url, t.brand_color, t.brand_company, t.created_at as t_created
+             t.is_demo, t.demo_reset_at, t.brand_logo_url, t.brand_color, t.brand_company, t.created_at as t_created,
+             t.plan_id, t.suspended, t.notes, t.dash_user_buttons, t.splash
       from db_tenant_members m
       join db_tenants t on t.id = m.tenant_id
       where m.user_id = ${userId}
@@ -261,6 +265,11 @@ export async function getMembership(
     brand_color: r.brand_color,
     brand_company: r.brand_company,
     created_at: r.t_created,
+    plan_id: r.plan_id,
+    suspended: r.suspended,
+    notes: r.notes,
+    dash_user_buttons: r.dash_user_buttons,
+    splash: r.splash,
   });
   const member: Member = {
     id: String(r.id),
@@ -302,6 +311,7 @@ export async function loadFullState(
       suspended: false,
       notes: "",
       dash_user_buttons: "anywhere",
+      splash: DEFAULT_SPLASH,
     };
     return {
       tenant: emptyTenant,

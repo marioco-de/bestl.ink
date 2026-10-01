@@ -19,6 +19,7 @@ import { useT } from "@/lib/i18n";
 import type { DashState, FullState } from "@/lib/docbay/types";
 import { normalizeHex } from "@/lib/docbay/palette";
 import { PLATFORM_LINK_HOST } from "@/lib/docbay/brand";
+import { SplashSettingsCard } from "@/components/control/splash-settings";
 
 export function WorkspaceSettings() {
   const t = useT();
@@ -139,6 +140,7 @@ export function WorkspaceSettings() {
           <Button size="sm">{t("workspace.brandPreview")}</Button>
         </CardContent>
       </Card>
+      <SplashSettingsCard />
       {data.has_nda && (
         <Card>
           <CardHeader>

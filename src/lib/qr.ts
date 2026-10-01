@@ -85,6 +85,19 @@ export const QR_DOTS: { id: QrDot; label: string }[] = [
   { id: "leaf", label: "blatt" },
 ];
 
+function cssHex(raw: string | undefined, fallback: string): string {
+  const s = (raw || "").trim();
+  return /^#[0-9a-fA-F]{3}$/.test(s) || /^#[0-9a-fA-F]{6}$/.test(s) ? s : fallback;
+}
+
+function logoHref(raw: string): string {
+  return /^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(raw) ? raw : "";
+}
+
+export function svgDataUrl(svg: string): string {
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
+
 export function qrToStyledSvg(
   text: string,
   opts: {
@@ -98,12 +111,12 @@ export function qrToStyledSvg(
     logoMode?: QrLogoMode;
   } = {},
 ): string {
-  const fg = opts.fg || "#111111";
-  const bg = opts.bg || "#ffffff";
+  const fg = cssHex(opts.fg, "#111111");
+  const bg = cssHex(opts.bg, "#ffffff");
   const dot = opts.dot || "square";
   const eye = opts.eye || "square";
   const frame = opts.frame || "none";
-  const logo = opts.logo || "";
+  const logo = logoHref(opts.logo || "");
   const logoMode = opts.logoMode || "off";
   const s = opts.modulePx || 10;
   const m = encodeQrMatrix(text, logo && logoMode === "center" ? "H" : "M");
@@ -304,19 +317,18 @@ export function qrToStyledSvg(
 
   let logoMarkup = "";
   if (logo && logoMode !== "off") {
-    const safe = logo.replace(/&/g, "&"+"amp;").replace(/"/g, "&"+"quot;");
     if (logoMode === "center" && punch > 0) {
       const pad = s * 0.35;
       const x = ox(mid) + pad;
       const y = oy(mid) + pad;
       const w = punch * s - pad * 2;
       logoMarkup += `<rect x="${ox(mid)}" y="${oy(mid)}" width="${punch * s}" height="${punch * s}" fill="${bg}"/>`;
-      logoMarkup += `<image href="${safe}" x="${x}" y="${y}" width="${w}" height="${w}" preserveAspectRatio="xMidYMid meet"/>`;
+      logoMarkup += `<image href="${logo}" x="${x}" y="${y}" width="${w}" height="${w}" preserveAspectRatio="xMidYMid meet"/>`;
     } else if (logoMode === "behind") {
       const x = ox(0);
       const y = oy(0);
       const w = n * s;
-      logoMarkup += `<image href="${safe}" x="${x}" y="${y}" width="${w}" height="${w}" preserveAspectRatio="xMidYMid slice" opacity="0.92"/>`;
+      logoMarkup += `<image href="${logo}" x="${x}" y="${y}" width="${w}" height="${w}" preserveAspectRatio="xMidYMid slice" opacity="0.92"/>`;
     }
   }
 

@@ -36,6 +36,7 @@ import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as ApiCardsResourceIdRouteImport } from './routes/api/cards/$resourceId'
 import { Route as ApiFilesResourceIdRouteImport } from './routes/api/files/$resourceId'
 import { Route as ApiOgIdRouteImport } from './routes/api/og/$id'
+import { Route as ApiPageFrameResourceIdRouteImport } from './routes/api/page-frame/$resourceId'
 import { Route as ApiV1ShortsRouteImport } from './routes/api/v1/shorts'
 import { Route as ApiV1ShortsIdRouteImport } from './routes/api/v1/shorts/$id'
 import { Route as ApiV1ShortsIdAnalyticsRouteImport } from './routes/api/v1/shorts/$id.analytics'
@@ -175,6 +176,11 @@ const ApiOgIdRoute = ApiOgIdRouteImport.update({
   path: '/api/og/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPageFrameResourceIdRoute = ApiPageFrameResourceIdRouteImport.update({
+  id: '/api/page-frame/$resourceId',
+  path: '/api/page-frame/$resourceId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiV1ShortsRoute = ApiV1ShortsRouteImport.update({
   id: '/api/v1/shorts',
   path: '/api/v1/shorts',
@@ -219,6 +225,7 @@ export interface FileRoutesByFullPath {
   '/api/cards/$resourceId': typeof ApiCardsResourceIdRoute
   '/api/files/$resourceId': typeof ApiFilesResourceIdRoute
   '/api/og/$id': typeof ApiOgIdRoute
+  '/api/page-frame/$resourceId': typeof ApiPageFrameResourceIdRoute
   '/api/v1/shorts': typeof ApiV1ShortsRouteWithChildren
   '/api/v1/shorts/$id': typeof ApiV1ShortsIdRouteWithChildren
   '/api/v1/shorts/$id/analytics': typeof ApiV1ShortsIdAnalyticsRoute
@@ -250,6 +257,7 @@ export interface FileRoutesByTo {
   '/api/cards/$resourceId': typeof ApiCardsResourceIdRoute
   '/api/files/$resourceId': typeof ApiFilesResourceIdRoute
   '/api/og/$id': typeof ApiOgIdRoute
+  '/api/page-frame/$resourceId': typeof ApiPageFrameResourceIdRoute
   '/api/v1/shorts': typeof ApiV1ShortsRouteWithChildren
   '/api/v1/shorts/$id': typeof ApiV1ShortsIdRouteWithChildren
   '/api/v1/shorts/$id/analytics': typeof ApiV1ShortsIdAnalyticsRoute
@@ -283,6 +291,7 @@ export interface FileRoutesById {
   '/api/cards/$resourceId': typeof ApiCardsResourceIdRoute
   '/api/files/$resourceId': typeof ApiFilesResourceIdRoute
   '/api/og/$id': typeof ApiOgIdRoute
+  '/api/page-frame/$resourceId': typeof ApiPageFrameResourceIdRoute
   '/api/v1/shorts': typeof ApiV1ShortsRouteWithChildren
   '/api/v1/shorts/$id': typeof ApiV1ShortsIdRouteWithChildren
   '/api/v1/shorts/$id/analytics': typeof ApiV1ShortsIdAnalyticsRoute
@@ -317,6 +326,7 @@ export interface FileRouteTypes {
     | '/api/cards/$resourceId'
     | '/api/files/$resourceId'
     | '/api/og/$id'
+    | '/api/page-frame/$resourceId'
     | '/api/v1/shorts'
     | '/api/v1/shorts/$id'
     | '/api/v1/shorts/$id/analytics'
@@ -348,6 +358,7 @@ export interface FileRouteTypes {
     | '/api/cards/$resourceId'
     | '/api/files/$resourceId'
     | '/api/og/$id'
+    | '/api/page-frame/$resourceId'
     | '/api/v1/shorts'
     | '/api/v1/shorts/$id'
     | '/api/v1/shorts/$id/analytics'
@@ -380,6 +391,7 @@ export interface FileRouteTypes {
     | '/api/cards/$resourceId'
     | '/api/files/$resourceId'
     | '/api/og/$id'
+    | '/api/page-frame/$resourceId'
     | '/api/v1/shorts'
     | '/api/v1/shorts/$id'
     | '/api/v1/shorts/$id/analytics'
@@ -399,6 +411,7 @@ export interface RootRouteChildren {
   ApiCardsResourceIdRoute: typeof ApiCardsResourceIdRoute
   ApiFilesResourceIdRoute: typeof ApiFilesResourceIdRoute
   ApiOgIdRoute: typeof ApiOgIdRoute
+  ApiPageFrameResourceIdRoute: typeof ApiPageFrameResourceIdRoute
   ApiV1ShortsRoute: typeof ApiV1ShortsRouteWithChildren
 }
 
@@ -593,6 +606,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiOgIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/page-frame/$resourceId': {
+      id: '/api/page-frame/$resourceId'
+      path: '/api/page-frame/$resourceId'
+      fullPath: '/api/page-frame/$resourceId'
+      preLoaderRoute: typeof ApiPageFrameResourceIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/v1/shorts': {
       id: '/api/v1/shorts'
       path: '/api/v1/shorts'
@@ -692,6 +712,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiCardsResourceIdRoute: ApiCardsResourceIdRoute,
   ApiFilesResourceIdRoute: ApiFilesResourceIdRoute,
   ApiOgIdRoute: ApiOgIdRoute,
+  ApiPageFrameResourceIdRoute: ApiPageFrameResourceIdRoute,
   ApiV1ShortsRoute: ApiV1ShortsRouteWithChildren,
 }
 export const routeTree = rootRouteImport

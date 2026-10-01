@@ -307,17 +307,17 @@ export async function recordShortVisit(input: {
       last_clicked_at = now()
     where id = ${input.short.id}
   `;
-  try {
-    await writeActivity({
-      tenant_id: input.short.tenant_id,
-      short_id: input.short.id,
-      event: "click",
-      ua: input.ua,
-    });
-  } catch {
-    /* activity table may lag a deploy */
-  }
   if (!bot) {
+    try {
+      await writeActivity({
+        tenant_id: input.short.tenant_id,
+        short_id: input.short.id,
+        event: "click",
+        ua: input.ua,
+      });
+    } catch {
+      /* activity table may lag a deploy */
+    }
     void import("./webhooks.server")
       .then(({ fireWebhooks }) =>
         fireWebhooks(input.short.tenant_id, "click", {

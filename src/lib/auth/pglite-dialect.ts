@@ -75,10 +75,18 @@ class LazyPGliteDriver implements Driver {
   ): Promise<void> {
     const c = conn as PGliteConnection;
     if (settings.isolationLevel) {
+      const level = settings.isolationLevel.toLowerCase();
+      const allowed = new Set([
+        "read uncommitted",
+        "read committed",
+        "repeatable read",
+        "serializable",
+      ]);
+      if (!allowed.has(level)) {
+        throw new Error("Unsupported transaction isolation level");
+      }
       await c.executeQuery(
-        CompiledQuery.raw(
-          `start transaction isolation level ${settings.isolationLevel}`,
-        ),
+        CompiledQuery.raw(`start transaction isolation level ${level}`),
       );
     } else {
       await c.executeQuery(CompiledQuery.raw("begin"));

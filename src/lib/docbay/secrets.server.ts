@@ -1,32 +1,30 @@
 /**
  * Server-only secrets. Never import from client components.
- * Env vars override the baked fallbacks so production can rotate without a code change.
+ * Credentials come from the environment only — never from source.
  */
 export { PLATFORM_LINK_HOST } from "./brand";
 
+function env(name: string): string {
+  if (typeof process === "undefined") return "";
+  return process.env[name]?.trim() || "";
+}
+
 export function getPlatformEmailitKey(): string {
-  const fromEnv =
-    typeof process !== "undefined" ? process.env.EMAILIT_API_KEY?.trim() : "";
-  if (fromEnv) return fromEnv;
-  return "secret_zj3nJaA251w8ik7FEwR1sq2vNseFLH2r";
+  return env("EMAILIT_API_KEY");
 }
 
 export function getGoogleClientId(): string {
-  const fromEnv =
-    typeof process !== "undefined" ? process.env.GOOGLE_CLIENT_ID?.trim() : "";
-  if (fromEnv) return fromEnv;
-  return "312693502983-8a3s8ohkf8acdp4tq86o87uee666df57.apps.googleusercontent.com";
+  return env("GOOGLE_CLIENT_ID");
 }
 
 export function getGoogleClientSecret(): string {
-  const fromEnv =
-    typeof process !== "undefined" ? process.env.GOOGLE_CLIENT_SECRET?.trim() : "";
-  if (fromEnv) return fromEnv;
-  return "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";
+  return env("GOOGLE_CLIENT_SECRET");
 }
 
 /** Platform owner – Super Admin for all workspaces (no separate /super UI). */
 export const SUPER_ADMIN_EMAIL = "admin@bestl.ink";
 
-/** Seeded super-admin password (change in production). */
-export const SUPER_ADMIN_PASSWORD = "Bestlink2026!";
+/** Set SUPER_ADMIN_PASSWORD in the environment to seed the platform owner. */
+export function getSuperAdminPassword(): string {
+  return env("SUPER_ADMIN_PASSWORD");
+}

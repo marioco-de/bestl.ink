@@ -26,8 +26,8 @@ import type { FullState, GeneratedLink, Resource } from "@/lib/docbay/types";
 import { TagChip, TagPicker } from "@/components/control/tag-picker";
 import { tagColor } from "@/lib/docbay/tags";
 import { DocActionPicker } from "@/components/control/doc-action-picker";
-import { actionsPayload, parseChatMode, parseDocActions, parseRequireRequest, withChatMode, withRequireRequest, type ChatMode, type DocAction } from "@/lib/docbay/doc-actions";
-import { RequestAccessToggle } from "@/components/ui/toggle";
+import { actionsPayload, parseChatMode, parseDocActions, parsePagePins, parseRequireRequest, withChatMode, withPagePins, withRequireRequest, type ChatMode, type DocAction } from "@/lib/docbay/doc-actions";
+import { RequestAccessToggle, Toggle } from "@/components/ui/toggle";
 import { useT } from "@/lib/i18n";
 import { PresenceEye } from "@/components/control/presence-eye";
 import { RowMenu, ClicksChip, LastClicked } from "@/components/control/row-menu";
@@ -316,6 +316,7 @@ export function ResourceForm({
   const [tags, setTags] = useState<string[]>(initial?.tags ?? []);
   const [actions, setActions] = useState<DocAction[]>(() => parseDocActions(initial?.payload));
   const [chatMode, setChatMode] = useState<ChatMode>(() => parseChatMode(initial?.payload));
+  const [pagePins, setPagePins] = useState(() => parsePagePins(initial?.payload));
   const [requireRequest, setRequireRequest] = useState(() =>
     parseRequireRequest(initial?.payload, initial?.type || defaultType),
   );
@@ -418,9 +419,15 @@ export function ResourceForm({
         const uploaded = await uploadFile(file.raw);
         uploadId = uploaded;
       }
-      const payload = withRequireRequest(
-        requireRequest,
-        type === "document" ? withChatMode(chatMode, actionsPayload(actions, initial?.payload)) : initial?.payload,
+      const payload = withPagePins(
+        chatMode !== "off" && pagePins,
+        withRequireRequest(
+          requireRequest,
+          withChatMode(
+            chatMode,
+            type === "document" ? actionsPayload(actions, initial?.payload) : initial?.payload,
+          ),
+        ),
       );
       const s = editing
         ? await updateResource({
@@ -623,10 +630,30 @@ export function ResourceForm({
             required
           />
           <p className="mt-1 text-xs text-fg-subtle">
-            Die öffentliche URL bleibt auf deiner Domain; die Zielseite läuft im
-            Frame.
+            Die Zielseite wird im Frame angezeigt.
           </p>
-          <div className="mt-3">
+          <div className="mt-3 space-y-3">
+            <div>
+              <Label>{t("doc.pageChat")}</Label>
+              <select
+                className="mt-1 h-9 w-full rounded-md border border-border bg-bg px-2 text-sm"
+                value={chatMode}
+                onChange={(e) => setChatMode(e.target.value as ChatMode)}
+              >
+                <option value="off">{t("doc.chatOff")}</option>
+                <option value="shared">{t("doc.chatShared")}</option>
+                <option value="per_email">{t("doc.chatPerEmail")}</option>
+              </select>
+            </div>
+            <Toggle
+              label={t("doc.pagePins")}
+              hint={t("doc.pagePinsHint")}
+              checked={chatMode !== "off" && pagePins}
+              onChange={(v) => {
+                setPagePins(v);
+                if (v && chatMode === "off") setChatMode("shared");
+              }}
+            />
             <RequestAccessToggle
               hint="Aus: die Seite ist über den Slug ohne Token erreichbar."
               checked={requireRequest}

@@ -14,8 +14,6 @@ import { mapTenant } from "./load-state.server";
 
 export async function seedDefaultPlans(): Promise<void> {
   const sql = await getSql();
-  const existing = await sql`select id from db_plans limit 1`;
-  if (existing.length > 0) return;
   for (const p of defaultPlanCatalog()) {
     await sql`
       insert into db_plans (id, name, slug, kind, description, features)
@@ -206,6 +204,7 @@ export async function assignPlan(tenantId: string, planId: string | null): Promi
   const sql = await getSql();
   if (!planId) {
     await sql`update db_tenants set plan_id = null where id = ${tenantId}`;
+    void import("./short-cache.server").then((m) => m.bustTenantShorts(tenantId));
     return;
   }
   const plan = (
@@ -214,6 +213,22 @@ export async function assignPlan(tenantId: string, planId: string | null): Promi
   if (!plan) throw new Error("Plan nicht gefunden");
   await sql`update db_tenants set plan_id = ${planId} where id = ${tenantId}`;
   await applyFeatureMap(tenantId, parsePlanFeatures(plan.features));
+  void import("./short-cache.server").then((m) => m.bustTenantShorts(tenantId));
+}
+
+export async function assignPlanToUser(userId: string, planId: string | null): Promise<number> {
+  const sql = await getSql();
+  const rows = (await sql`
+    select tenant_id from db_tenant_members where user_id = ${userId}
+  `) as { tenant_id?: string }[];
+  let n = 0;
+  for (const r of rows) {
+    const tid = String(r.tenant_id || "");
+    if (!tid) continue;
+    await assignPlan(tid, planId);
+    n += 1;
+  }
+  return n;
 }
 
 export async function updateTenantAdmin(data: {

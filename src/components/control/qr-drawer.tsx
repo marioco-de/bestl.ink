@@ -5,6 +5,7 @@ import {
   downloadSvgFile,
   qrToStyledSvg,
   qrToSvg,
+  svgDataUrl,
   validateQrReadable,
   withQrFlag,
   QR_DOTS,
@@ -104,10 +105,7 @@ function CheckPanel({ url }: { url: string }) {
       </div>
       <div className="flex aspect-square items-center justify-center rounded-md border border-border bg-white p-3">
         {svg ? (
-          <div
-            className="flex h-full w-full items-center justify-center [&>svg]:h-full [&>svg]:w-full [&>svg]:max-h-full [&>svg]:max-w-full"
-            dangerouslySetInnerHTML={{ __html: svg }}
-          />
+          <img alt="" className="h-full w-full object-contain" src={svgDataUrl(svg)} />
         ) : (
           <p className="text-center text-xs text-fg-subtle">{t("qr.needDest")}</p>
         )}
@@ -208,10 +206,7 @@ function DesignPanel({ url, slug }: { url: string; slug: string }) {
         style={{ background: bg }}
       >
         {svg ? (
-          <div
-            className="flex h-full w-full items-center justify-center [&>svg]:h-full [&>svg]:w-full [&>svg]:max-h-full [&>svg]:max-w-full"
-            dangerouslySetInnerHTML={{ __html: svg }}
-          />
+          <img alt="" className="h-full w-full object-contain" src={svgDataUrl(svg)} />
         ) : (
           <p className="text-xs text-fg-subtle">{t("qr.needDest")}</p>
         )}
@@ -424,7 +419,7 @@ function fileToLogo(file: File): Promise<string> {
         ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h);
         resolve(canvas.toDataURL("image/png"));
       };
-      img.onerror = () => resolve(src);
+      img.onerror = () => resolve("");
       img.src = src;
     };
     reader.readAsDataURL(file);

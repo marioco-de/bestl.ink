@@ -139,7 +139,7 @@ export function ControlProvider({
       const tid = tenantRef.current;
       if (!tid || tid === "platform") return;
       void hydrate(tid, true);
-    }, 2000);
+    }, 8000);
     return () => window.clearInterval(id);
   }, [hydrate]);
 

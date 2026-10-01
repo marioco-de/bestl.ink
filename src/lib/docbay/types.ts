@@ -1,3 +1,5 @@
+import type { SplashSettings } from "./splash";
+
 export type MemberRole = "owner" | "admin" | "member";
 export type ResourceType = "document" | "page" | "event" | "contact";
 export type EmailProvider = "none" | "emailit_platform" | "emailit_custom" | "smtp";
@@ -35,6 +37,8 @@ export const FEATURE_KEYS = [
   "og_previews",
   "public_api",
   "unbranded_redirect",
+  "splash_logo",
+  "hide_brand_flag",
 ] as const;
 
 export type FeatureKey = (typeof FEATURE_KEYS)[number];
@@ -65,6 +69,7 @@ export interface Tenant {
   suspended: boolean;
   notes: string;
   dash_user_buttons: "off" | "anywhere" | "above" | "below";
+  splash: SplashSettings;
 }
 
 export interface WorkspaceSummary {

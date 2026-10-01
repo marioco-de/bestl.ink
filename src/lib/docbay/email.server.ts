@@ -28,7 +28,9 @@ export async function sendTenantEmail(
       if (!features.emailit_platform) {
         return { ok: false, error: "Platform-Emailit ist für diesen Account deaktiviert" };
       }
-      return await sendEmailit(getPlatformEmailitKey(), from, input);
+      const key = getPlatformEmailitKey();
+      if (!key) return { ok: false, error: "EMAILIT_API_KEY fehlt" };
+      return await sendEmailit(key, from, input);
     }
     if (settings.provider === "emailit_custom") {
       if (!features.emailit_custom) {
@@ -87,8 +89,10 @@ export async function sendPlatformAuthEmail(input: {
   subject: string;
   html: string;
 }): Promise<{ ok: boolean; error?: string }> {
+  const key = getPlatformEmailitKey();
+  if (!key) return { ok: false, error: "EMAILIT_API_KEY fehlt" };
   return sendEmailit(
-    getPlatformEmailitKey(),
+    key,
     "BESTL.INK <noreply@bestl.ink>",
     { to: input.to, subject: input.subject, html: input.html },
   );

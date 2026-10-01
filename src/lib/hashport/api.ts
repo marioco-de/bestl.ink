@@ -12,8 +12,7 @@ import type {
   UtmPreset,
 } from "./types";
 
-const TOKEN_ALPHABET = "abcdefghijklmnopqrstuvwxyz0123456789";
-const TOKEN_LEN = 5;
+import { genToken } from "@/lib/docbay/id";
 
 function uid(prefix = ""): string {
   const id =
@@ -23,12 +22,8 @@ function uid(prefix = ""): string {
   return prefix ? `${prefix}_${id}` : id;
 }
 
-function genToken(): string {
-  let out = "";
-  for (let i = 0; i < TOKEN_LEN; i++) {
-    out += TOKEN_ALPHABET[Math.floor(Math.random() * TOKEN_ALPHABET.length)]!;
-  }
-  return out;
+function genAccessToken(): string {
+  return genToken(5);
 }
 
 function parseTags(raw: unknown): string[] {
@@ -500,11 +495,11 @@ export const generateLink = createServerFn({ method: "POST" })
     await ensureSeeded();
     const sql = await getSql();
 
-    let token = genToken();
+    let token = genAccessToken();
     for (let i = 0; i < 8; i++) {
       const clash = await sql`select id from hp_links where token = ${token}`;
       if (clash.length === 0) break;
-      token = genToken();
+      token = genAccessToken();
     }
 
     const id = uid("link");

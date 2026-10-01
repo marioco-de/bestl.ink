@@ -39,7 +39,7 @@ export async function handleAuthPopupRequest(request: Request): Promise<Response
     const message: PopupMessage = {
       source: "grok-auth-popup",
       token,
-      ...(errored ? { error: url.searchParams.get("error") ?? "sign_in_failed" } : {}),
+      ...(errored ? { error: safePopupError(url.searchParams.get("error")) } : {}),
     };
     return new Response(completionHtml(message), {
       status: 200,
@@ -75,11 +75,11 @@ export async function handleAuthPopupRequest(request: Request): Promise<Response
     });
 
     if (!apiRes.ok) {
-      const detail = await apiRes.text().catch(() => "");
+      await apiRes.text().catch(() => "");
       return completionResponse({
         source: "grok-auth-popup",
         token: null,
-        error: detail || `oauth_init_failed_${apiRes.status}`,
+        error: "oauth_init_failed",
       });
     }
 
@@ -102,12 +102,11 @@ export async function handleAuthPopupRequest(request: Request): Promise<Response
       headers.append("set-cookie", cookie);
     }
     return new Response(null, { status: 302, headers });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "oauth_init_threw";
+  } catch {
     return completionResponse({
       source: "grok-auth-popup",
       token: null,
-      error: message,
+      error: "oauth_init_failed",
     });
   }
 }
@@ -126,7 +125,10 @@ function completionResponse(message: PopupMessage): Response {
 function completionHtml(message: PopupMessage): string {
   // JSON is safe inside a <script type="application/json"> block; the inline
   // script only reads it. Avoids escaping pitfalls of embedding in JS source.
-  const payload = JSON.stringify(message).replace(/</g, "\\u003c");
+  const payload = JSON.stringify(message)
+    .replace(/</g, "\\u003c")
+    .replace(/>/g, "\\u003e")
+    .replace(/[\u2028\u2029]/g, "");
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -155,6 +157,11 @@ function completionHtml(message: PopupMessage): string {
 </script>
 </body>
 </html>`;
+}
+
+function safePopupError(raw: string | null | undefined): string {
+  const s = (raw || "sign_in_failed").slice(0, 64);
+  return /^[a-zA-Z0-9_.:-]+$/.test(s) ? s : "sign_in_failed";
 }
 
 /** Read a single cookie value from the request (handles `=` inside values). */

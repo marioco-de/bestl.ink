@@ -13,6 +13,7 @@ import {
   recordActivity,
 } from "@/lib/docbay/api";
 import { resolveShort, lookupMiss } from "@/lib/docbay/shorts-api";
+import { httpUrl } from "@/lib/docbay/public-url";
 import { NotFoundSplash, type MissReason } from "@/components/public/not-found-splash";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea, Label } from "@/components/ui/input";
@@ -226,7 +227,8 @@ function ShortHit({
         return;
       }
       if (next.access === "granted" && next.destination && !next.cloak && !next.branded) {
-        window.location.replace(next.destination);
+        const dest = httpUrl(next.destination);
+        if (dest) window.location.replace(dest);
         return;
       }
       setData(next);

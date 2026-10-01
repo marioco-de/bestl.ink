@@ -8,21 +8,19 @@ import {
   normalizeSlug,
   slugTaken,
   uniqueSlug,
-  findShortBySlug,
   recordShortVisit,
   pickDestination,
   isOgBot,
   countryFromHeaders,
   createApiKey,
   verifySecret,
-  destinationAllowsIframe,
   findTenantBrandByHost,
   mapShortRow,
   RESERVED_SLUGS,
 } from "./shorts.server";
 import { requestHostHeader } from "./request-host.server";
 import type { ShortLink } from "./types";
-import { defaultFeatures, featuresFromRows } from "./features";
+import { defaultFeatures } from "./features";
 import type { CsvShortRow } from "@/lib/csv";
 
 async function featureOn(
@@ -130,6 +128,7 @@ export const createShort = createServerFn({ method: "POST" })
         ${context.userId}
       )
     `;
+    void import("./short-cache.server").then((m) => m.bustShort(slug));
     const row = (
       await sql`select s.*, p.name as button_name from db_short_links s
         left join db_param_nodes p on p.id = s.button_id
@@ -185,6 +184,11 @@ export const updateShort = createServerFn({ method: "POST" })
         utm_extra = ${JSON.stringify(data.utm_extra ?? {})}
       where id = ${data.id} and tenant_id = ${mem.tenant.id}
     `;
+    const nextSlug = slug || String(cur.slug);
+    void import("./short-cache.server").then((m) => {
+      void m.bustShort(nextSlug);
+      if (String(cur.slug) !== nextSlug) void m.bustShort(String(cur.slug));
+    });
     const row = (
       await sql`select s.*, p.name as button_name from db_short_links s
         left join db_param_nodes p on p.id = s.button_id
@@ -200,7 +204,11 @@ export const deleteShort = createServerFn({ method: "POST" })
     const mem = await getMembership(context.userId, data.tenant_id);
     if (!mem) throw new Error("Kein Workspace");
     const sql = await getSql();
+    const prev = (
+      await sql`select slug from db_short_links where id = ${data.id} and tenant_id = ${mem.tenant.id} limit 1`
+    )[0] as { slug?: string } | undefined;
     await sql`delete from db_short_links where id = ${data.id} and tenant_id = ${mem.tenant.id}`;
+    if (prev?.slug) void import("./short-cache.server").then((m) => m.bustShort(String(prev.slug)));
     return { id: data.id };
   });
 
@@ -220,7 +228,9 @@ export const toggleShort = createServerFn({ method: "POST" })
         left join db_param_nodes p on p.id = s.button_id
         where s.id = ${data.id}`
     )[0] as Record<string, unknown>;
-    return { short: mapShortRow(row) };
+    const mapped = mapShortRow(row);
+    void import("./short-cache.server").then((m) => m.bustShort(mapped.slug));
+    return { short: mapped };
   });
 
 export const getShortAnalytics = createServerFn({ method: "POST" })
@@ -402,9 +412,10 @@ export const resolveShort = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     const slug = normalizeSlug(data.slug);
-    const found = await findShortBySlug(slug, data.host);
+    const { getShortBundle, afterResponse } = await import("./short-cache.server");
+    const found = await getShortBundle(slug, data.host);
     if (!found) throw new Error("NOT_FOUND");
-    const short: ShortLink = found;
+    const short: ShortLink = found.short;
     if (short.disabled) throw new Error("DISABLED");
     if (short.expires_at && new Date(short.expires_at).getTime() < Date.now()) {
       throw new Error("EXPIRED");
@@ -413,12 +424,7 @@ export const resolveShort = createServerFn({ method: "POST" })
       throw new Error("LIMIT");
     }
     if (short.has_password) {
-      const row = (
-        await (await getSql())`
-          select password_hash from db_short_links where id = ${short.id}
-        `
-      )[0] as { password_hash?: string } | undefined;
-      const ok = await verifySecret(data.password || "", row?.password_hash);
+      const ok = await verifySecret(data.password || "", found.password_hash);
       if (!ok) {
         return {
           kind: "short" as const,
@@ -436,21 +442,18 @@ export const resolveShort = createServerFn({ method: "POST" })
       lang: data.lang,
     });
     const dest = pickDestination(short, ua, country);
-    await recordShortVisit({
-      short,
-      ua,
-      ipHint: data.ip_hint,
-      referrer: data.referrer,
-      country,
-      trigger: data.qr ? "qr" : "link",
-    });
-    const featRows = (await (await getSql())`
-      select feature_key, enabled from db_features where tenant_id = ${short.tenant_id}
-    `) as { feature_key: string; enabled: boolean }[];
-    const features = featuresFromRows(featRows, defaultFeatures());
-    const branded = !features.unbranded_redirect;
-    const frameable =
-      branded || short.cloak ? await destinationAllowsIframe(dest) : false;
+    afterResponse(
+      recordShortVisit({
+        short,
+        ua,
+        ipHint: data.ip_hint,
+        referrer: data.referrer,
+        country,
+        trigger: data.qr ? "qr" : "link",
+      }),
+    );
+    const splash = found.splash;
+    const branded = splash.mode !== "off";
     return {
       kind: "short" as const,
       access: "granted" as const,
@@ -459,7 +462,8 @@ export const resolveShort = createServerFn({ method: "POST" })
       cloak: short.cloak,
       og: isOgBot(ua),
       branded,
-      frameable,
+      frameable: false,
+      splash,
       company: found.brand_company,
       brand_color: found.brand_color,
     };

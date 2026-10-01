@@ -47,12 +47,19 @@ function uploadsRoot(): string {
 
 function assertSafeKey(key: string): string {
   if (
-    !/^[a-zA-Z0-9._-]+(?:\/[a-zA-Z0-9._-]+)+$/.test(key) &&
-    !/^[a-zA-Z0-9._-]+$/.test(key)
+    !key ||
+    key.length > 512 ||
+    key.includes("..") ||
+    key.includes("\\") ||
+    key.startsWith("/") ||
+    key.endsWith("/")
   ) {
     throw new Error("Ungültiger Speicherpfad");
   }
-  if (key.includes("..")) throw new Error("Ungültiger Speicherpfad");
+  const partOk = /^[a-zA-Z0-9._-]+$/;
+  for (const part of key.split("/")) {
+    if (!partOk.test(part)) throw new Error("Ungültiger Speicherpfad");
+  }
   return key;
 }
 

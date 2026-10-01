@@ -11,6 +11,7 @@ import {
   PLATFORM_LINK_HOST,
 } from "./load-state.server";
 import { featuresFromRows, defaultFeatures } from "./features";
+import { parseSplash } from "./splash";
 import { FEATURE_KEYS, type EmailSettings, type JsonObject, type TenantDomain } from "./types";
 import {
   uid,
@@ -242,6 +243,86 @@ export const updateTenant = createServerFn({ method: "POST" })
       custom_domain: custom || null,
     });
     return loadFullState(context.userId, t.id);
+  });
+
+export const saveSplash = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .inputValidator(
+    (d: {
+      tenant_id?: string;
+      mode: "branded" | "off" | "page";
+      hide_flag?: boolean;
+      cta_x?: number;
+      cta_y?: number;
+      links?: { id?: string; label: string; url: string }[];
+    }) => d,
+  )
+  .handler(async ({ context, data }) => {
+    const mem = await getMembership(context.userId, data.tenant_id);
+    if (!mem || mem.member.role === "member") throw new Error("Keine Berechtigung");
+    if (mem.tenant.id === "platform") throw new Error("Kein Workspace gewählt");
+    const { parseSplash } = await import("./splash");
+    const current = parseSplash(mem.tenant.splash);
+    const featRows = (await getSql().then((sql) =>
+      sql`select feature_key, enabled from db_features where tenant_id = ${mem.tenant.id}`,
+    )) as { feature_key: string; enabled: boolean }[];
+    const fmap = featuresFromRows(featRows, defaultFeatures());
+    if (data.mode === "off" && !fmap.unbranded_redirect) {
+      throw new Error("Splash ausblenden ist in diesem Paket nicht enthalten");
+    }
+    if (data.mode === "page" && !fmap.brand_custom) {
+      throw new Error("Linktree ist in diesem Paket nicht enthalten");
+    }
+    if (data.hide_flag && !fmap.hide_brand_flag) {
+      throw new Error("Hinweis ausblenden ist Elite");
+    }
+    const next = parseSplash({
+      ...current,
+      mode: data.mode,
+      hide_flag: Boolean(data.hide_flag),
+      cta_x: data.cta_x,
+      cta_y: data.cta_y,
+      links: data.links ?? current.links,
+    });
+    const sql = await getSql();
+    await sql`update db_tenants set splash = ${JSON.stringify(next)}::jsonb where id = ${mem.tenant.id}`;
+    void import("./short-cache.server").then((m) => m.bustTenantShorts(mem.tenant.id));
+    return loadFullState(context.userId, mem.tenant.id);
+  });
+
+export const saveSplashLogo = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .inputValidator((d: { tenant_id?: string; data: string; mime?: string }) => d)
+  .handler(async ({ context, data }) => {
+    const mem = await getMembership(context.userId, data.tenant_id);
+    if (!mem || mem.member.role === "member") throw new Error("Keine Berechtigung");
+    const featRows = (await getSql().then((sql) =>
+      sql`select feature_key, enabled from db_features where tenant_id = ${mem.tenant.id}`,
+    )) as { feature_key: string; enabled: boolean }[];
+    const fmap = featuresFromRows(featRows, defaultFeatures());
+    if (!fmap.splash_logo) throw new Error("Logo-Upload ist Pro");
+    const raw = data.data.replace(/^data:[^;]+;base64,/, "");
+    const buf = Buffer.from(raw, "base64");
+    if (buf.length > 500_000) throw new Error("Logo max. 500 KB");
+    const mime = (data.mime || "image/png").split(";")[0] || "image/png";
+    if (!mime.startsWith("image/")) throw new Error("Nur Bilder");
+    const { saveOgBlob } = await import("./storage.server");
+    const id = await saveOgBlob(buf, mime);
+    const url = `/api/og/${id}`;
+    const sql = await getSql();
+    await sql`update db_tenants set brand_logo_url = ${url} where id = ${mem.tenant.id}`;
+    return loadFullState(context.userId, mem.tenant.id);
+  });
+
+export const clearSplashLogo = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .inputValidator((d: { tenant_id?: string } | undefined) => d ?? {})
+  .handler(async ({ context, data }) => {
+    const mem = await getMembership(context.userId, data.tenant_id);
+    if (!mem || mem.member.role === "member") throw new Error("Keine Berechtigung");
+    const sql = await getSql();
+    await sql`update db_tenants set brand_logo_url = null where id = ${mem.tenant.id}`;
+    return loadFullState(context.userId, mem.tenant.id);
   });
 
 export const createWorkspace = createServerFn({ method: "POST" })
@@ -1296,6 +1377,35 @@ export const superSetFeature = createServerFn({ method: "POST" })
       feature: data.feature_key,
       enabled: data.enabled,
     });
+    void import("./short-cache.server").then((m) => m.bustTenantShorts(data.tenant_id));
+    const { loadSuperAdmin } = await import("./admin.server");
+    return loadSuperAdmin();
+  });
+
+export const superSetSplash = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .inputValidator((d: { tenant_id: string; show: boolean }) => d)
+  .handler(async ({ context, data }) => {
+    if (!(await isSuperAdminUser(context.userId))) throw new Error("Forbidden");
+    const sql = await getSql();
+    const row = (
+      await sql`select splash from db_tenants where id = ${data.tenant_id} limit 1`
+    )[0] as { splash?: unknown } | undefined;
+    if (!row) throw new Error("Workspace nicht gefunden");
+    const { parseSplash } = await import("./splash");
+    const next = parseSplash({
+      ...parseSplash(row.splash),
+      mode: data.show ? "branded" : "off",
+    });
+    await sql`update db_tenants set splash = ${JSON.stringify(next)}::jsonb where id = ${data.tenant_id}`;
+    if (!data.show) {
+      await sql`
+        insert into db_features (tenant_id, feature_key, enabled)
+        values (${data.tenant_id}, ${"unbranded_redirect"}, ${true})
+        on conflict (tenant_id, feature_key) do update set enabled = true
+      `;
+    }
+    void import("./short-cache.server").then((m) => m.bustTenantShorts(data.tenant_id));
     const { loadSuperAdmin } = await import("./admin.server");
     return loadSuperAdmin();
   });
@@ -1369,6 +1479,21 @@ export const superAssignPlan = createServerFn({ method: "POST" })
     await assignPlan(data.tenant_id, data.plan_id);
     await audit(data.tenant_id, context.userId, "super.plan.assign", {
       plan_id: data.plan_id,
+    });
+    return loadSuperAdmin();
+  });
+
+export const superAssignUserPlan = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .inputValidator((d: { user_id: string; plan_id: string | null }) => d)
+  .handler(async ({ context, data }) => {
+    if (!(await isSuperAdminUser(context.userId))) throw new Error("Forbidden");
+    const { assignPlanToUser, loadSuperAdmin } = await import("./admin.server");
+    const n = await assignPlanToUser(data.user_id, data.plan_id);
+    await audit(null, context.userId, "super.user.plan", {
+      user_id: data.user_id,
+      plan_id: data.plan_id,
+      workspaces: n,
     });
     return loadSuperAdmin();
   });
@@ -1459,7 +1584,7 @@ export const resolveAccess = createServerFn({ method: "POST" })
     let resRows: unknown[] = [];
     if (token) {
       resRows = await sql`
-        select r.*, t.name as tenant_name, t.domain, t.brand_color, t.brand_company, t.id as tenant_id
+        select r.*, t.name as tenant_name, t.domain, t.brand_color, t.brand_company, t.splash, t.id as tenant_id
         from db_links l
         join db_resources r on r.id = l.resource_id
         join db_tenants t on t.id = r.tenant_id
@@ -1473,7 +1598,7 @@ export const resolveAccess = createServerFn({ method: "POST" })
           ? host.slice(0, -(PLATFORM_LINK_HOST.length + 1))
           : null;
       resRows = await sql`
-        select r.*, t.name as tenant_name, t.domain, t.brand_color, t.brand_company, t.id as tenant_id
+        select r.*, t.name as tenant_name, t.domain, t.brand_color, t.brand_company, t.splash, t.id as tenant_id
         from db_resources r
         join db_tenants t on t.id = r.tenant_id
         where (
@@ -1499,7 +1624,7 @@ export const resolveAccess = createServerFn({ method: "POST" })
     }
     if (resRows.length === 0) {
       resRows = await sql`
-        select r.*, t.name as tenant_name, t.domain, t.brand_color, t.brand_company, t.id as tenant_id
+        select r.*, t.name as tenant_name, t.domain, t.brand_color, t.brand_company, t.splash, t.id as tenant_id
         from db_resources r
         join db_tenants t on t.id = r.tenant_id
         where lower(r.slug) = ${slugKey}
@@ -1538,6 +1663,7 @@ export const resolveAccess = createServerFn({ method: "POST" })
         company_name: String(resource.brand_company || resource.tenant_name),
         domain: String(resource.domain ?? ""),
         brand_color: String(resource.brand_color ?? "#1a5f4a"),
+        hide_flag: Boolean(features.hide_brand_flag && parseSplash(resource.splash).hide_flag),
       },
       features: {
         chat: features.chat,
@@ -1987,11 +2113,25 @@ export const listChat = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const sql = await getSql();
     const thread = (data.visitor_key || "").trim();
+    const emailOnly = thread.split("|")[0] || thread;
+    const named = thread.includes("|") && thread.slice(emailOnly.length + 1).length > 0;
     const rows = thread
-      ? await sql`
+      ? named
+        ? await sql`
           select * from db_chat_messages
           where resource_id = ${data.resource_id}
             and coalesce(visitor_key, '') = ${thread}
+          order by created_at asc
+          limit 200
+        `
+        : await sql`
+          select * from db_chat_messages
+          where resource_id = ${data.resource_id}
+            and (
+              coalesce(visitor_key, '') = ${thread}
+              or coalesce(visitor_key, '') = ${emailOnly}
+              or coalesce(visitor_key, '') = ${emailOnly + "|"}
+            )
           order by created_at asc
           limit 200
         `
@@ -2032,8 +2172,10 @@ export const postChat = createServerFn({ method: "POST" })
     if (!res) throw new Error("NOT_FOUND");
     const body = data.body.trim();
     if (!body) throw new Error("Leere Nachricht");
-    if (data.sender_type === "visitor" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.sender_name.trim())) {
-      throw new Error("E-Mail erforderlich");
+    if (data.sender_type === "visitor") {
+      const ident = (data.visitor_key || data.sender_name || "").trim();
+      const mail = ident.split("|")[0] || ident;
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) throw new Error("E-Mail erforderlich");
     }
     const threadKey = (data.visitor_key ?? "").trim();
     const id = uid("chat");
@@ -2045,6 +2187,17 @@ export const postChat = createServerFn({ method: "POST" })
         ${threadKey}, ${data.sender_type}, ${data.sender_name.trim()}, ${body}
       )
     `;
+    if (threadKey) {
+      try {
+        await sql`
+          insert into db_chat_threads (tenant_id, resource_id, visitor_key, updated_at)
+          values (${res.tenant_id}, ${data.resource_id}, ${threadKey}, now())
+          on conflict (resource_id, visitor_key) do update set updated_at = now()
+        `;
+      } catch {
+        /* thread table optional */
+      }
+    }
     if (data.sender_type === "visitor") {
       const staff = await sql`
         select user_id from db_tenant_members
@@ -2064,6 +2217,50 @@ export const postChat = createServerFn({ method: "POST" })
       }
     }
     return { ok: true, id };
+  });
+
+export const listPagePins = createServerFn({ method: "POST" })
+  .inputValidator((d: { resource_id: string }) => d)
+  .handler(async ({ data }) => {
+    const { listPagePins: load } = await import("./pins.server");
+    return load(data.resource_id);
+  });
+
+export const pinVisitorColor = createServerFn({ method: "POST" })
+  .inputValidator((d: { resource_id: string; email: string; name?: string }) => d)
+  .handler(async ({ data }) => {
+    const { colorForVisitor } = await import("./pins.server");
+    const color = await colorForVisitor(data.resource_id, data.email, data.name || "");
+    return { color };
+  });
+
+export const placePagePin = createServerFn({ method: "POST" })
+  .inputValidator(
+    (d: {
+      resource_id: string;
+      link_id?: string;
+      email: string;
+      name?: string;
+      selector: string;
+      note?: string;
+    }) => d,
+  )
+  .handler(async ({ data }) => {
+    const sql = await getSql();
+    const res = (
+      await sql`select tenant_id from db_resources where id = ${data.resource_id} limit 1`
+    )[0] as { tenant_id?: string } | undefined;
+    if (!res?.tenant_id) throw new Error("NOT_FOUND");
+    const { placePagePin: place } = await import("./pins.server");
+    return place({
+      resourceId: data.resource_id,
+      tenantId: res.tenant_id,
+      linkId: data.link_id,
+      email: data.email,
+      name: data.name || "",
+      selector: data.selector,
+      note: data.note,
+    });
   });
 
 export const listChatInbox = createServerFn({ method: "POST" })

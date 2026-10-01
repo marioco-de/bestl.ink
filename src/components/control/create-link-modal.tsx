@@ -34,7 +34,7 @@ import { createTag, createResource, generateLink, createParamNode, uploadBegin, 
 import { pinShortDash } from "@/lib/docbay/dashboard-api";
 import { upsertShort } from "@/lib/docbay/state-patch";
 import { useT } from "@/lib/i18n";
-import { RequestAccessToggle } from "@/components/ui/toggle";
+import { RequestAccessToggle, Toggle } from "@/components/ui/toggle";
 import { EventFields, ContactFields } from "@/routes/control/-cards";
 import { emptyContact, emptyEvent } from "@/lib/docbay/cards";
 import { emptySplitRule, packSplitRules, type SplitRule } from "@/lib/docbay/device-split";
@@ -43,7 +43,7 @@ import { UtmFields } from "./utm-fields";
 import { emptyUtmRows, packUtm, utmActive, type UtmRow } from "@/lib/docbay/utm";
 import { suggestCardSlug, cardKindPath } from "@/lib/docbay/public-url";
 import { DocActionPicker } from "./doc-action-picker";
-import { actionsPayload, withChatMode, withRequireRequest, type ChatMode, type DocAction } from "@/lib/docbay/doc-actions";
+import { actionsPayload, withChatMode, withPagePins, withRequireRequest, type ChatMode, type DocAction } from "@/lib/docbay/doc-actions";
 import { MAX_UPLOAD_BYTES, MAX_UPLOAD_LABEL } from "@/lib/docbay/upload";
 import { Upload } from "lucide-react";
 
@@ -147,6 +147,7 @@ function Editor({
   const [docFile, setDocFile] = useState<File | null>(null);
   const [docActions, setDocActions] = useState<DocAction[]>([]);
   const [chatMode, setChatMode] = useState<ChatMode>("shared");
+  const [pagePins, setPagePins] = useState(true);
   const [requireRequest, setRequireRequest] = useState(kind === "document");
   const [event, setEvent] = useState(emptyEvent);
   const [contact, setContact] = useState(emptyContact);
@@ -357,7 +358,7 @@ function Editor({
         const uploadId = await uploadFile(docFile);
         const payload = withRequireRequest(
           requireRequest,
-          withChatMode(chatMode, actionsPayload(docActions)),
+          withPagePins(chatMode !== "off" && pagePins, withChatMode(chatMode, actionsPayload(docActions))),
         );
         let state = (await createResource({
           data: {
@@ -462,7 +463,10 @@ function Editor({
             description: shareText.trim(),
             content_url: withProto,
             tags,
-            payload: { require_request: false },
+            payload: withPagePins(
+              chatMode !== "off" && pagePins,
+              withChatMode(chatMode, { require_request: false }),
+            ),
             tenant_id: data.tenant.id,
           },
         })) as FullState;
@@ -774,6 +778,32 @@ function Editor({
           <RequestAccessToggle
             checked={requireRequest}
             onChange={setRequireRequest}
+          />
+        </section>
+      )}
+
+      {kind === "page" && (
+        <section className="space-y-3">
+          <div>
+            <p className="mb-1.5 text-xs font-medium">{t("doc.pageChat")}</p>
+            <select
+              className="h-9 w-full rounded-md border border-border bg-bg px-2 text-sm"
+              value={chatMode}
+              onChange={(e) => setChatMode(e.target.value as ChatMode)}
+            >
+              <option value="off">{t("doc.chatOff")}</option>
+              <option value="shared">{t("doc.chatShared")}</option>
+              <option value="per_email">{t("doc.chatPerEmail")}</option>
+            </select>
+          </div>
+          <Toggle
+            label={t("doc.pagePins")}
+            hint={t("doc.pagePinsHint")}
+            checked={chatMode !== "off" && pagePins}
+            onChange={(v) => {
+              setPagePins(v);
+              if (v && chatMode === "off") setChatMode("shared");
+            }}
           />
         </section>
       )}

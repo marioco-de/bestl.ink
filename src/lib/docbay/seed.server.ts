@@ -2,7 +2,7 @@ import { hashPassword } from "better-auth/crypto";
 import { getSql } from "@/lib/db";
 import {
   SUPER_ADMIN_EMAIL,
-  SUPER_ADMIN_PASSWORD,
+  getSuperAdminPassword,
   PLATFORM_LINK_HOST,
 } from "./secrets.server";
 import { defaultFeatures } from "./features";
@@ -124,13 +124,16 @@ export async function ensurePlatformSeeded(): Promise<void> {
 }
 
 async function seedPlatformNow(): Promise<void> {
-  await ensureAuthUser(
-    "user_super",
-    SUPER_ADMIN_EMAIL,
-    "Mario Kempter",
-    SUPER_ADMIN_PASSWORD,
-    true,
-  );
+  const superPassword = getSuperAdminPassword();
+  if (superPassword) {
+    await ensureAuthUser(
+      "user_super",
+      SUPER_ADMIN_EMAIL,
+      "Mario Kempter",
+      superPassword,
+      true,
+    );
+  }
   const sql = await getSql();
   const hasPlan = await sql`select id from db_plans limit 1`;
   if (hasPlan.length === 0) {
