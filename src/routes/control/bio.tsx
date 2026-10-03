@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { ArrowDown, ArrowUp, Plus, Trash2, Upload } from "lucide-react";
+import { ArrowDown, ArrowUp, Plus, Settings, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { bioReport, saveBio, saveBioAvatar } from "@/lib/docbay/api";
 import { useControl } from "@/lib/docbay/control-store";
@@ -8,23 +8,20 @@ import {
   BIO_BUTTONS,
   BIO_FONTS,
   BIO_HEADERS,
-  BIO_KINDS,
   BIO_LAYOUTS,
   BIO_NETWORKS,
   BIO_PALETTE,
   BIO_SHAPES,
-  BIO_SIZES,
+  paletteFor,
   BIO_THEMES,
   blankLink,
   colorPairings,
-  type BioKind,
   type BioLink,
   type BioNetwork,
   type BioPage,
-  type BioShape,
-  type BioSize,
 } from "@/lib/docbay/bio";
 import { BioStage } from "@/components/public/bio-stage";
+import { EcardLinkModal } from "@/components/control/ecard-link-modal";
 import { qrToSvg } from "@/lib/qr";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Textarea } from "@/components/ui/input";
@@ -47,8 +44,10 @@ function BioEditorPage() {
   const [cards, setCards] = useState<BioPage[]>(seed);
   const [activeId, setActiveId] = useState(data.tenant.bio?.id || seed[0]?.id || "main");
   const [busy, setBusy] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
   const [report, setReport] = useState<Awaited<ReturnType<typeof bioReport>> | null>(null);
   const page = cards.find((c) => c.id === activeId) || cards[0]!;
+  const editing = page.links.find((l) => l.id === editId) ?? null;
 
   useEffect(() => {
     const next = data.tenant.bio_cards?.length ? data.tenant.bio_cards : [data.tenant.bio];
@@ -61,6 +60,21 @@ function BioEditorPage() {
 
   function update(next: BioPage) {
     setCards((list) => list.map((c) => (c.id === next.id ? next : c)));
+  }
+
+  function tune(patch: Partial<BioPage>) {
+    const base = paletteFor(page);
+    update({
+      ...page,
+      ...patch,
+      theme: "custom",
+      bg_color: patch.bg_color ?? (page.bg_color || base.bg),
+      fg_color: patch.fg_color ?? (page.fg_color || base.fg),
+    });
+  }
+
+  function pickTheme(id: Exclude<BioPage["theme"], "custom">) {
+    update({ ...page, theme: id, bg_color: "", fg_color: "" });
   }
 
   function patchLink(index: number, patch: Partial<BioLink>) {
@@ -112,7 +126,16 @@ function BioEditorPage() {
       })) as FullState;
       setData(saved);
       const next = saved.tenant.bio_cards?.length ? saved.tenant.bio_cards : [saved.tenant.bio];
-      setCards(next);
+      const look = paletteFor(page);
+      setCards(
+        field === "bg"
+          ? next.map((c) =>
+              c.id === page.id
+                ? { ...c, theme: "custom", bg_color: c.bg_color || look.bg, fg_color: c.fg_color || look.fg }
+                : c,
+            )
+          : next,
+      );
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t("common.error"));
     } finally {
@@ -218,7 +241,7 @@ function BioEditorPage() {
             <Choice
               value={page.header}
               options={BIO_HEADERS.map((id) => ({ id, label: t(`bio.header${id[0]!.toUpperCase()}${id.slice(1)}`) }))}
-              onChange={(header) => update({ ...page, header })}
+              onChange={(header) => tune({ header })}
             />
           </div>
         </section>
@@ -226,14 +249,14 @@ function BioEditorPage() {
         <section className="space-y-3 rounded-xl border border-border bg-bg-elevated p-4">
           <Label>{t("bio.theme")}</Label>
           <div className="flex flex-wrap gap-2">
-            {BIO_THEMES.map((id) => {
+            {BIO_THEMES.filter((id) => id !== "custom").map((id) => {
               const pal = BIO_PALETTE[id];
               const on = page.theme === id;
               return (
                 <button
                   key={id}
                   type="button"
-                  onClick={() => update({ ...page, theme: id })}
+                  onClick={() => pickTheme(id)}
                   className="flex items-center gap-2 rounded-full border px-2.5 py-1 text-xs"
                   style={{ borderColor: on ? pal.accent : undefined, background: pal.bg, color: pal.fg }}
                 >
@@ -242,39 +265,57 @@ function BioEditorPage() {
                 </button>
               );
             })}
+            <button
+              type="button"
+              onClick={() => tune({})}
+              className="flex items-center gap-2 rounded-full border px-2.5 py-1 text-xs"
+              style={{
+                borderColor: page.theme === "custom" ? paletteFor(page).fg : undefined,
+                background: paletteFor(page).bg,
+                color: paletteFor(page).fg,
+              }}
+            >
+              <span
+                className="h-2.5 w-2.5 rounded-full"
+                style={{
+                  background: `conic-gradient(${paletteFor(page).fg}, ${paletteFor(page).bg}, ${paletteFor(page).fg})`,
+                }}
+              />
+              {t("bio.theme_custom")}
+            </button>
           </div>
           <Label>{t("bio.buttons")}</Label>
           <Choice
             value={page.button}
             options={BIO_BUTTONS.map((id) => ({ id, label: t(`bio.btn_${id}`) }))}
-            onChange={(button) => update({ ...page, button })}
+            onChange={(button) => tune({ button })}
           />
           <Label>{t("bio.layout")}</Label>
           <Choice
             value={page.layout}
             options={BIO_LAYOUTS.map((id) => ({ id, label: t(`bio.layout_${id}`) }))}
-            onChange={(layout) => update({ ...page, layout })}
+            onChange={(layout) => tune({ layout })}
           />
           <Label>{t("bio.font")}</Label>
           <Choice
             value={page.font}
             options={BIO_FONTS.map((id) => ({ id, label: t(`bio.font_${id}`) }))}
-            onChange={(font) => update({ ...page, font })}
+            onChange={(font) => tune({ font })}
           />
           <Label>{t("bio.shape")}</Label>
           <Choice
             value={page.button_shape}
             options={BIO_SHAPES.map((id) => ({ id, label: t(`bio.shape_${id}`) }))}
-            onChange={(button_shape) => update({ ...page, button_shape })}
+            onChange={(button_shape) => tune({ button_shape })}
           />
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="text-xs text-fg-muted">
               {t("bio.colorBg")}
-              <input type="color" className="mt-1 h-9 w-full" value={page.bg_color || BIO_PALETTE[page.theme].bg} onChange={(e) => update({ ...page, bg_color: e.target.value })} />
+              <input type="color" className="mt-1 h-9 w-full" value={page.bg_color || paletteFor(page).bg} onChange={(e) => tune({ bg_color: e.target.value })} />
             </label>
             <label className="text-xs text-fg-muted">
               {t("bio.colorFg")}
-              <input type="color" className="mt-1 h-9 w-full" value={page.fg_color || BIO_PALETTE[page.theme].fg} onChange={(e) => update({ ...page, fg_color: e.target.value })} />
+              <input type="color" className="mt-1 h-9 w-full" value={page.fg_color || paletteFor(page).fg} onChange={(e) => tune({ fg_color: e.target.value })} />
             </label>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -284,7 +325,7 @@ function BioEditorPage() {
                 type="button"
                 className="rounded-full px-3 py-1 text-xs"
                 style={{ background: p.bg, color: p.fg, boxShadow: "inset 0 0 0 1px rgba(0,0,0,.15)" }}
-                onClick={() => update({ ...page, bg_color: p.bg, fg_color: p.fg })}
+                onClick={() => tune({ bg_color: p.bg, fg_color: p.fg })}
               >
                 {p.label}
               </button>
@@ -292,7 +333,7 @@ function BioEditorPage() {
           </div>
           <div>
             <Label>{t("bio.bgVideo")}</Label>
-            <Input value={page.bg_video_url || ""} onChange={(e) => update({ ...page, bg_video_url: e.target.value || null })} />
+            <Input value={page.bg_video_url || ""} onChange={(e) => tune({ bg_video_url: e.target.value || null })} />
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
@@ -346,7 +387,7 @@ function BioEditorPage() {
           ))}
         </section>
 
-        <section className="space-y-3 rounded-xl border border-border bg-bg-elevated p-4">
+        <section className="space-y-2 rounded-xl border border-border bg-bg-elevated p-4">
           <div className="flex items-center justify-between">
             <Label className="mb-0">{t("bio.links")}</Label>
             <Button
@@ -355,66 +396,40 @@ function BioEditorPage() {
               variant="secondary"
               onClick={() => {
                 if (page.links.length >= 40) return;
-                update({ ...page, links: [...page.links, blankLink({ id: nid("l") })] });
+                const row = blankLink({ id: nid("l") });
+                update({ ...page, links: [...page.links, row] });
+                setEditId(row.id);
               }}
             >
               <Plus className="h-3.5 w-3.5" /> {t("bio.addLink")}
             </Button>
           </div>
           {page.links.map((l, i) => (
-            <div key={l.id} className="space-y-2 rounded-lg border border-border p-2">
-              <div className="flex flex-wrap gap-2">
-                <select
-                  className="h-10 rounded-md border border-border bg-bg px-2 text-sm"
-                  value={l.kind}
-                  onChange={(e) => patchLink(i, { kind: e.target.value as BioKind })}
-                >
-                  {BIO_KINDS.map((k) => (
-                    <option key={k} value={k}>
-                      {t(`bio.kind_${k}`)}
-                    </option>
-                  ))}
-                </select>
-                <Input className="min-w-[8rem] flex-1" value={l.label} placeholder={t("bio.linkLabel")} onChange={(e) => patchLink(i, { label: e.target.value })} />
-                <Input className="min-w-[8rem] flex-1" value={l.url} placeholder="https://" onChange={(e) => patchLink(i, { url: e.target.value })} />
-              </div>
-              <div className="flex flex-wrap items-center gap-2 text-xs text-fg-muted">
-                <button type="button" onClick={() => move(page, i, -1, update)} aria-label="up"><ArrowUp className="h-3.5 w-3.5" /></button>
-                <button type="button" onClick={() => move(page, i, 1, update)} aria-label="down"><ArrowDown className="h-3.5 w-3.5" /></button>
-                <button type="button" className={l.highlight ? "text-primary" : ""} onClick={() => patchLink(i, { highlight: !l.highlight })}>{t("bio.highlight")}</button>
-                <button type="button" className={l.spotlight ? "text-primary" : ""} onClick={() => patchLink(i, { spotlight: !l.spotlight })}>{t("bio.spotlight")}</button>
-                <button type="button" className={l.sensitive ? "text-primary" : ""} onClick={() => patchLink(i, { sensitive: !l.sensitive })}>{t("bio.sensitive")}</button>
-                <FileBtn label={t("bio.thumb")} onFile={(f) => void upload(f, "thumb", l.id)} />
-                <span className="ml-auto tabular">{l.clicks}</span>
-                <button type="button" onClick={() => update({ ...page, links: page.links.filter((_, idx) => idx !== i) })}>
-                  <Trash2 className="h-3.5 w-3.5 text-danger" />
+            <div key={l.id} className="flex items-center gap-2 rounded-xl border border-border bg-bg px-2 py-1.5">
+              <div className="flex flex-col text-fg-muted">
+                <button type="button" className="rounded p-0.5 hover:bg-bg-subtle" onClick={() => move(page, i, -1, update)} aria-label="up">
+                  <ArrowUp className="h-3.5 w-3.5" />
+                </button>
+                <button type="button" className="rounded p-0.5 hover:bg-bg-subtle" onClick={() => move(page, i, 1, update)} aria-label="down">
+                  <ArrowDown className="h-3.5 w-3.5" />
                 </button>
               </div>
-              <div className="grid gap-2 sm:grid-cols-2">
-                <select className="h-9 rounded-md border border-border bg-bg px-2 text-xs" value={l.size} onChange={(e) => patchLink(i, { size: e.target.value as BioSize })}>
-                  {BIO_SIZES.map((s) => <option key={s} value={s}>{t("bio.size")} {s}</option>)}
-                </select>
-                <select className="h-9 rounded-md border border-border bg-bg px-2 text-xs" value={l.shape} onChange={(e) => patchLink(i, { shape: e.target.value as BioShape })}>
-                  {BIO_SHAPES.map((s) => <option key={s} value={s}>{t(`bio.shape_${s}`)}</option>)}
-                </select>
-                <select className="h-9 rounded-md border border-border bg-bg px-2 text-xs" value={l.collection_id} onChange={(e) => patchLink(i, { collection_id: e.target.value })}>
-                  <option value="">{t("bio.collection")}</option>
-                  {page.collections.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
-                </select>
-                {l.kind === "capture" && (
-                  <select className="h-9 rounded-md border border-border bg-bg px-2 text-xs" value={l.capture} onChange={(e) => patchLink(i, { capture: e.target.value as BioLink["capture"] })}>
-                    <option value="email">E-Mail</option>
-                    <option value="phone">SMS</option>
-                    <option value="both">{t("bio.kind_capture")}</option>
-                  </select>
-                )}
-                <Input type="datetime-local" value={l.starts_at} onChange={(e) => patchLink(i, { starts_at: e.target.value })} />
-                <Input type="datetime-local" value={l.ends_at} onChange={(e) => patchLink(i, { ends_at: e.target.value })} />
-                <Input value={l.rule_devices} placeholder={t("bio.devices")} onChange={(e) => patchLink(i, { rule_devices: e.target.value })} />
-                <Input value={l.rule_countries} placeholder={t("bio.countries")} onChange={(e) => patchLink(i, { rule_countries: e.target.value.toUpperCase() })} />
-                <Input type="number" min={0} max={23} placeholder="0" value={l.rule_from ?? ""} onChange={(e) => patchLink(i, { rule_from: e.target.value === "" ? null : Number(e.target.value) })} />
-                <Input type="number" min={0} max={23} placeholder="24" value={l.rule_to ?? ""} onChange={(e) => patchLink(i, { rule_to: e.target.value === "" ? null : Number(e.target.value) })} />
+              {l.thumb_url ? (
+                <img src={l.thumb_url} alt="" className="h-9 w-9 shrink-0 rounded-md object-cover" />
+              ) : null}
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium">{l.label || t("bio.addLink")}</p>
+                <p className="truncate text-xs text-fg-muted">{l.url || t(`bio.kind_${l.kind}`)}</p>
               </div>
+              {l.clicks > 0 ? <span className="text-xs tabular-nums text-fg-muted">{l.clicks}</span> : null}
+              <button
+                type="button"
+                onClick={() => setEditId(l.id)}
+                className="grid h-9 w-9 shrink-0 place-items-center rounded-md border border-border text-fg-muted hover:bg-bg-subtle hover:text-fg"
+                aria-label={t("bio.linkSettings")}
+              >
+                <Settings className="h-4 w-4" />
+              </button>
             </div>
           ))}
         </section>
@@ -514,6 +529,22 @@ function BioEditorPage() {
           </div>
         </div>
       </div>
+      {editing && (
+        <EcardLinkModal
+          link={editing}
+          collections={page.collections}
+          onChange={(patch) => {
+            const i = page.links.findIndex((l) => l.id === editing.id);
+            if (i >= 0) patchLink(i, patch);
+          }}
+          onUploadThumb={(file) => void upload(file, "thumb", editing.id)}
+          onDelete={() => {
+            update({ ...page, links: page.links.filter((l) => l.id !== editing.id) });
+            setEditId(null);
+          }}
+          onClose={() => setEditId(null)}
+        />
+      )}
     </div>
   );
 }

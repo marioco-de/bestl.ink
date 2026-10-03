@@ -1,6 +1,6 @@
 import { httpUrl } from "./public-url";
 
-export const BIO_THEMES = ["tinte", "papier", "nacht", "koralle", "salbei", "studio"] as const;
+export const BIO_THEMES = ["tinte", "papier", "nacht", "koralle", "salbei", "studio", "custom"] as const;
 export type BioTheme = (typeof BIO_THEMES)[number];
 
 export const BIO_BUTTONS = ["solid", "glass", "line"] as const;
@@ -149,6 +149,41 @@ export const DEFAULT_BIO: BioPage = {
   views: 0,
 };
 
+export function paletteFor(page: Pick<BioPage, "theme" | "bg_color" | "fg_color">): BioPalette {
+  const base = BIO_PALETTE[page.theme] || BIO_PALETTE.tinte;
+  if (page.theme !== "custom") return base;
+  const bg = page.bg_color || base.bg;
+  const fg = page.fg_color || base.fg;
+  return {
+    bg,
+    fg,
+    glow: hexAlpha(fg, 0.34),
+    muted: hexAlpha(fg, 0.64),
+    accent: fg,
+    card: fg,
+    cardFg: bg,
+    line: hexAlpha(fg, 0.22),
+    glass: hexAlpha(isLightHex(bg) ? "#ffffff" : fg, isLightHex(bg) ? 0.55 : 0.12),
+  };
+}
+
+export function isLightHex(hex: string): boolean {
+  const m = /^#([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return false;
+  const n = parseInt(m[1]!, 16);
+  const r = (n >> 16) & 255;
+  const g = (n >> 8) & 255;
+  const b = n & 255;
+  return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255 > 0.62;
+}
+
+function hexAlpha(hex: string, a: number): string {
+  const m = /^#([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return `rgba(255,255,255,${a})`;
+  const n = parseInt(m[1]!, 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+}
+
 export type BioPalette = {
   bg: string;
   glow: string;
@@ -227,6 +262,17 @@ export const BIO_PALETTE: Record<BioTheme, BioPalette> = {
     cardFg: "#f8fafc",
     line: "rgba(15,23,42,0.12)",
     glass: "rgba(255,255,255,0.72)",
+  },
+  custom: {
+    bg: "#141210",
+    glow: "rgba(246,241,231,0.28)",
+    fg: "#f6f1e7",
+    muted: "rgba(246,241,231,0.64)",
+    accent: "#f6f1e7",
+    card: "#f6f1e7",
+    cardFg: "#141210",
+    line: "rgba(246,241,231,0.22)",
+    glass: "rgba(246,241,231,0.1)",
   },
 };
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import {
   ArrowUpRight,
   Github,
@@ -20,11 +20,14 @@ import {
   bioHref,
   deviceFromUa,
   embedSrc,
+  isLightHex,
   linkAllowed,
+  paletteFor,
   shapeRadius,
   type BioLink,
   type BioNetwork,
   type BioPage,
+  type BioPalette,
 } from "@/lib/docbay/bio";
 
 const SOCIAL_ICON: Record<BioNetwork, LucideIcon> = {
@@ -51,7 +54,7 @@ export function BioStage({
   country?: string;
   onOpen?: (url: string, linkId?: string) => void;
 }) {
-  const pal = BIO_PALETTE[page.theme];
+  const pal = paletteFor(page);
   const t = useT();
   const bg = page.bg_color || pal.bg;
   const fg = page.fg_color || pal.fg;
@@ -257,6 +260,41 @@ export function BioStage({
   );
 }
 
+function linkChrome(
+  page: BioPage,
+  pal: BioPalette,
+  fg: string,
+  featured: boolean,
+): CSSProperties {
+  if (featured || page.button === "solid") {
+    return {
+      background: featured ? pal.accent : pal.card,
+      color: pal.cardFg,
+      border: "1px solid transparent",
+      boxShadow: featured ? `0 16px 40px ${pal.glow}` : undefined,
+    };
+  }
+  if (page.button === "line") {
+    return {
+      background: "transparent",
+      color: fg,
+      border: `1.5px solid ${fg}`,
+      boxShadow: "none",
+    };
+  }
+  const light = isLightHex(pal.bg);
+  return {
+    background: light ? "rgba(255,255,255,0.62)" : "rgba(255,255,255,0.14)",
+    color: fg,
+    border: light ? "1px solid rgba(255,255,255,0.9)" : "1px solid rgba(255,255,255,0.34)",
+    boxShadow: light
+      ? "inset 0 1px 0 rgba(255,255,255,0.95), 0 10px 28px rgba(20,16,12,0.1)"
+      : "inset 0 1px 0 rgba(255,255,255,0.38), 0 14px 34px rgba(0,0,0,0.32)",
+    backdropFilter: "blur(18px) saturate(1.4)",
+    WebkitBackdropFilter: "blur(18px) saturate(1.4)",
+  };
+}
+
 function Block({
   link,
   page,
@@ -307,8 +345,7 @@ function Block({
     );
   }
   const featured = link.highlight;
-  const solid = featured || page.button === "solid";
-  const line = !featured && page.button === "line";
+  const chrome = linkChrome(page, pal, fg, featured || link.spotlight);
   return (
     <button
       type="button"
@@ -317,10 +354,7 @@ function Block({
       style={{
         minHeight: minH,
         borderRadius: radius,
-        background: solid ? (featured ? pal.accent : pal.card) : pal.glass,
-        color: solid ? pal.cardFg : fg,
-        border: line || page.button === "glass" ? `1px solid ${pal.line}` : "1px solid transparent",
-        boxShadow: featured || link.spotlight ? `0 16px 40px ${pal.glow}` : undefined,
+        ...chrome,
       }}
     >
       {link.thumb_url ? (
