@@ -219,21 +219,21 @@ export function BioStage({
           position: relative;
           overflow: hidden;
           isolation: isolate;
-          background: linear-gradient(180deg, rgba(255,255,255,0.34) 0%, rgba(255,255,255,0.08) 46%, rgba(255,255,255,0.16) 100%);
-          border: 1px solid rgba(255,255,255,0.46);
+          background: linear-gradient(180deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0.06) 46%, rgba(255,255,255,0.12) 100%);
+          border: 1px solid rgba(255,255,255,0.38);
           box-shadow:
-            inset 0 1px 0 rgba(255,255,255,0.9),
-            inset 0 -1px 0 rgba(255,255,255,0.28),
+            inset 0 1px 0 rgba(255,255,255,0.45),
+            inset 0 -1px 0 rgba(255,255,255,0.18),
             0 12px 30px rgba(0,0,0,0.14);
           -webkit-backdrop-filter: blur(18px) saturate(1.9) brightness(1.08);
           backdrop-filter: blur(18px) saturate(1.9) brightness(1.08);
         }
         .bio-glass-light {
-          background: linear-gradient(180deg, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.16) 48%, rgba(255,255,255,0.28) 100%);
-          border-color: rgba(255,255,255,0.72);
+          background: linear-gradient(180deg, rgba(255,255,255,0.36) 0%, rgba(255,255,255,0.12) 48%, rgba(255,255,255,0.22) 100%);
+          border-color: rgba(255,255,255,0.6);
           box-shadow:
-            inset 0 1px 0 #fff,
-            inset 0 -1px 0 rgba(255,255,255,0.4),
+            inset 0 1px 0 rgba(255,255,255,0.7),
+            inset 0 -1px 0 rgba(255,255,255,0.28),
             0 10px 26px rgba(20,16,12,0.08);
         }
         .bio-glass::before {
@@ -241,7 +241,7 @@ export function BioStage({
           position: absolute;
           inset: 0;
           border-radius: inherit;
-          background: linear-gradient(180deg, rgba(255,255,255,0.62), rgba(255,255,255,0) 42%);
+          background: linear-gradient(180deg, rgba(255,255,255,0.28), rgba(255,255,255,0) 32%);
           pointer-events: none;
         }
         .bio-glass > * { position: relative; z-index: 1; }
