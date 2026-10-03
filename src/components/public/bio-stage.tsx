@@ -15,6 +15,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { BioGlyph } from "@/components/public/bio-icons";
+import { LENS_MAP } from "@/components/public/lens-map";
 import { BRAND_HOME } from "@/lib/docbay/brand";
 import { submitBioLead } from "@/lib/docbay/api";
 import { useT } from "@/lib/i18n";
@@ -248,15 +249,11 @@ export function BioStage({
           background: linear-gradient(90deg, rgba(0,0,0,0.22), transparent 22%, transparent 78%, rgba(0,0,0,0.22));
         }
         .bio-glass > * { position: relative; z-index: 1; }
-        @supports (-apple-visual-effect: -apple-system-glass-material) {
+        @supports (backdrop-filter: url("#bio-lens")) or (-webkit-backdrop-filter: url("#bio-lens")) {
           .bio-glass, .bio-glass-light {
-            -apple-visual-effect: -apple-system-glass-material;
-            background: transparent;
-            box-shadow: none;
-            -webkit-backdrop-filter: none;
-            backdrop-filter: none;
+            -webkit-backdrop-filter: url("#bio-lens") saturate(1.7) brightness(1.06);
+            backdrop-filter: url("#bio-lens") saturate(1.7) brightness(1.06);
           }
-          .bio-glass::before, .bio-glass::after { display: none; }
         }
         .bio-spot { animation: bio-spot 1.6s ease-in-out infinite; }
         @keyframes bio-spot { 50% { transform: translateY(-2px) scale(1.02); } }
@@ -268,6 +265,13 @@ export function BioStage({
           .bio-link, .bio-spot, .bio-slide { animation: none !important; transition: none !important; }
         }
       `}</style>
+      <svg className="pointer-events-none absolute h-0 w-0" aria-hidden>
+        <filter id="bio-lens" x="-20%" y="-20%" width="140%" height="140%" colorInterpolationFilters="sRGB">
+          <feImage result="map" href={LENS_MAP} preserveAspectRatio="none" />
+          <feGaussianBlur in="SourceGraphic" stdDeviation="0.45" result="soft" />
+          <feDisplacementMap in="soft" in2="map" scale="12" xChannelSelector="R" yChannelSelector="G" />
+        </filter>
+      </svg>
       {page.bg_image_url ? (
         <img src={page.bg_image_url} alt="" className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-40" />
       ) : null}
