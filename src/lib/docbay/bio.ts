@@ -625,9 +625,35 @@ function ink(bg: string): string {
   return L > 0.45 ? "#16140f" : "#f6f1e7";
 }
 
-export type ColorPair = { bg: string; fg: string; label: string };
+export function suggestColors(hex: string): string[] {
+  const rgb = hexRgb(hex);
+  if (!rgb) return [];
+  const [h, s, l] = rgbHsl(rgb[0], rgb[1], rgb[2]);
+  const at = (dh: number, ns: number, nl: number) =>
+    rgbHex(...hslRgb(h + dh, Math.min(1, Math.max(0.06, ns)), Math.min(0.94, Math.max(0.08, nl)))).toLowerCase();
+  const raw = [
+    at(180, Math.max(0.42, s), l > 0.5 ? 0.32 : 0.74),
+    at(32, Math.max(0.35, Math.min(0.75, s)), l > 0.55 ? 0.38 : 0.7),
+    at(-28, Math.max(0.3, Math.min(0.7, s)), l > 0.5 ? 0.22 : 0.84),
+    at(0, 0.08, l > 0.45 ? 0.14 : 0.93),
+    at(200, Math.max(0.45, s * 0.9), 0.5),
+    at(58, 0.55, l > 0.5 ? 0.3 : 0.76),
+  ];
+  const skip = hex.toLowerCase();
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const c of raw) {
+    if (c === skip || seen.has(c)) continue;
+    seen.add(c);
+    out.push(c);
+    if (out.length === 5) break;
+  }
+  return out;
+}
 
 /** Five pairings for a picked color: usable as background or type color. */
+export type ColorPair = { bg: string; fg: string; label: string };
+
 export function colorPairings(hex: string): ColorPair[] {
   const rgb = hexRgb(hex);
   if (!rgb) return [];

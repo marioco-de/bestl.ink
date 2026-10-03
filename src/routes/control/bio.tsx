@@ -20,7 +20,7 @@ import {
   lineWidth,
   BIO_THEMES,
   blankLink,
-  colorPairings,
+  suggestColors,
   type BioLink,
   type BioNetwork,
   type BioPage,
@@ -56,6 +56,7 @@ function BioEditorPage() {
   const [selecting, setSelecting] = useState(false);
   const [over, setOver] = useState<{ id: string; mode: "before" | "after" | "into" } | null>(null);
   const [iconFor, setIconFor] = useState<string | null>(null);
+  const [colorFrom, setColorFrom] = useState<"bg" | "fg" | "glow" | null>(null);
   const dragRef = useRef<string[]>([]);
   const [report, setReport] = useState<Awaited<ReturnType<typeof bioReport>> | null>(null);
   const page = cards.find((c) => c.id === activeId) || cards[0]!;
@@ -290,7 +291,6 @@ function BioEditorPage() {
     }
   }
 
-  const pairs = colorPairings(page.bg_color || BIO_PALETTE[page.theme].bg);
   const qr = url ? qrToSvg(url, 6) : "";
 
   return (
@@ -473,31 +473,52 @@ function BioEditorPage() {
             onChange={(button_shape) => tune({ button_shape })}
           />
           <div className="grid gap-3 sm:grid-cols-3">
-            <label className="text-xs text-fg-muted">
-              {t("bio.colorBg")}
-              <input type="color" className="mt-1 h-9 w-full" value={page.bg_color || paletteFor(page).bg} onChange={(e) => tune({ bg_color: e.target.value })} />
-            </label>
-            <label className="text-xs text-fg-muted">
-              {t("bio.colorFg")}
-              <input type="color" className="mt-1 h-9 w-full" value={page.fg_color || paletteFor(page).fg} onChange={(e) => tune({ fg_color: e.target.value })} />
-            </label>
-            <label className="text-xs text-fg-muted">
-              {t("bio.glow")}
-              <input type="color" className="mt-1 h-9 w-full" value={page.glow_color || paletteFor(page).accent} onChange={(e) => tune({ glow_color: e.target.value })} />
-            </label>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {pairs.map((p) => (
-              <button
-                key={p.label}
-                type="button"
-                className="rounded-full px-3 py-1 text-xs"
-                style={{ background: p.bg, color: p.fg, boxShadow: "inset 0 0 0 1px rgba(0,0,0,.15)" }}
-                onClick={() => tune({ bg_color: p.bg, fg_color: p.fg })}
-              >
-                {p.label}
-              </button>
-            ))}
+            {(
+              [
+                ["bg", t("bio.colorBg"), page.bg_color || paletteFor(page).bg],
+                ["fg", t("bio.colorFg"), page.fg_color || paletteFor(page).fg],
+                ["glow", t("bio.glow"), page.glow_color || paletteFor(page).accent],
+              ] as const
+            ).map(([key, label, value]) => {
+              const source =
+                colorFrom === "bg"
+                  ? page.bg_color || paletteFor(page).bg
+                  : colorFrom === "fg"
+                    ? page.fg_color || paletteFor(page).fg
+                    : colorFrom === "glow"
+                      ? page.glow_color || paletteFor(page).accent
+                      : "";
+              const ideas = colorFrom && colorFrom !== key ? suggestColors(source) : [];
+              return (
+                <div key={key} className="text-xs text-fg-muted">
+                  {label}
+                  <input
+                    type="color"
+                    className="mt-1 h-9 w-full"
+                    value={value}
+                    onChange={(e) => {
+                      const hex = e.target.value;
+                      setColorFrom(key);
+                      tune(key === "bg" ? { bg_color: hex } : key === "fg" ? { fg_color: hex } : { glow_color: hex });
+                    }}
+                  />
+                  {ideas.length > 0 ? (
+                    <span className="mt-1.5 flex gap-1">
+                      {ideas.map((c) => (
+                        <button
+                          key={c}
+                          type="button"
+                          aria-label={c}
+                          className="h-6 flex-1 rounded-md"
+                          style={{ background: c, boxShadow: "inset 0 0 0 1px rgba(0,0,0,.18)" }}
+                          onClick={() => tune(key === "bg" ? { bg_color: c } : key === "fg" ? { fg_color: c } : { glow_color: c })}
+                        />
+                      ))}
+                    </span>
+                  ) : null}
+                </div>
+              );
+            })}
           </div>
           <div>
             <Label>{t("bio.bgVideo")}</Label>
