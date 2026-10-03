@@ -171,7 +171,9 @@ export function BioStage({
             {shown.map((g) => (
               <div key={g.id || "root"} className={page.layout === "grid" ? "contents" : "flex flex-col gap-3"}>
                 {g.title ? (
-                  <p className="px-1 pt-2 text-[11px] font-medium uppercase tracking-[0.16em] opacity-60">{g.title}</p>
+                  <p className={`px-1 pt-2 text-[11px] font-medium uppercase tracking-[0.16em] opacity-60 ${page.layout === "grid" ? "col-span-full" : ""}`}>
+                    {g.title}
+                  </p>
                 ) : null}
                 {g.links.map((l) => (
                   <Block
