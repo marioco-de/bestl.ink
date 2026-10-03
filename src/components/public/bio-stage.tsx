@@ -12,6 +12,7 @@ import {
   Music2,
 } from "lucide-react";
 import { BioGlyph } from "@/components/public/bio-icons";
+import { LegalLinks } from "@/components/public/legal-links";
 import { BRAND_HOME } from "@/lib/docbay/brand";
 import { submitBioLead } from "@/lib/docbay/api";
 import { useT } from "@/lib/i18n";
@@ -363,6 +364,7 @@ export function BioStage({
             {t("bio.made")}
           </a>
         )}
+        <LegalLinks className={`${page.hide_flag ? "mt-auto pt-12" : "mt-3"} justify-center text-[11px] opacity-50`} />
       </div>
 
       {warn && (

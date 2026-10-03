@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { LegalLinks } from "@/components/public/legal-links";
 import { useMemo, useState } from "react";
 import { getPublicHome } from "@/lib/docbay/api";
 import {
@@ -422,6 +423,7 @@ function HomePage() {
         <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-2 px-4 text-xs text-fg-subtle sm:flex-row sm:items-center sm:px-6">
           <p className="font-display font-medium text-fg-muted">BESTL.INK</p>
           <p>Share less. Know more. · {data.platformHost}</p>
+          <LegalLinks />
         </div>
       </footer>
     </div>

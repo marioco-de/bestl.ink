@@ -681,6 +681,27 @@ export const de = {
     pinModeOff: "Pin-Modus beenden",
     pinHint: "Klicken Sie auf ein Element der Seite, um einen Pin zu setzen.",
   },
+  legal: {
+    nav: "Rechtliches",
+    imprint: "Impressum",
+    privacy: "Datenschutz",
+    a11y: "Barrierefreiheit",
+    report: "Problem melden",
+    home: "Zur Startseite",
+    reportLead: "Illegale Inhalte, Datenschutzanfragen, Sicherheitslücken und Barrieren. Wir antworten an die angegebene Adresse.",
+    kind: "Worum geht es?",
+    kind_illegal: "Illegaler oder rechtswidriger Inhalt",
+    kind_privacy: "Datenschutz, Auskunft oder Löschung",
+    kind_security: "Sicherheitslücke",
+    kind_access: "Barriere",
+    kind_other: "Etwas anderes",
+    yourEmail: "Ihre E-Mail, wenn wir antworten sollen",
+    pageUrl: "Betroffene Adresse",
+    message: "Nachricht",
+    send: "Senden",
+    sent: "Danke. Die Meldung ist raus.",
+    sendFail: "Senden fehlgeschlagen. Schreiben Sie an {email}.",
+  },
 };
 
 export type Messages = typeof de;

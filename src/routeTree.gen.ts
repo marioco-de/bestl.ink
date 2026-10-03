@@ -32,6 +32,10 @@ import { Route as ControlShortsRouteImport } from './routes/control/shorts'
 import { Route as ControlStatsRouteImport } from './routes/control/stats'
 import { Route as ControlWorkspaceRouteImport } from './routes/control/workspace'
 import { Route as IcsSlugRouteImport } from './routes/ics/$slug'
+import { Route as LegalBarrierefreiheitRouteImport } from './routes/legal/barrierefreiheit'
+import { Route as LegalDatenschutzRouteImport } from './routes/legal/datenschutz'
+import { Route as LegalImpressumRouteImport } from './routes/legal/impressum'
+import { Route as LegalMeldenRouteImport } from './routes/legal/melden'
 import { Route as VcfSlugRouteImport } from './routes/vcf/$slug'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as ApiCardsResourceIdRouteImport } from './routes/api/cards/$resourceId'
@@ -157,6 +161,26 @@ const IcsSlugRoute = IcsSlugRouteImport.update({
   path: '/ics/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LegalBarrierefreiheitRoute = LegalBarrierefreiheitRouteImport.update({
+  id: '/legal/barrierefreiheit',
+  path: '/legal/barrierefreiheit',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LegalDatenschutzRoute = LegalDatenschutzRouteImport.update({
+  id: '/legal/datenschutz',
+  path: '/legal/datenschutz',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LegalImpressumRoute = LegalImpressumRouteImport.update({
+  id: '/legal/impressum',
+  path: '/legal/impressum',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LegalMeldenRoute = LegalMeldenRouteImport.update({
+  id: '/legal/melden',
+  path: '/legal/melden',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const VcfSlugRoute = VcfSlugRouteImport.update({
   id: '/vcf/$slug',
   path: '/vcf/$slug',
@@ -226,6 +250,10 @@ export interface FileRoutesByFullPath {
   '/control/stats': typeof ControlStatsRoute
   '/control/workspace': typeof ControlWorkspaceRoute
   '/ics/$slug': typeof IcsSlugRoute
+  '/legal/barrierefreiheit': typeof LegalBarrierefreiheitRoute
+  '/legal/datenschutz': typeof LegalDatenschutzRoute
+  '/legal/impressum': typeof LegalImpressumRoute
+  '/legal/melden': typeof LegalMeldenRoute
   '/vcf/$slug': typeof VcfSlugRoute
   '/control/': typeof ControlIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -259,6 +287,10 @@ export interface FileRoutesByTo {
   '/control/stats': typeof ControlStatsRoute
   '/control/workspace': typeof ControlWorkspaceRoute
   '/ics/$slug': typeof IcsSlugRoute
+  '/legal/barrierefreiheit': typeof LegalBarrierefreiheitRoute
+  '/legal/datenschutz': typeof LegalDatenschutzRoute
+  '/legal/impressum': typeof LegalImpressumRoute
+  '/legal/melden': typeof LegalMeldenRoute
   '/vcf/$slug': typeof VcfSlugRoute
   '/control': typeof ControlIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -294,6 +326,10 @@ export interface FileRoutesById {
   '/control/stats': typeof ControlStatsRoute
   '/control/workspace': typeof ControlWorkspaceRoute
   '/ics/$slug': typeof IcsSlugRoute
+  '/legal/barrierefreiheit': typeof LegalBarrierefreiheitRoute
+  '/legal/datenschutz': typeof LegalDatenschutzRoute
+  '/legal/impressum': typeof LegalImpressumRoute
+  '/legal/melden': typeof LegalMeldenRoute
   '/vcf/$slug': typeof VcfSlugRoute
   '/control/': typeof ControlIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -330,6 +366,10 @@ export interface FileRouteTypes {
     | '/control/stats'
     | '/control/workspace'
     | '/ics/$slug'
+    | '/legal/barrierefreiheit'
+    | '/legal/datenschutz'
+    | '/legal/impressum'
+    | '/legal/melden'
     | '/vcf/$slug'
     | '/control/'
     | '/api/auth/$'
@@ -363,6 +403,10 @@ export interface FileRouteTypes {
     | '/control/stats'
     | '/control/workspace'
     | '/ics/$slug'
+    | '/legal/barrierefreiheit'
+    | '/legal/datenschutz'
+    | '/legal/impressum'
+    | '/legal/melden'
     | '/vcf/$slug'
     | '/control'
     | '/api/auth/$'
@@ -397,6 +441,10 @@ export interface FileRouteTypes {
     | '/control/stats'
     | '/control/workspace'
     | '/ics/$slug'
+    | '/legal/barrierefreiheit'
+    | '/legal/datenschutz'
+    | '/legal/impressum'
+    | '/legal/melden'
     | '/vcf/$slug'
     | '/control/'
     | '/api/auth/$'
@@ -418,6 +466,10 @@ export interface RootRouteChildren {
   SignupRoute: typeof SignupRoute
   ApiUploadsRoute: typeof ApiUploadsRoute
   IcsSlugRoute: typeof IcsSlugRoute
+  LegalBarrierefreiheitRoute: typeof LegalBarrierefreiheitRoute
+  LegalDatenschutzRoute: typeof LegalDatenschutzRoute
+  LegalImpressumRoute: typeof LegalImpressumRoute
+  LegalMeldenRoute: typeof LegalMeldenRoute
   VcfSlugRoute: typeof VcfSlugRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiCardsResourceIdRoute: typeof ApiCardsResourceIdRoute
@@ -590,6 +642,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IcsSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/legal/barrierefreiheit': {
+      id: '/legal/barrierefreiheit'
+      path: '/legal/barrierefreiheit'
+      fullPath: '/legal/barrierefreiheit'
+      preLoaderRoute: typeof LegalBarrierefreiheitRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/legal/datenschutz': {
+      id: '/legal/datenschutz'
+      path: '/legal/datenschutz'
+      fullPath: '/legal/datenschutz'
+      preLoaderRoute: typeof LegalDatenschutzRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/legal/impressum': {
+      id: '/legal/impressum'
+      path: '/legal/impressum'
+      fullPath: '/legal/impressum'
+      preLoaderRoute: typeof LegalImpressumRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/legal/melden': {
+      id: '/legal/melden'
+      path: '/legal/melden'
+      fullPath: '/legal/melden'
+      preLoaderRoute: typeof LegalMeldenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/vcf/$slug': {
       id: '/vcf/$slug'
       path: '/vcf/$slug'
@@ -728,6 +808,10 @@ const rootRouteChildren: RootRouteChildren = {
   SignupRoute: SignupRoute,
   ApiUploadsRoute: ApiUploadsRoute,
   IcsSlugRoute: IcsSlugRoute,
+  LegalBarrierefreiheitRoute: LegalBarrierefreiheitRoute,
+  LegalDatenschutzRoute: LegalDatenschutzRoute,
+  LegalImpressumRoute: LegalImpressumRoute,
+  LegalMeldenRoute: LegalMeldenRoute,
   VcfSlugRoute: VcfSlugRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiCardsResourceIdRoute: ApiCardsResourceIdRoute,
