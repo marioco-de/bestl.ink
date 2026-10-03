@@ -224,7 +224,7 @@ export function BioStage({
 
   return (
     <div
-      className="bio-root relative min-h-dvh overflow-hidden"
+      className="bio-root relative min-h-dvh"
       style={{ background: bg, color: fg, fontFamily: BIO_FONT_STACK[page.font] }}
     >
       <style>{`
@@ -264,8 +264,8 @@ export function BioStage({
           pointer-events: none;
         }
         .bio-glass > :not(.bio-plate) { position: relative; z-index: 1; }
-        .bio-spot { animation: bio-spot 1.8s ease-in-out infinite; }
-        @keyframes bio-spot { 50% { transform: translateY(-2px) scale(1.03); } }
+        .bio-spot { position: relative; z-index: 2; animation: bio-spot 1.8s ease-in-out infinite; transform-origin: center; }
+        @keyframes bio-spot { 50% { transform: translateY(-3px) scale(1.045); } }
         @keyframes bio-out-left { to { transform: translateX(-105%); } }
         @keyframes bio-in-right { from { transform: translateX(105%); } to { transform: none; } }
         @keyframes bio-out-right { to { transform: translateX(105%); } }
@@ -342,7 +342,7 @@ export function BioStage({
           </div>
         )}
 
-        <div className="relative mt-8 overflow-hidden">
+        <div className={`relative mt-8 ${motion ? "overflow-hidden" : ""}`}>
           {motion ? (
             <div
               className="bio-slide pointer-events-none absolute inset-x-0 top-0"
@@ -571,7 +571,6 @@ function Block({
   const featured = link.highlight;
   const chrome = linkChrome(page, pal, fg, featured, link.spotlight);
   return (
-    <div className={link.spotlight ? "w-full px-5 py-2" : "w-full"}>
     <button
       type="button"
       onClick={onGo}
@@ -599,7 +598,6 @@ function Block({
         <ArrowUpRight className="h-4 w-4 shrink-0 opacity-70" />
       )}
     </button>
-    </div>
   );
 }
 
