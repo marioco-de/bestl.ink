@@ -277,6 +277,7 @@ function ControlShell() {
     contacts: data.resources.filter((r) => r.type === "contact").length,
     shared: data.links.length,
   };
+  const bioCount = data.tenant.bio_cards?.length || (data.tenant.bio ? 1 : 0);
 
   return (
     <div className="@container/app flex h-dvh overflow-hidden bg-bg" style={brandVars(data.tenant.brand_color)}>
@@ -322,6 +323,7 @@ function ControlShell() {
                   tab={linksTab}
                   searchBag={searchBag}
                   counts={linkCounts}
+                  bioCount={bioCount}
                 />
               );
             }
@@ -551,6 +553,7 @@ function ControlShell() {
                       tab={linksTab}
                       searchBag={searchBag}
                       counts={linkCounts}
+                      bioCount={bioCount}
                       onNavigate={() => setDrawer(false)}
                       compact={false}
                     />
@@ -618,6 +621,7 @@ function LinksNav({
   tab,
   searchBag,
   counts,
+  bioCount,
   onNavigate,
   compact = true,
 }: {
@@ -627,6 +631,7 @@ function LinksNav({
   tab: LinksTab;
   searchBag: ControlSearch;
   counts: Record<LinksTab, number>;
+  bioCount: number;
   onNavigate?: () => void;
   compact?: boolean;
 }) {
@@ -700,6 +705,7 @@ function LinksNav({
             >
               <IdCard className="h-3.5 w-3.5 shrink-0" />
               <span className="flex-1 truncate">{t("nav.bio")}</span>
+              <span className="tabular text-[11px] text-fg-subtle">{bioCount}</span>
             </Link>
           </div>
         </div>
