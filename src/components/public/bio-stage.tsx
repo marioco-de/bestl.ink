@@ -221,7 +221,11 @@ export function BioStage({
           position: absolute;
           inset: 0;
           border-radius: inherit;
-          background: linear-gradient(185deg, rgba(255,255,255,.72) 0%, rgba(255,255,255,.16) 36%, rgba(255,255,255,0) 58%);
+          background: linear-gradient(180deg, rgba(255,255,255,0.34) 0%, rgba(255,255,255,0.05) 22%, transparent 46%);
+          box-shadow:
+            inset 0 1px 0 rgba(255,255,255,0.75),
+            inset 0 -1px 0 rgba(255,255,255,0.18),
+            inset 0 0 0 1px rgba(255,255,255,0.28);
           pointer-events: none;
         }
         .bio-glass > * { position: relative; z-index: 1; }
@@ -359,14 +363,23 @@ function linkChrome(
   page: BioPage,
   pal: BioPalette,
   fg: string,
-  featured: boolean,
+  highlight: boolean,
+  spotlight: boolean,
 ): CSSProperties {
-  if (featured || page.button === "solid") {
+  if (spotlight) {
     return {
-      background: featured ? pal.accent : pal.card,
+      background: "linear-gradient(180deg, #ffffff 0%, rgba(255,255,255,0.88) 100%)",
+      color: "#1a1814",
+      border: "1px solid rgba(255,255,255,0.95)",
+      boxShadow: "inset 0 1px 0 #fff, 0 14px 36px rgba(255,255,255,0.35), 0 10px 24px rgba(20,16,12,0.12)",
+    };
+  }
+  if (highlight || page.button === "solid") {
+    return {
+      background: highlight ? pal.accent : pal.card,
       color: pal.cardFg,
       border: "1px solid transparent",
-      boxShadow: featured ? `0 16px 40px ${pal.glow}` : undefined,
+      boxShadow: highlight ? `0 16px 40px ${pal.glow}` : undefined,
     };
   }
   if (page.button === "line") {
@@ -380,16 +393,12 @@ function linkChrome(
   }
   const light = isLightHex(pal.bg);
   return {
-    background: light
-      ? "linear-gradient(180deg, rgba(255,255,255,0.42) 0%, rgba(255,255,255,0.16) 100%)"
-      : "linear-gradient(180deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0.05) 100%)",
+    background: light ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.04)",
     color: fg,
     border: "1px solid transparent",
-    boxShadow: light
-      ? "inset 0 1px 0 rgba(255,255,255,0.95), inset 0 0 0 0.5px rgba(255,255,255,0.65), 0 12px 32px rgba(20,16,12,0.08)"
-      : "inset 0 1px 0 rgba(255,255,255,0.65), inset 0 0 0 0.5px rgba(255,255,255,0.28), 0 18px 40px rgba(0,0,0,0.28)",
-    backdropFilter: "blur(40px) saturate(1.9)",
-    WebkitBackdropFilter: "blur(40px) saturate(1.9)",
+    boxShadow: light ? "0 8px 24px rgba(20,16,12,0.04)" : "0 10px 28px rgba(0,0,0,0.16)",
+    backdropFilter: "blur(22px) saturate(1.8)",
+    WebkitBackdropFilter: "blur(22px) saturate(1.8)",
   };
 }
 
@@ -442,12 +451,12 @@ function Block({
     );
   }
   const featured = link.highlight;
-  const chrome = linkChrome(page, pal, fg, featured || link.spotlight);
+  const chrome = linkChrome(page, pal, fg, featured, link.spotlight);
   return (
     <button
       type="button"
       onClick={onGo}
-      className={`bio-link flex w-full items-center gap-3 px-4 text-left ${link.spotlight ? "bio-spot" : ""} ${!featured && page.button === "glass" ? "bio-glass" : ""}`}
+      className={`bio-link flex w-full items-center gap-3 px-4 text-left ${link.spotlight ? "bio-spot" : ""} ${!featured && !link.spotlight && page.button === "glass" ? "bio-glass" : ""}`}
       style={{
         minHeight: minH,
         borderRadius: radius,
