@@ -18,6 +18,7 @@ import { Route as SignupRouteImport } from './routes/signup'
 import { Route as ApiUploadsRouteImport } from './routes/api/uploads'
 import { Route as ControlIndexRouteImport } from './routes/control/index'
 import { Route as ControlAuditRouteImport } from './routes/control/audit'
+import { Route as ControlBioRouteImport } from './routes/control/bio'
 import { Route as ControlChatRouteImport } from './routes/control/chat'
 import { Route as ControlCustomersRouteImport } from './routes/control/customers'
 import { Route as ControlDomainRouteImport } from './routes/control/domain'
@@ -84,6 +85,11 @@ const ControlIndexRoute = ControlIndexRouteImport.update({
 const ControlAuditRoute = ControlAuditRouteImport.update({
   id: '/audit',
   path: '/audit',
+  getParentRoute: () => ControlRoute,
+} as any)
+const ControlBioRoute = ControlBioRouteImport.update({
+  id: '/bio',
+  path: '/bio',
   getParentRoute: () => ControlRoute,
 } as any)
 const ControlChatRoute = ControlChatRouteImport.update({
@@ -206,6 +212,7 @@ export interface FileRoutesByFullPath {
   '/signup': typeof SignupRoute
   '/api/uploads': typeof ApiUploadsRoute
   '/control/audit': typeof ControlAuditRoute
+  '/control/bio': typeof ControlBioRoute
   '/control/chat': typeof ControlChatRoute
   '/control/customers': typeof ControlCustomersRoute
   '/control/domain': typeof ControlDomainRoute
@@ -238,6 +245,7 @@ export interface FileRoutesByTo {
   '/signup': typeof SignupRoute
   '/api/uploads': typeof ApiUploadsRoute
   '/control/audit': typeof ControlAuditRoute
+  '/control/bio': typeof ControlBioRoute
   '/control/chat': typeof ControlChatRoute
   '/control/customers': typeof ControlCustomersRoute
   '/control/domain': typeof ControlDomainRoute
@@ -272,6 +280,7 @@ export interface FileRoutesById {
   '/signup': typeof SignupRoute
   '/api/uploads': typeof ApiUploadsRoute
   '/control/audit': typeof ControlAuditRoute
+  '/control/bio': typeof ControlBioRoute
   '/control/chat': typeof ControlChatRoute
   '/control/customers': typeof ControlCustomersRoute
   '/control/domain': typeof ControlDomainRoute
@@ -307,6 +316,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/api/uploads'
     | '/control/audit'
+    | '/control/bio'
     | '/control/chat'
     | '/control/customers'
     | '/control/domain'
@@ -339,6 +349,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/api/uploads'
     | '/control/audit'
+    | '/control/bio'
     | '/control/chat'
     | '/control/customers'
     | '/control/domain'
@@ -372,6 +383,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/api/uploads'
     | '/control/audit'
+    | '/control/bio'
     | '/control/chat'
     | '/control/customers'
     | '/control/domain'
@@ -478,6 +490,13 @@ declare module '@tanstack/react-router' {
       path: '/audit'
       fullPath: '/control/audit'
       preLoaderRoute: typeof ControlAuditRouteImport
+      parentRoute: typeof ControlRoute
+    }
+    '/control/bio': {
+      id: '/control/bio'
+      path: '/bio'
+      fullPath: '/control/bio'
+      preLoaderRoute: typeof ControlBioRouteImport
       parentRoute: typeof ControlRoute
     }
     '/control/chat': {
@@ -639,6 +658,7 @@ declare module '@tanstack/react-router' {
 
 interface ControlRouteChildren {
   ControlAuditRoute: typeof ControlAuditRoute
+  ControlBioRoute: typeof ControlBioRoute
   ControlChatRoute: typeof ControlChatRoute
   ControlCustomersRoute: typeof ControlCustomersRoute
   ControlDomainRoute: typeof ControlDomainRoute
@@ -656,6 +676,7 @@ interface ControlRouteChildren {
 
 const ControlRouteChildren: ControlRouteChildren = {
   ControlAuditRoute: ControlAuditRoute,
+  ControlBioRoute: ControlBioRoute,
   ControlChatRoute: ControlChatRoute,
   ControlCustomersRoute: ControlCustomersRoute,
   ControlDomainRoute: ControlDomainRoute,

@@ -271,7 +271,7 @@ export const saveSplash = createServerFn({ method: "POST" })
       throw new Error("Splash ausblenden ist in diesem Paket nicht enthalten");
     }
     if (data.mode === "page" && !fmap.brand_custom) {
-      throw new Error("Linktree ist in diesem Paket nicht enthalten");
+      throw new Error("Eigene Seite ist in diesem Paket nicht enthalten");
     }
     if (data.hide_flag && !fmap.hide_brand_flag) {
       throw new Error("Hinweis ausblenden ist Elite");
@@ -2566,6 +2566,83 @@ export const recordDocAction = createServerFn({ method: "POST" })
         email: data.visitor,
       });
     }
+    return { ok: true };
+  });
+
+export const saveBio = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .inputValidator((d: { tenant_id?: string; page: Record<string, unknown> }) => d)
+  .handler(async ({ context, data }) => {
+    const mem = await getMembership(context.userId, data.tenant_id);
+    if (!mem || mem.member.role === "member") throw new Error("Keine Berechtigung");
+    if (mem.tenant.id === "platform") throw new Error("Kein Workspace gewählt");
+    const { parseBio } = await import("./bio");
+    const { loadTenantBio, writeTenantBio, slugTaken, assertBio } = await import("./bio.server");
+    const prev = (await loadTenantBio(mem.tenant.id)) || parseBio(null);
+    const next = parseBio(data.page);
+    const clicks = new Map(prev.links.map((l) => [l.id, l.clicks]));
+    next.views = prev.views;
+    next.links = next.links.map((l) => ({ ...l, clicks: clicks.get(l.id) ?? 0 }));
+    const featRows = (await getSql().then((sql) =>
+      sql`select enabled from db_features where tenant_id = ${mem.tenant.id} and feature_key = ${"hide_brand_flag"}`,
+    )) as { enabled?: boolean }[];
+    if (next.hide_flag && !featRows.some((r) => r.enabled)) next.hide_flag = false;
+    try {
+      assertBio(next);
+    } catch {
+      throw new Error("Adresse: Kleinbuchstaben, Zahlen und Bindestriche.");
+    }
+    if (next.slug && (await slugTaken(mem.tenant.id, next.slug))) {
+      throw new Error("Diese Adresse ist schon ein Kurzlink oder eine andere Visitenkarte.");
+    }
+    await writeTenantBio(mem.tenant.id, next);
+    await audit(mem.tenant.id, context.userId, "bio.save", { slug: next.slug });
+    return loadFullState(context.userId, mem.tenant.id);
+  });
+
+export const saveBioAvatar = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .inputValidator((d: { tenant_id?: string; data: string; mime?: string }) => d)
+  .handler(async ({ context, data }) => {
+    const mem = await getMembership(context.userId, data.tenant_id);
+    if (!mem || mem.member.role === "member") throw new Error("Keine Berechtigung");
+    const { loadTenantBio, writeTenantBio } = await import("./bio.server");
+    const { parseBio } = await import("./bio");
+    const page = (await loadTenantBio(mem.tenant.id)) || parseBio(null);
+    const raw = data.data.replace(/^data:[^;]+;base64,/, "");
+    const buf = Buffer.from(raw, "base64");
+    if (buf.length > 800_000) throw new Error("Bild max. 800 KB");
+    const mime = (data.mime || "image/png").split(";")[0] || "image/png";
+    if (!mime.startsWith("image/")) throw new Error("Nur Bilder");
+    const { saveOgBlob } = await import("./storage.server");
+    page.avatar_url = `/api/og/${await saveOgBlob(buf, mime)}`;
+    await writeTenantBio(mem.tenant.id, page);
+    return loadFullState(context.userId, mem.tenant.id);
+  });
+
+export const resolveBio = createServerFn({ method: "POST" })
+  .inputValidator((d: { host?: string; slug: string }) => d)
+  .handler(async ({ data }) => {
+    const { findPublishedBio } = await import("./bio.server");
+    const found = await findPublishedBio(data.slug, data.host);
+    if (!found) return null;
+    return { page: found.page, company: found.company };
+  });
+
+export const trackBio = createServerFn({ method: "POST" })
+  .inputValidator(
+    (d: { host?: string; slug: string; event: "view" | "click"; link_id?: string }) => d,
+  )
+  .handler(async ({ data }) => {
+    const { findPublishedBio, writeTenantBio } = await import("./bio.server");
+    const found = await findPublishedBio(data.slug, data.host);
+    if (!found) return { ok: false };
+    if (data.event === "view") found.page.views += 1;
+    if (data.event === "click" && data.link_id) {
+      const link = found.page.links.find((l) => l.id === data.link_id);
+      if (link) link.clicks += 1;
+    }
+    await writeTenantBio(found.id, found.page);
     return { ok: true };
   });
 

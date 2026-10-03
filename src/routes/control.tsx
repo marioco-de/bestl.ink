@@ -38,6 +38,7 @@ import {
   Shield,
   Settings,
   CircleHelp,
+  IdCard,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
@@ -77,7 +78,7 @@ export const Route = createFileRoute("/control")({
 });
 
 const primaryNav: {
-  to: "/control" | "/control/stats" | "/control/links" | "/control/parameters" | "/control/requests" | "/control/chat";
+  to: "/control" | "/control/stats" | "/control/links" | "/control/bio" | "/control/parameters" | "/control/requests" | "/control/chat";
   labelKey: string;
   icon: typeof LayoutDashboard;
   exact?: boolean;
@@ -86,6 +87,7 @@ const primaryNav: {
   { to: "/control", labelKey: "nav.dashboard", icon: LayoutDashboard, exact: true, hue: "teal" },
   { to: "/control/stats", labelKey: "nav.overview", icon: Gauge, hue: "lime" },
   { to: "/control/links", labelKey: "nav.links", icon: Link2, hue: "azure" },
+  { to: "/control/bio", labelKey: "nav.bio", icon: IdCard, hue: "amber" },
   { to: "/control/parameters", labelKey: "nav.parameters", icon: GitBranch, hue: "amber" },
   { to: "/control/requests", labelKey: "nav.requests", icon: Inbox, hue: "ruby" },
   { to: "/control/chat", labelKey: "nav.chat", icon: MessageSquare, hue: "violet" },

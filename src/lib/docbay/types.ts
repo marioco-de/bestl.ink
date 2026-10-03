@@ -1,4 +1,5 @@
 import type { SplashSettings } from "./splash";
+import type { BioPage } from "./bio";
 
 export type MemberRole = "owner" | "admin" | "member";
 export type ResourceType = "document" | "page" | "event" | "contact";
@@ -70,6 +71,7 @@ export interface Tenant {
   notes: string;
   dash_user_buttons: "off" | "anywhere" | "above" | "below";
   splash: SplashSettings;
+  bio: BioPage;
 }
 
 export interface WorkspaceSummary {

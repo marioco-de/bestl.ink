@@ -13,6 +13,7 @@ import {
   recordActivity,
 } from "@/lib/docbay/api";
 import { resolveShort, lookupMiss } from "@/lib/docbay/shorts-api";
+import { resolveBio, trackBio } from "@/lib/docbay/api";
 import { httpUrl } from "@/lib/docbay/public-url";
 import { NotFoundSplash, type MissReason } from "@/components/public/not-found-splash";
 import { Button } from "@/components/ui/button";
@@ -45,6 +46,7 @@ import {
 } from "@/lib/docbay/cards";
 import { cardKindPath, stripCardExt } from "@/lib/docbay/public-url";
 import { BrandedFrame, BrandFlag } from "@/components/public/branded-frame";
+import { BioStage } from "@/components/public/bio-stage";
 import { absoluteHttpUrl } from "@/lib/docbay/hosts";
 
 type VisitorId = { email: string; name: string };
@@ -116,6 +118,14 @@ export const Route = createFileRoute("/$")({
         host,
         company: missCtx.company,
       };
+    }
+    if (!slug.includes("/")) {
+      try {
+        const bio = await resolveBio({ data: { slug, host } });
+        if (bio?.page) return { kind: "bio" as const, slug, host, page: bio.page };
+      } catch {
+        /* fall through to links */
+      }
     }
     const ua =
       typeof navigator !== "undefined"
@@ -191,11 +201,44 @@ function ResourceGatePage() {
       />
     );
   }
+  if (initial && typeof initial === "object" && "kind" in initial && initial.kind === "bio") {
+    return <BioHit slug={initial.slug} host={initial.host} page={initial.page} />;
+  }
   if (initial && typeof initial === "object" && "kind" in initial && initial.kind === "short") {
     return <ShortHit data={initial} />;
   }
   const wrapped = initial as { kind: "resource"; resource: any };
   return <GatedResource initial={wrapped.resource} />;
+}
+
+function BioHit({
+  slug,
+  host,
+  page,
+}: {
+  slug: string;
+  host: string;
+  page: import("@/lib/docbay/bio").BioPage;
+}) {
+  useEffect(() => {
+    const key = `bestl-bio-view:${host}:${slug}`;
+    try {
+      if (sessionStorage.getItem(key)) return;
+      sessionStorage.setItem(key, "1");
+    } catch {
+      /* ignore */
+    }
+    void trackBio({ data: { host, slug, event: "view" } });
+  }, [host, slug]);
+
+  return (
+    <BioStage
+      page={page}
+      onOpen={(_url, linkId) => {
+        if (linkId) void trackBio({ data: { host, slug, event: "click", link_id: linkId } });
+      }}
+    />
+  );
 }
 
 function ShortHit({
