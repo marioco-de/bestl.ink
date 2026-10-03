@@ -15,7 +15,6 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { BioGlyph } from "@/components/public/bio-icons";
-import { LENS_MAP } from "@/components/public/lens-map";
 import { BRAND_HOME } from "@/lib/docbay/brand";
 import { submitBioLead } from "@/lib/docbay/api";
 import { useT } from "@/lib/i18n";
@@ -220,41 +219,43 @@ export function BioStage({
           position: relative;
           overflow: hidden;
           isolation: isolate;
-          background: rgba(255,255,255,0.07);
-          box-shadow: 0 10px 28px rgba(0,0,0,0.14);
-          -webkit-backdrop-filter: blur(8px) saturate(1.8) brightness(1.06) contrast(1.04);
-          backdrop-filter: blur(8px) saturate(1.8) brightness(1.06) contrast(1.04);
+          background: linear-gradient(180deg, rgba(255,255,255,0.34) 0%, rgba(255,255,255,0.08) 46%, rgba(255,255,255,0.16) 100%);
+          border: 1px solid rgba(255,255,255,0.46);
+          box-shadow:
+            inset 0 1px 0 rgba(255,255,255,0.9),
+            inset 0 -1px 0 rgba(255,255,255,0.28),
+            0 12px 30px rgba(0,0,0,0.14);
+          -webkit-backdrop-filter: blur(18px) saturate(1.9) brightness(1.08);
+          backdrop-filter: blur(18px) saturate(1.9) brightness(1.08);
         }
         .bio-glass-light {
-          background: rgba(255,255,255,0.14);
-          box-shadow: 0 8px 22px rgba(20,16,12,0.06);
+          background: linear-gradient(180deg, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.16) 48%, rgba(255,255,255,0.28) 100%);
+          border-color: rgba(255,255,255,0.72);
+          box-shadow:
+            inset 0 1px 0 #fff,
+            inset 0 -1px 0 rgba(255,255,255,0.4),
+            0 10px 26px rgba(20,16,12,0.08);
         }
-        .bio-glass::before,
-        .bio-glass::after {
+        .bio-glass::before {
           content: "";
           position: absolute;
           inset: 0;
           border-radius: inherit;
-          padding: 1px;
+          background: linear-gradient(180deg, rgba(255,255,255,0.62), rgba(255,255,255,0) 42%);
           pointer-events: none;
-          -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-          -webkit-mask-composite: xor;
-          mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-          mask-composite: exclude;
-        }
-        .bio-glass::before {
-          background: linear-gradient(180deg, rgba(255,255,255,0.95), rgba(255,255,255,0.12) 28%, rgba(255,255,255,0.12) 72%, rgba(255,255,255,0.72));
-        }
-        .bio-glass::after {
-          background: linear-gradient(90deg, rgba(0,0,0,0.22), transparent 22%, transparent 78%, rgba(0,0,0,0.22));
         }
         .bio-glass > * { position: relative; z-index: 1; }
-        @supports (backdrop-filter: url("#bio-lens")) or (-webkit-backdrop-filter: url("#bio-lens")) {
-          .bio-glass, .bio-glass-light {
-            -webkit-backdrop-filter: url("#bio-lens") saturate(1.7) brightness(1.06);
-            backdrop-filter: url("#bio-lens") saturate(1.7) brightness(1.06);
-          }
+        .bio-field span {
+          position: absolute;
+          width: 68%;
+          aspect-ratio: 1;
+          border-radius: 999px;
+          filter: blur(46px);
+          opacity: 0.62;
         }
+        .bio-field span:nth-child(1) { top: 6%; left: -18%; }
+        .bio-field span:nth-child(2) { top: 34%; right: -24%; width: 58%; opacity: 0.45; }
+        .bio-field span:nth-child(3) { bottom: 4%; left: 12%; width: 52%; opacity: 0.4; }
         .bio-spot { animation: bio-spot 1.6s ease-in-out infinite; }
         @keyframes bio-spot { 50% { transform: translateY(-2px) scale(1.02); } }
         @keyframes bio-out-left { to { transform: translateX(-105%); } }
@@ -265,13 +266,6 @@ export function BioStage({
           .bio-link, .bio-spot, .bio-slide { animation: none !important; transition: none !important; }
         }
       `}</style>
-      <svg className="pointer-events-none absolute h-0 w-0" aria-hidden>
-        <filter id="bio-lens" x="-20%" y="-20%" width="140%" height="140%" colorInterpolationFilters="sRGB">
-          <feImage result="map" href={LENS_MAP} preserveAspectRatio="none" />
-          <feGaussianBlur in="SourceGraphic" stdDeviation="0.45" result="soft" />
-          <feDisplacementMap in="soft" in2="map" scale="12" xChannelSelector="R" yChannelSelector="G" />
-        </filter>
-      </svg>
       {page.bg_image_url ? (
         <img src={page.bg_image_url} alt="" className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-40" />
       ) : null}
@@ -289,7 +283,14 @@ export function BioStage({
         className="pointer-events-none absolute inset-0"
         style={{ background: `radial-gradient(820px 480px at 50% -8%, ${pageGlow(page, pal)}, transparent 62%)` }}
       />
-      <div className="relative mx-auto flex min-h-dvh w-full max-w-[440px] flex-col px-5 pb-16 pt-14 sm:pt-20">
+      {page.button === "glass" ? (
+        <div className="bio-field pointer-events-none absolute inset-0" aria-hidden>
+          <span style={{ background: pal.accent }} />
+          <span style={{ background: pal.glow }} />
+          <span style={{ background: fg }} />
+        </div>
+      ) : null}
+      <div className="relative z-[1] mx-auto flex min-h-dvh w-full max-w-[440px] flex-col px-5 pb-16 pt-14 sm:pt-20">
         <div className="flex flex-col items-center text-center">
           {page.header === "logo" && page.logo_url ? (
             <img src={page.logo_url} alt="" className="max-h-16 max-w-[220px] object-contain" />
