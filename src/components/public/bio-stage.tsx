@@ -219,30 +219,20 @@ export function BioStage({
           position: relative;
           overflow: hidden;
           isolation: isolate;
-          background: linear-gradient(180deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0.06) 46%, rgba(255,255,255,0.12) 100%);
-          border: 1px solid rgba(255,255,255,0.38);
+          background: rgba(255,255,255,0.06);
+          border: 1px solid rgba(255,255,255,0.22);
           box-shadow:
-            inset 0 1px 0 rgba(255,255,255,0.45),
-            inset 0 -1px 0 rgba(255,255,255,0.18),
-            0 12px 30px rgba(0,0,0,0.14);
-          -webkit-backdrop-filter: blur(18px) saturate(1.9) brightness(1.08);
-          backdrop-filter: blur(18px) saturate(1.9) brightness(1.08);
+            inset 0 1px 0 rgba(255,255,255,0.35),
+            inset 0 -1px 0 rgba(255,255,255,0.12);
+          -webkit-backdrop-filter: blur(16px) saturate(1.8);
+          backdrop-filter: blur(16px) saturate(1.8);
         }
         .bio-glass-light {
-          background: linear-gradient(180deg, rgba(255,255,255,0.36) 0%, rgba(255,255,255,0.12) 48%, rgba(255,255,255,0.22) 100%);
-          border-color: rgba(255,255,255,0.6);
+          background: rgba(255,255,255,0.14);
+          border-color: rgba(255,255,255,0.45);
           box-shadow:
-            inset 0 1px 0 rgba(255,255,255,0.7),
-            inset 0 -1px 0 rgba(255,255,255,0.28),
-            0 10px 26px rgba(20,16,12,0.08);
-        }
-        .bio-glass::before {
-          content: "";
-          position: absolute;
-          inset: 0;
-          border-radius: inherit;
-          background: linear-gradient(180deg, rgba(255,255,255,0.28), rgba(255,255,255,0) 32%);
-          pointer-events: none;
+            inset 0 1px 0 rgba(255,255,255,0.55),
+            inset 0 -1px 0 rgba(255,255,255,0.2);
         }
         .bio-glass > * { position: relative; z-index: 1; }
         .bio-spot { animation: bio-spot 1.6s ease-in-out infinite; }
