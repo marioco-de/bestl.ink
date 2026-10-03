@@ -1,5 +1,5 @@
 const UA =
-  "Mozilla/5.0 (compatible; BESTL.INK/1.0; +https://www.bestl.ink)";
+  "Mozilla/5.0 (compatible; BESTL.INK/1.0; +https://bestl.ink)";
 const MAX_HTML = 1_800_000;
 
 function assertPublicHttp(raw: string): URL {

@@ -4,7 +4,7 @@ export const PLATFORM_LINK_HOST = "bestl.ink";
 export const CNAME_TARGET = `dns.${PLATFORM_LINK_HOST}`;
 export const BRAND_MARK = "bl";
 export const BRAND_TAGLINE = "Share less. Know more.";
-export const BRAND_HOME = `https://www.${PLATFORM_LINK_HOST}`;
+export const BRAND_HOME = `https://${PLATFORM_LINK_HOST}`;
 export const BRAND_SIGNUP = `${BRAND_HOME}/signup`;
 
 /** Marketing site vs. a workspace / custom link domain. */

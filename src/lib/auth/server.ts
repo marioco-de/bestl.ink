@@ -122,7 +122,7 @@ const baseURL = {
     "*.vercel.app",
   ],
   protocol: "auto" as const,
-  fallback: explicitBaseURL || "https://www.bestl.ink",
+  fallback: explicitBaseURL || "https://bestl.ink",
 };
 
 // Origins Better Auth accepts on credentialed POSTs (sign-up/sign-in, etc.).

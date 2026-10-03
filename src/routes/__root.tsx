@@ -71,7 +71,7 @@ function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
         <script
           dangerouslySetInnerHTML={{
             __html:
-              "(function(){try{if(location.hostname==='bestl.ink'){location.replace('https://www.bestl.ink'+location.pathname+location.search+location.hash);}}catch(e){}})();",
+              "(function(){try{if(location.hostname==='www.bestl.ink'){location.replace('https://bestl.ink'+location.pathname+location.search+location.hash);}}catch(e){}})();",
           }}
         />
       </head>
