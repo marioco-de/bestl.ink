@@ -185,7 +185,7 @@ export function BioStage({
         {shown.length === 0 ? (
           parent ? <p className="px-1 text-sm opacity-60">{t("bio.emptyFolder")}</p> : null
         ) : (
-          <div className={`pt-2 ${page.layout === "grid" ? "grid grid-cols-2 gap-3" : page.layout === "cards" ? "flex flex-col gap-5" : "flex flex-col gap-3"}`}>
+          <div className={`relative z-[1] pt-2 ${page.layout === "grid" ? "grid grid-cols-2 gap-3" : page.layout === "cards" ? "flex flex-col gap-5" : "flex flex-col gap-3"}`}>
             {shown.map((g) => (
               <div key={g.id || "root"} className={page.layout === "grid" ? "contents" : "flex flex-col gap-3"}>
                 {g.title ? (
@@ -228,11 +228,18 @@ export function BioStage({
       style={{ background: bg, color: fg, fontFamily: BIO_FONT_STACK[page.font] }}
     >
       <style>{`
-        .bio-link { transition: transform .2s cubic-bezier(.2,.7,.2,1), background .2s ease; touch-action: manipulation; }
+        .bio-link { transition: background .2s ease; touch-action: manipulation; }
         @media (hover: hover) and (pointer: fine) {
-          .bio-link:hover { transform: translateY(-2px); }
+          .bio-link:not(.bio-spot):hover { transform: translateY(-2px); }
         }
-        .bio-glass { position: relative; isolation: isolate; }
+        .bio-glass { position: relative; }
+        .bio-spot {
+          position: relative;
+          z-index: 50;
+          transform-origin: center;
+          animation: bio-spot 1.8s ease-in-out infinite;
+        }
+        @keyframes bio-spot { 50% { transform: translateY(-4px) scale(1.06); } }
         .bio-plate {
           position: absolute;
           inset: 0;
@@ -264,8 +271,6 @@ export function BioStage({
           pointer-events: none;
         }
         .bio-glass > :not(.bio-plate) { position: relative; z-index: 1; }
-        .bio-spot { position: relative; z-index: 2; animation: bio-spot 1.8s ease-in-out infinite; transform-origin: center; }
-        @keyframes bio-spot { 50% { transform: translateY(-3px) scale(1.045); } }
         @keyframes bio-out-left { to { transform: translateX(-105%); } }
         @keyframes bio-in-right { from { transform: translateX(105%); } to { transform: none; } }
         @keyframes bio-out-right { to { transform: translateX(105%); } }
@@ -571,6 +576,7 @@ function Block({
   const featured = link.highlight;
   const chrome = linkChrome(page, pal, fg, featured, link.spotlight);
   return (
+    <div className={link.spotlight ? "relative z-50" : "relative z-0"}>
     <button
       type="button"
       onClick={onGo}
@@ -598,6 +604,7 @@ function Block({
         <ArrowUpRight className="h-4 w-4 shrink-0 opacity-70" />
       )}
     </button>
+    </div>
   );
 }
 
