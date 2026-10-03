@@ -8,6 +8,7 @@ export type BioButton = (typeof BIO_BUTTONS)[number];
 
 export const BIO_NETWORKS = [
   "instagram",
+  "facebook",
   "x",
   "linkedin",
   "youtube",
@@ -342,6 +343,32 @@ function asNetwork(v: unknown): BioNetwork {
   return (BIO_NETWORKS as readonly string[]).includes(String(v))
     ? (String(v) as BioNetwork)
     : "web";
+}
+
+const NETWORK_HOSTS: { network: BioNetwork; host: RegExp }[] = [
+  { network: "facebook", host: /(^|\.)((facebook|fb)\.com|fb\.me)$/ },
+  { network: "instagram", host: /(^|\.)(instagram\.com|instagr\.am)$/ },
+  { network: "x", host: /(^|\.)(x\.com|twitter\.com|t\.co)$/ },
+  { network: "linkedin", host: /(^|\.)(linkedin\.com|lnkd\.in)$/ },
+  { network: "youtube", host: /(^|\.)(youtube\.com|youtu\.be)$/ },
+  { network: "tiktok", host: /(^|\.)tiktok\.com$/ },
+  { network: "github", host: /(^|\.)github\.com$/ },
+  { network: "spotify", host: /(^|\.)(spotify\.com|spotify\.link)$/ },
+  { network: "whatsapp", host: /(^|\.)(wa\.me|whatsapp\.com)$/ },
+];
+
+export function networkFromUrl(raw: string): BioNetwork | null {
+  const text = raw.trim();
+  if (!text) return null;
+  if (/^mailto:/i.test(text) || /^[^@\s/]+@[^@\s/]+\.[^@\s/]+$/.test(text)) return "mail";
+  let host = "";
+  try {
+    host = new URL(/^https?:\/\//i.test(text) ? text : `https://${text}`).hostname.replace(/^www\./i, "").toLowerCase();
+  } catch {
+    return null;
+  }
+  if (!host.includes(".")) return null;
+  return NETWORK_HOSTS.find((row) => row.host.test(host))?.network ?? (text.includes(".") ? "web" : null);
 }
 
 function oneOf<T extends string>(list: readonly T[], v: unknown, fallback: T): T {

@@ -11,6 +11,7 @@ import {
   BIO_HEADERS,
   BIO_LAYOUTS,
   BIO_NETWORKS,
+  networkFromUrl,
   BIO_PALETTE,
   BIO_SHAPES,
   paletteFor,
@@ -650,7 +651,14 @@ function BioEditorPage() {
               <select className="h-10 rounded-md border border-border bg-bg px-2 text-sm" value={s.network} onChange={(e) => update({ ...page, socials: page.socials.map((x, idx) => idx === i ? { ...x, network: e.target.value as BioNetwork } : x) })}>
                 {BIO_NETWORKS.map((n) => <option key={n} value={n}>{t(`bio.net_${n}`)}</option>)}
               </select>
-              <Input value={s.url} placeholder="https://" onChange={(e) => update({ ...page, socials: page.socials.map((x, idx) => idx === i ? { ...x, url: e.target.value } : x) })} />
+              <Input value={s.url} placeholder="https://" onChange={(e) => {
+                const url = e.target.value;
+                const network = networkFromUrl(url);
+                update({
+                  ...page,
+                  socials: page.socials.map((x, idx) => (idx === i ? { ...x, url, ...(network ? { network } : {}) } : x)),
+                });
+              }} />
               <Button type="button" size="icon" variant="ghost" onClick={() => update({ ...page, socials: page.socials.filter((_, idx) => idx !== i) })}>
                 <Trash2 className="h-3.5 w-3.5 text-danger" />
               </Button>

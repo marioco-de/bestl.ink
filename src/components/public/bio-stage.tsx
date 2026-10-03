@@ -3,6 +3,7 @@ import {
   ArrowUpRight,
   ChevronLeft,
   ChevronRight,
+  Facebook,
   Github,
   Globe,
   Instagram,
@@ -36,6 +37,7 @@ import {
 
 const SOCIAL_ICON: Record<BioNetwork, LucideIcon> = {
   instagram: Instagram,
+  facebook: Facebook,
   x: ArrowUpRight,
   linkedin: Linkedin,
   youtube: Youtube,

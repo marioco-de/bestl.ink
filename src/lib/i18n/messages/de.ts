@@ -500,6 +500,7 @@ export const de = {
     copy: "Adresse kopieren",
     made: "Erstellt mit BESTL.INK",
     net_instagram: "Instagram",
+    net_facebook: "Facebook",
     net_x: "X",
     net_linkedin: "LinkedIn",
     net_youtube: "YouTube",
