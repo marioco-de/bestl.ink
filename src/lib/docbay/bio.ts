@@ -200,7 +200,7 @@ export const DEFAULT_BIO: BioPage = {
   sheets_url: "",
   theme: "tinte",
   button: "solid",
-  line_width: 1.5,
+  line_width: 1,
   hide_flag: false,
   collections: [],
   links: [],
@@ -390,10 +390,12 @@ function foldSections(links: BioLink[], collections: BioCollection[]): BioLink[]
   return out.slice(0, 40);
 }
 
-function lineWidth(v: unknown): number {
+export const LINE_WIDTHS = [0.1, 0.25, 0.5, 0.75, 1, 2, 3, 4, 5, 10, 15, 20, 25, 30] as const;
+
+export function lineWidth(v: unknown): number {
   const n = Number(v);
-  if (!Number.isFinite(n)) return 1.5;
-  return Math.min(6, Math.max(1, Math.round(n * 2) / 2));
+  if (!Number.isFinite(n)) return 1;
+  return LINE_WIDTHS.reduce((best, step) => (Math.abs(step - n) <= Math.abs(best - n) ? step : best), LINE_WIDTHS[0]);
 }
 
 function hourOf(v: unknown): number | null {

@@ -27,6 +27,7 @@ import {
   isLightHex,
   linkAllowed,
   pageGlow,
+  lineWidth,
   paletteFor,
   shapeRadius,
   type BioLink,
@@ -369,7 +370,7 @@ function linkChrome(
     };
   }
   if (page.button === "line") {
-    const width = page.line_width || 1.5;
+    const width = lineWidth(page.line_width);
     return {
       background: "transparent",
       color: fg,

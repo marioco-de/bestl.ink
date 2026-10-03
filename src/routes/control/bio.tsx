@@ -10,11 +10,13 @@ import {
   BIO_FONTS,
   BIO_HEADERS,
   BIO_LAYOUTS,
+  LINE_WIDTHS,
   BIO_NETWORKS,
   networkFromUrl,
   BIO_PALETTE,
   BIO_SHAPES,
   paletteFor,
+  lineWidth,
   BIO_THEMES,
   blankLink,
   colorPairings,
@@ -426,16 +428,16 @@ function BioEditorPage() {
             <label className="block text-xs text-fg-muted">
               <span className="mb-1 flex items-center justify-between">
                 {t("bio.lineWidth")}
-                <span className="tabular-nums">{page.line_width} px</span>
+                <span className="tabular-nums">{lineWidth(page.line_width)} px</span>
               </span>
               <input
                 type="range"
-                min={1}
-                max={6}
-                step={0.5}
-                value={page.line_width}
+                min={0}
+                max={LINE_WIDTHS.length - 1}
+                step={1}
+                value={Math.max(0, LINE_WIDTHS.indexOf(lineWidth(page.line_width) as (typeof LINE_WIDTHS)[number]))}
                 className="w-full accent-[var(--color-primary)]"
-                onChange={(e) => tune({ line_width: Number(e.target.value) })}
+                onChange={(e) => tune({ line_width: LINE_WIDTHS[Number(e.target.value)] ?? 1 })}
               />
             </label>
           ) : null}
