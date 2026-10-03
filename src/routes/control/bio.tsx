@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { ArrowDown, ArrowUp, Plus, Settings, Trash2, Upload } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Plus, Settings, Trash2, Upload } from "lucide-react";
+import { BioGlyph } from "@/components/public/bio-icons";
 import { toast } from "sonner";
 import { bioReport, saveBio, saveBioAvatar } from "@/lib/docbay/api";
 import { useControl } from "@/lib/docbay/control-store";
@@ -45,9 +46,14 @@ function BioEditorPage() {
   const [activeId, setActiveId] = useState(data.tenant.bio?.id || seed[0]?.id || "main");
   const [busy, setBusy] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
+  const [scopeId, setScopeId] = useState<string | null>(null);
   const [report, setReport] = useState<Awaited<ReturnType<typeof bioReport>> | null>(null);
   const page = cards.find((c) => c.id === activeId) || cards[0]!;
   const editing = page.links.find((l) => l.id === editId) ?? null;
+  const scope = page.links.find((l) => l.id === scopeId && l.kind === "folder") ?? null;
+  const rows = page.links
+    .map((l, index) => ({ l, index }))
+    .filter(({ l }) => (l.parent_id || "") === (scope?.id || ""));
 
   useEffect(() => {
     const next = data.tenant.bio_cards?.length ? data.tenant.bio_cards : [data.tenant.bio];
@@ -77,15 +83,16 @@ function BioEditorPage() {
     update({ ...page, theme: id, bg_color: "", fg_color: "", glow_color: "" });
   }
 
-  function addItem(kind: "link" | "heading") {
+  function addItem(kind: "link" | "heading" | "folder") {
     if (page.links.length >= 40) return;
     const row = blankLink({
-      id: nid(kind === "heading" ? "g" : "l"),
+      id: nid(kind === "heading" ? "g" : kind === "folder" ? "f" : "l"),
       kind,
-      label: kind === "heading" ? t("bio.addCollection") : "",
+      label: kind === "heading" ? t("bio.addCollection") : kind === "folder" ? t("bio.folder") : "",
+      parent_id: kind === "folder" ? "" : scopeId || "",
     });
     update({ ...page, links: [...page.links, row] });
-    if (kind === "link") setEditId(row.id);
+    if (kind === "link" || kind === "folder") setEditId(row.id);
   }
 
   function patchLink(index: number, patch: Partial<BioLink>) {
@@ -363,43 +370,37 @@ function BioEditorPage() {
         </section>
 
         <section className="space-y-2 rounded-xl border border-border bg-bg-elevated p-4">
+          {scope ? (
+            <button type="button" className="flex items-center gap-1 text-sm text-fg-muted" onClick={() => setScopeId(null)}>
+              <ChevronLeft className="h-4 w-4" />
+              {scope.label || t("bio.folder")}
+            </button>
+          ) : null}
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <Label className="mb-0">{t("bio.elements")}</Label>
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                size="sm"
-                variant="secondary"
-                onClick={() => addItem("link")}
-              >
+            <Label className="mb-0">{scope ? t("bio.folder") : t("bio.elements")}</Label>
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" size="sm" variant="secondary" onClick={() => addItem("link")}>
                 <Plus className="h-3.5 w-3.5" /> {t("bio.addLink")}
               </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="secondary"
-                onClick={() => addItem("heading")}
-              >
+              <Button type="button" size="sm" variant="secondary" onClick={() => addItem("heading")}>
                 <Plus className="h-3.5 w-3.5" /> {t("bio.addCollection")}
               </Button>
+              {!scope ? (
+                <Button type="button" size="sm" variant="secondary" onClick={() => addItem("folder")}>
+                  <Plus className="h-3.5 w-3.5" /> {t("bio.addFolder")}
+                </Button>
+              ) : null}
             </div>
           </div>
-          {page.links.map((l, i) =>
+          {rows.map(({ l, index }) =>
             l.kind === "heading" ? (
               <div key={l.id} className="flex items-center gap-2 rounded-xl bg-bg-subtle px-2 py-1.5">
-                <div className="flex flex-col text-fg-muted">
-                  <button type="button" className="rounded p-0.5 hover:bg-bg" onClick={() => move(page, i, -1, update)} aria-label="up">
-                    <ArrowUp className="h-3.5 w-3.5" />
-                  </button>
-                  <button type="button" className="rounded p-0.5 hover:bg-bg" onClick={() => move(page, i, 1, update)} aria-label="down">
-                    <ArrowDown className="h-3.5 w-3.5" />
-                  </button>
-                </div>
+                <Nudge onUp={() => moveAmong(page, l.id, -1, update)} onDown={() => moveAmong(page, l.id, 1, update)} />
                 <Input
                   value={l.label}
                   placeholder={t("bio.addCollection")}
                   className="h-9 border-transparent bg-transparent font-medium shadow-none"
-                  onChange={(e) => patchLink(i, { label: e.target.value })}
+                  onChange={(e) => patchLink(index, { label: e.target.value })}
                 />
                 <button
                   type="button"
@@ -411,23 +412,33 @@ function BioEditorPage() {
                 </button>
               </div>
             ) : (
-              <div key={l.id} className="flex items-center gap-2 rounded-xl border border-border bg-bg px-2 py-1.5">
-                <div className="flex flex-col text-fg-muted">
-                  <button type="button" className="rounded p-0.5 hover:bg-bg-subtle" onClick={() => move(page, i, -1, update)} aria-label="up">
-                    <ArrowUp className="h-3.5 w-3.5" />
-                  </button>
-                  <button type="button" className="rounded p-0.5 hover:bg-bg-subtle" onClick={() => move(page, i, 1, update)} aria-label="down">
-                    <ArrowDown className="h-3.5 w-3.5" />
-                  </button>
-                </div>
+              <div key={l.id} className={`flex items-center gap-2 rounded-xl border border-border bg-bg px-2 ${l.kind === "folder" ? "min-h-[68px] py-2" : "py-1.5"}`}>
+                <Nudge onUp={() => moveAmong(page, l.id, -1, update)} onDown={() => moveAmong(page, l.id, 1, update)} />
                 {l.thumb_url ? (
                   <img src={l.thumb_url} alt="" className="h-9 w-9 shrink-0 rounded-md object-cover" />
+                ) : l.icon || l.kind === "folder" ? (
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-bg-subtle text-fg-muted">
+                    <BioGlyph name={l.icon || "folder"} className="h-4 w-4" />
+                  </span>
                 ) : null}
-                <div className="min-w-0 flex-1">
+                <button
+                  type="button"
+                  className="min-w-0 flex-1 text-left"
+                  onClick={() => (l.kind === "folder" ? setScopeId(l.id) : setEditId(l.id))}
+                >
                   <p className="truncate text-sm font-medium">{l.label || t("bio.addLink")}</p>
-                  <p className="truncate text-xs text-fg-muted">{l.url || t(`bio.kind_${l.kind}`)}</p>
-                </div>
+                  <p className="truncate text-xs text-fg-muted">
+                    {l.kind === "folder"
+                      ? `${page.links.filter((x) => x.parent_id === l.id && x.kind !== "heading").length}`
+                      : l.url || t(`bio.kind_${l.kind}`)}
+                  </p>
+                </button>
                 {l.clicks > 0 ? <span className="text-xs tabular-nums text-fg-muted">{l.clicks}</span> : null}
+                {l.kind === "folder" ? (
+                  <button type="button" className="grid h-9 w-9 place-items-center text-fg-muted" onClick={() => setScopeId(l.id)} aria-label={t("bio.folder")}>
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   onClick={() => setEditId(l.id)}
@@ -545,7 +556,11 @@ function BioEditorPage() {
           }}
           onUploadThumb={(file) => void upload(file, "thumb", editing.id)}
           onDelete={() => {
-            update({ ...page, links: page.links.filter((l) => l.id !== editing.id) });
+            update({
+              ...page,
+              links: page.links.filter((l) => l.id !== editing.id && l.parent_id !== editing.id),
+            });
+            if (scopeId === editing.id) setScopeId(null);
             setEditId(null);
           }}
           onClose={() => setEditId(null)}
@@ -555,13 +570,35 @@ function BioEditorPage() {
   );
 }
 
-function move(page: BioPage, index: number, dir: -1 | 1, update: (p: BioPage) => void) {
-  const copy = [...page.links];
-  const j = index + dir;
-  if (j < 0 || j >= copy.length) return;
-  const [row] = copy.splice(index, 1);
-  copy.splice(j, 0, row!);
-  update({ ...page, links: copy });
+function moveAmong(page: BioPage, id: string, dir: -1 | 1, update: (p: BioPage) => void) {
+  const item = page.links.find((l) => l.id === id);
+  if (!item) return;
+  const parent = item.parent_id || "";
+  const siblings = page.links.filter((l) => (l.parent_id || "") === parent);
+  const i = siblings.findIndex((l) => l.id === id);
+  const j = i + dir;
+  if (i < 0 || j < 0 || j >= siblings.length) return;
+  const next = [...siblings];
+  const [row] = next.splice(i, 1);
+  next.splice(j, 0, row!);
+  let n = 0;
+  update({
+    ...page,
+    links: page.links.map((l) => ((l.parent_id || "") === parent ? next[n++]! : l)),
+  });
+}
+
+function Nudge({ onUp, onDown }: { onUp: () => void; onDown: () => void }) {
+  return (
+    <div className="flex flex-col text-fg-muted">
+      <button type="button" className="rounded p-0.5 hover:bg-bg-subtle" onClick={onUp} aria-label="up">
+        <ArrowUp className="h-3.5 w-3.5" />
+      </button>
+      <button type="button" className="rounded p-0.5 hover:bg-bg-subtle" onClick={onDown} aria-label="down">
+        <ArrowDown className="h-3.5 w-3.5" />
+      </button>
+    </div>
+  );
 }
 
 function Choice<T extends string>({

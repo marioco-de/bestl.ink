@@ -1,0 +1,60 @@
+import {
+  BookOpen,
+  Calendar,
+  Camera,
+  Download,
+  FileText,
+  Folder,
+  Gift,
+  Globe,
+  Heart,
+  Home,
+  Link2,
+  Mail,
+  MapPin,
+  MessageCircle,
+  Mic,
+  Music,
+  Phone,
+  Play,
+  ShoppingBag,
+  Sparkles,
+  Star,
+  Ticket,
+  User,
+  Video,
+  type LucideIcon,
+} from "lucide-react";
+
+const ICONS: Record<string, LucideIcon> = {
+  link: Link2,
+  mail: Mail,
+  phone: Phone,
+  calendar: Calendar,
+  pin: MapPin,
+  bag: ShoppingBag,
+  music: Music,
+  video: Video,
+  camera: Camera,
+  file: FileText,
+  star: Star,
+  heart: Heart,
+  user: User,
+  message: MessageCircle,
+  globe: Globe,
+  play: Play,
+  download: Download,
+  ticket: Ticket,
+  home: Home,
+  spark: Sparkles,
+  mic: Mic,
+  book: BookOpen,
+  gift: Gift,
+  folder: Folder,
+};
+
+export function BioGlyph({ name, className }: { name: string; className?: string }) {
+  const Icon = ICONS[name];
+  if (!Icon) return null;
+  return <Icon className={className} aria-hidden />;
+}

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ImagePlus, X } from "lucide-react";
 import {
+  BIO_ICONS,
   BIO_KINDS,
   BIO_SHAPES,
   BIO_SIZES,
@@ -9,6 +10,7 @@ import {
   type BioShape,
   type BioSize,
 } from "@/lib/docbay/bio";
+import { BioGlyph } from "@/components/public/bio-icons";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { Toggle } from "@/components/ui/toggle";
@@ -58,6 +60,7 @@ export function EcardLinkModal({
   }
 
   const needsUrl = link.kind === "link" || link.kind === "embed";
+  const isFolder = link.kind === "folder";
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
@@ -72,7 +75,7 @@ export function EcardLinkModal({
             <h2 id="ecard-link-title" className="truncate font-display text-lg font-semibold">
               {link.label || t("bio.linkSettings")}
             </h2>
-            <p className="truncate text-xs text-fg-muted">{t(`bio.kind_${link.kind}`)}</p>
+            <p className="truncate text-xs text-fg-muted">{isFolder ? t("bio.folder") : t(`bio.kind_${link.kind}`)}</p>
           </div>
           <button
             type="button"
@@ -85,6 +88,7 @@ export function EcardLinkModal({
         </header>
 
         <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-4 py-4">
+          {!isFolder && (
           <section className="space-y-2">
             <Label>{t("bio.kind")}</Label>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -108,11 +112,36 @@ export function EcardLinkModal({
               })}
             </div>
           </section>
+          )}
 
           <section className="space-y-3">
             <div>
               <Label>{t("bio.linkLabel")}</Label>
               <Input value={link.label} placeholder={t("bio.linkLabel")} onChange={(e) => onChange({ label: e.target.value })} autoFocus />
+            </div>
+            <div>
+              <Label>{t("bio.icon")}</Label>
+              <div className="flex flex-wrap gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => onChange({ icon: "" })}
+                  className={chip(!link.icon)}
+                  aria-label={t("bio.noIcon")}
+                >
+                  {t("bio.noIcon")}
+                </button>
+                {BIO_ICONS.map((id) => (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => onChange({ icon: id })}
+                    className={`grid h-9 w-9 place-items-center rounded-lg border ${link.icon === id ? "border-primary bg-primary/10" : "border-border text-fg-muted"}`}
+                    aria-label={id}
+                  >
+                    <BioGlyph name={id} className="h-4 w-4" />
+                  </button>
+                ))}
+              </div>
             </div>
             {needsUrl && (
               <div>

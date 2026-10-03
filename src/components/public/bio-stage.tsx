@@ -1,6 +1,8 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import {
   ArrowUpRight,
+  ChevronLeft,
+  ChevronRight,
   Github,
   Globe,
   Instagram,
@@ -11,6 +13,7 @@ import {
   Youtube,
   type LucideIcon,
 } from "lucide-react";
+import { BioGlyph } from "@/components/public/bio-icons";
 import { BRAND_HOME } from "@/lib/docbay/brand";
 import { submitBioLead } from "@/lib/docbay/api";
 import { useT } from "@/lib/i18n";
@@ -67,6 +70,8 @@ export function BioStage({
     .join("");
   const [warn, setWarn] = useState<BioLink | null>(null);
   const [sent, setSent] = useState<Record<string, boolean>>({});
+  const [folderId, setFolderId] = useState<string | null>(null);
+  const [motion, setMotion] = useState<{ from: string | null; to: string | null; dir: 1 | -1 } | null>(null);
   const device = typeof navigator === "undefined" ? "desktop" : deviceFromUa(navigator.userAgent);
   const hour = new Date().getHours();
   const video = page.bg_video_url ? embedSrc(page.bg_video_url) : null;
@@ -94,6 +99,23 @@ export function BioStage({
     }
   }, [page.ga_id, page.pixel_id, preview]);
 
+  useEffect(() => {
+    setFolderId(null);
+    setMotion(null);
+  }, [page.id]);
+
+  function shift(to: string | null, dir: 1 | -1) {
+    const reduce = typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce || motion) {
+      setFolderId(to);
+      setMotion(null);
+      return;
+    }
+    setMotion({ from: folderId, to, dir });
+    setFolderId(to);
+    window.setTimeout(() => setMotion(null), 360);
+  }
+
   function go(link: BioLink) {
     if (link.sensitive && !preview) {
       setWarn(link);
@@ -111,18 +133,74 @@ export function BioStage({
     return linkAllowed(link, { device, country, hour });
   }
 
-  const groups: { id: string; title: string; links: BioLink[] }[] = [];
-  let current: { id: string; title: string; links: BioLink[] } = { id: "", title: "", links: [] };
-  for (const link of page.links) {
-    if (link.kind === "heading") {
-      if (current.links.length || current.title) groups.push(current);
-      current = { id: link.id, title: link.label, links: [] };
-      continue;
+  function groupsFor(parent: string | null) {
+    const items = page.links.filter((l) => (l.parent_id || "") === (parent || ""));
+    const groups: { id: string; title: string; links: BioLink[] }[] = [];
+    let current: { id: string; title: string; links: BioLink[] } = { id: "", title: "", links: [] };
+    for (const link of items) {
+      if (link.kind === "heading") {
+        if (current.links.length || current.title) groups.push(current);
+        current = { id: link.id, title: link.label, links: [] };
+        continue;
+      }
+      if (visible(link)) current.links.push(link);
     }
-    if (visible(link)) current.links.push(link);
+    if (current.links.length || current.title) groups.push(current);
+    return groups.filter((g) => g.links.length || (preview && g.title));
   }
-  if (current.links.length || current.title) groups.push(current);
-  const shown = groups.filter((g) => g.links.length || (preview && g.title));
+
+  function sheet(parent: string | null) {
+    const folder = parent ? page.links.find((l) => l.id === parent && l.kind === "folder") : null;
+    const shown = groupsFor(parent);
+    return (
+      <div>
+        {folder ? (
+          <button
+            type="button"
+            onClick={() => shift(null, -1)}
+            className="mb-4 flex items-center gap-2 text-sm font-medium"
+          >
+            <ChevronLeft className="h-4 w-4" />
+            <span className="truncate">{folder.label || t("bio.folder")}</span>
+          </button>
+        ) : null}
+        {shown.length === 0 ? (
+          parent ? <p className="px-1 text-sm opacity-60">{t("bio.emptyFolder")}</p> : null
+        ) : (
+          <div className={page.layout === "grid" ? "grid grid-cols-2 gap-3" : page.layout === "cards" ? "flex flex-col gap-5" : "flex flex-col gap-3"}>
+            {shown.map((g) => (
+              <div key={g.id || "root"} className={page.layout === "grid" ? "contents" : "flex flex-col gap-3"}>
+                {g.title ? (
+                  <p className="px-1 pt-2 text-[11px] font-medium uppercase tracking-[0.16em] opacity-60">{g.title}</p>
+                ) : null}
+                {g.links.map((l) => (
+                  <Block
+                    key={l.id}
+                    link={l}
+                    page={page}
+                    pal={pal}
+                    fg={fg}
+                    preview={preview}
+                    sent={Boolean(sent[l.id])}
+                    onGo={() => {
+                      if (l.kind === "folder") {
+                        if (!preview) onOpen?.("#folder", l.id);
+                        shift(l.id, 1);
+                        return;
+                      }
+                      go(l);
+                    }}
+                    onSent={() => setSent((s) => ({ ...s, [l.id]: true }))}
+                    host=""
+                  />
+                ))}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div
@@ -134,8 +212,12 @@ export function BioStage({
         .bio-link:hover { transform: translateY(-2px); }
         .bio-spot { animation: bio-spot 1.6s ease-in-out infinite; }
         @keyframes bio-spot { 50% { transform: translateY(-2px) scale(1.02); } }
+        @keyframes bio-out-left { to { transform: translateX(-105%); } }
+        @keyframes bio-in-right { from { transform: translateX(105%); } to { transform: none; } }
+        @keyframes bio-out-right { to { transform: translateX(105%); } }
+        @keyframes bio-in-left { from { transform: translateX(-105%); } to { transform: none; } }
         @media (prefers-reduced-motion: reduce) {
-          .bio-link, .bio-spot { animation: none !important; transition: none !important; }
+          .bio-link, .bio-spot, .bio-slide { animation: none !important; transition: none !important; }
         }
       `}</style>
       {page.bg_image_url ? (
@@ -206,28 +288,21 @@ export function BioStage({
           </div>
         )}
 
-        <div className={page.layout === "grid" ? "mt-8 grid grid-cols-2 gap-3" : page.layout === "cards" ? "mt-8 flex flex-col gap-5" : "mt-8 flex flex-col gap-3"}>
-          {shown.map((g) => (
-            <div key={g.id || "root"} className={page.layout === "grid" ? "contents" : "flex flex-col gap-3"}>
-              {g.title ? (
-                <p className="px-1 pt-2 text-[11px] font-medium uppercase tracking-[0.16em] opacity-60">{g.title}</p>
-              ) : null}
-              {g.links.map((l) => (
-                <Block
-                  key={l.id}
-                  link={l}
-                  page={page}
-                  pal={pal}
-                  fg={fg}
-                  preview={preview}
-                  sent={Boolean(sent[l.id])}
-                  onGo={() => go(l)}
-                  onSent={() => setSent((s) => ({ ...s, [l.id]: true }))}
-                  host=""
-                />
-              ))}
+        <div className="relative mt-8 overflow-hidden">
+          {motion ? (
+            <div
+              className="bio-slide pointer-events-none absolute inset-x-0 top-0"
+              style={{ animation: `${motion.dir === 1 ? "bio-out-left" : "bio-out-right"} .34s cubic-bezier(.22,.7,.2,1) forwards` }}
+            >
+              {sheet(motion.from)}
             </div>
-          ))}
+          ) : null}
+          <div
+            className={motion ? "bio-slide" : undefined}
+            style={motion ? { animation: `${motion.dir === 1 ? "bio-in-right" : "bio-in-left"} .34s cubic-bezier(.22,.7,.2,1)` } : undefined}
+          >
+            {sheet(folderId)}
+          </div>
         </div>
 
         {!page.hide_flag && (
@@ -322,7 +397,7 @@ function Block({
 }) {
   const shape = link.shape || page.button_shape;
   const radius = shapeRadius(shape);
-  const minH = link.size === "s" ? 44 : link.size === "l" ? 84 : 58;
+  const minH = link.kind === "folder" ? 86 : link.size === "s" ? 44 : link.size === "l" ? 84 : 58;
   const embed = link.kind === "embed" ? embedSrc(link.url) : null;
   if (embed) {
     return (
@@ -363,11 +438,19 @@ function Block({
     >
       {link.thumb_url ? (
         <img src={link.thumb_url} alt="" className="h-10 w-10 shrink-0 rounded-lg object-cover" />
+      ) : link.icon || link.kind === "folder" ? (
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg" style={{ background: "rgba(127,127,127,0.12)" }}>
+          <BioGlyph name={link.icon || "folder"} className="h-4 w-4" />
+        </span>
       ) : null}
       <span className="min-w-0 flex-1">
         <span className="block truncate text-[15px] font-medium">{link.label}</span>
       </span>
-      <ArrowUpRight className="h-4 w-4 shrink-0 opacity-70" />
+      {link.kind === "folder" ? (
+        <ChevronRight className="h-4 w-4 shrink-0 opacity-70" />
+      ) : (
+        <ArrowUpRight className="h-4 w-4 shrink-0 opacity-70" />
+      )}
     </button>
   );
 }

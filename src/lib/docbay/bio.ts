@@ -31,7 +31,35 @@ export type BioSize = (typeof BIO_SIZES)[number];
 export const BIO_HEADERS = ["avatar", "hero", "logo"] as const;
 export type BioHeader = (typeof BIO_HEADERS)[number];
 export const BIO_KINDS = ["link", "embed", "form", "capture", "subscribe", "booking"] as const;
-export type BioKind = (typeof BIO_KINDS)[number] | "heading";
+export type BioKind = (typeof BIO_KINDS)[number] | "heading" | "folder";
+
+export const BIO_ICONS = [
+  "link",
+  "mail",
+  "phone",
+  "calendar",
+  "pin",
+  "bag",
+  "music",
+  "video",
+  "camera",
+  "file",
+  "star",
+  "heart",
+  "user",
+  "message",
+  "globe",
+  "play",
+  "download",
+  "ticket",
+  "home",
+  "spark",
+  "mic",
+  "book",
+  "gift",
+  "folder",
+] as const;
+export type BioIcon = (typeof BIO_ICONS)[number];
 
 export type BioLink = {
   id: string;
@@ -53,6 +81,8 @@ export type BioLink = {
   rule_countries: string;
   rule_from: number | null;
   rule_to: number | null;
+  icon: string;
+  parent_id: string;
 };
 
 export type BioCollection = { id: string; title: string };
@@ -116,6 +146,8 @@ export function blankLink(partial?: Partial<BioLink>): BioLink {
     rule_countries: partial?.rule_countries || "",
     rule_from: partial?.rule_from ?? null,
     rule_to: partial?.rule_to ?? null,
+    icon: partial?.icon || "",
+    parent_id: partial?.parent_id || "",
   };
 }
 
@@ -332,12 +364,13 @@ export function parseBio(raw: unknown): BioPage {
     const rec = item as Record<string, unknown>;
     const url = clampText(rec.url, 2000);
     const label = clampText(rec.label, 80);
-    const kind: BioKind = rec.kind === "heading" ? "heading" : oneOf(BIO_KINDS, rec.kind, "link");
-    if (kind !== "heading" && !label && !url && kind === "link") continue;
+    const kind: BioKind =
+      rec.kind === "heading" ? "heading" : rec.kind === "folder" ? "folder" : oneOf(BIO_KINDS, rec.kind, "link");
+    if (kind !== "heading" && kind !== "folder" && !label && !url && kind === "link") continue;
     links.push(
       blankLink({
         id: clampText(rec.id, 40) || `l${links.length}`,
-        label: kind === "heading" ? label : label || url,
+        label: kind === "heading" || kind === "folder" ? label : label || url,
         url,
         highlight: Boolean(rec.highlight),
         clicks: Math.max(0, Math.floor(Number(rec.clicks) || 0)),
@@ -355,6 +388,8 @@ export function parseBio(raw: unknown): BioPage {
         rule_countries: clampText(rec.rule_countries, 80).toUpperCase(),
         rule_from: hourOf(rec.rule_from),
         rule_to: hourOf(rec.rule_to),
+        icon: (BIO_ICONS as readonly string[]).includes(String(rec.icon)) ? String(rec.icon) : "",
+        parent_id: clampText(rec.parent_id, 40),
       }),
     );
     if (links.length >= 40) break;
