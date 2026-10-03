@@ -311,7 +311,7 @@ export function BioStage({
           )}
           <h1 className="mt-6 text-[2rem] font-semibold leading-none tracking-[-0.04em]">{name}</h1>
           {page.bio ? (
-            <p className="mt-3 max-w-[34ch] text-[15px] leading-relaxed opacity-70">{page.bio}</p>
+            <p className="mt-3 max-w-[34ch] whitespace-pre-line text-[15px] leading-relaxed opacity-70">{page.bio}</p>
           ) : null}
         </div>
 
