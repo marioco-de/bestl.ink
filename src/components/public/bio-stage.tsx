@@ -212,6 +212,16 @@ export function BioStage({
       <style>{`
         .bio-link { transition: transform .2s cubic-bezier(.2,.7,.2,1), background .2s ease; }
         .bio-link:hover { transform: translateY(-2px); }
+        .bio-glass { position: relative; overflow: hidden; isolation: isolate; }
+        .bio-glass::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          border-radius: inherit;
+          background: linear-gradient(185deg, rgba(255,255,255,.72) 0%, rgba(255,255,255,.16) 36%, rgba(255,255,255,0) 58%);
+          pointer-events: none;
+        }
+        .bio-glass > * { position: relative; z-index: 1; }
         .bio-spot { animation: bio-spot 1.6s ease-in-out infinite; }
         @keyframes bio-spot { 50% { transform: translateY(-2px) scale(1.02); } }
         @keyframes bio-out-left { to { transform: translateX(-105%); } }
@@ -357,23 +367,26 @@ function linkChrome(
     };
   }
   if (page.button === "line") {
+    const width = page.line_width || 1.5;
     return {
       background: "transparent",
       color: fg,
-      border: `1.5px solid ${fg}`,
+      border: `${width}px solid ${fg}`,
       boxShadow: "none",
     };
   }
   const light = isLightHex(pal.bg);
   return {
-    background: light ? "rgba(255,255,255,0.62)" : "rgba(255,255,255,0.14)",
+    background: light
+      ? "linear-gradient(180deg, rgba(255,255,255,0.42) 0%, rgba(255,255,255,0.16) 100%)"
+      : "linear-gradient(180deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0.05) 100%)",
     color: fg,
-    border: light ? "1px solid rgba(255,255,255,0.9)" : "1px solid rgba(255,255,255,0.34)",
+    border: "1px solid transparent",
     boxShadow: light
-      ? "inset 0 1px 0 rgba(255,255,255,0.95), 0 10px 28px rgba(20,16,12,0.1)"
-      : "inset 0 1px 0 rgba(255,255,255,0.38), 0 14px 34px rgba(0,0,0,0.32)",
-    backdropFilter: "blur(18px) saturate(1.4)",
-    WebkitBackdropFilter: "blur(18px) saturate(1.4)",
+      ? "inset 0 1px 0 rgba(255,255,255,0.95), inset 0 0 0 0.5px rgba(255,255,255,0.65), 0 12px 32px rgba(20,16,12,0.08)"
+      : "inset 0 1px 0 rgba(255,255,255,0.65), inset 0 0 0 0.5px rgba(255,255,255,0.28), 0 18px 40px rgba(0,0,0,0.28)",
+    backdropFilter: "blur(40px) saturate(1.9)",
+    WebkitBackdropFilter: "blur(40px) saturate(1.9)",
   };
 }
 
@@ -431,7 +444,7 @@ function Block({
     <button
       type="button"
       onClick={onGo}
-      className={`bio-link flex w-full items-center gap-3 px-4 text-left ${link.spotlight ? "bio-spot" : ""}`}
+      className={`bio-link flex w-full items-center gap-3 px-4 text-left ${link.spotlight ? "bio-spot" : ""} ${!featured && page.button === "glass" ? "bio-glass" : ""}`}
       style={{
         minHeight: minH,
         borderRadius: radius,

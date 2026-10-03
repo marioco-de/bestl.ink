@@ -118,6 +118,7 @@ export type BioPage = {
   sheets_url: string;
   theme: BioTheme;
   button: BioButton;
+  line_width: number;
   hide_flag: boolean;
   collections: BioCollection[];
   links: BioLink[];
@@ -176,6 +177,7 @@ export const DEFAULT_BIO: BioPage = {
   sheets_url: "",
   theme: "tinte",
   button: "solid",
+  line_width: 1.5,
   hide_flag: false,
   collections: [],
   links: [],
@@ -339,6 +341,12 @@ function foldSections(links: BioLink[], collections: BioCollection[]): BioLink[]
   return out.slice(0, 40);
 }
 
+function lineWidth(v: unknown): number {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return 1.5;
+  return Math.min(6, Math.max(1, Math.round(n * 2) / 2));
+}
+
 function hourOf(v: unknown): number | null {
   if (v === null || v === undefined || v === "") return null;
   const n = Math.floor(Number(v));
@@ -442,6 +450,7 @@ export function parseBio(raw: unknown): BioPage {
     sheets_url: clampText(obj.sheets_url, 400),
     theme,
     button,
+    line_width: lineWidth(obj.line_width),
     hide_flag: Boolean(obj.hide_flag),
     collections: [],
     links: foldSections(links, collections),

@@ -308,6 +308,23 @@ function BioEditorPage() {
             options={BIO_BUTTONS.map((id) => ({ id, label: t(`bio.btn_${id}`) }))}
             onChange={(button) => tune({ button })}
           />
+          {page.button === "line" ? (
+            <label className="block text-xs text-fg-muted">
+              <span className="mb-1 flex items-center justify-between">
+                {t("bio.lineWidth")}
+                <span className="tabular-nums">{page.line_width} px</span>
+              </span>
+              <input
+                type="range"
+                min={1}
+                max={6}
+                step={0.5}
+                value={page.line_width}
+                className="w-full accent-[var(--color-primary)]"
+                onChange={(e) => tune({ line_width: Number(e.target.value) })}
+              />
+            </label>
+          ) : null}
           <Label>{t("bio.layout")}</Label>
           <Choice
             value={page.layout}

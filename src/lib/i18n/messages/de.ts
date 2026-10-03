@@ -387,6 +387,7 @@ export const de = {
     btn_solid: "Fläche",
     btn_glass: "Glas",
     btn_line: "Linie",
+    lineWidth: "Linienstärke",
     links: "Links",
     elements: "Elemente",
     glow: "Schein",

@@ -389,6 +389,7 @@ export const it: Messages = {
     btn_solid: "Pieno",
     btn_glass: "Vetro",
     btn_line: "Linea",
+    lineWidth: "Spessore linea",
     links: "Link",
     elements: "Elementi",
     glow: "Bagliore",
