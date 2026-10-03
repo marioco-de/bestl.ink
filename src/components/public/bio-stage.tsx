@@ -185,7 +185,7 @@ export function BioStage({
         {shown.length === 0 ? (
           parent ? <p className="px-1 text-sm opacity-60">{t("bio.emptyFolder")}</p> : null
         ) : (
-          <div className={`relative z-[1] pt-2 ${page.layout === "grid" ? "grid grid-cols-2 gap-3" : page.layout === "cards" ? "flex flex-col gap-5" : "flex flex-col gap-3"}`}>
+          <div className={`relative z-[1] overflow-visible px-4 pt-3 ${page.layout === "grid" ? "grid grid-cols-2 gap-3" : page.layout === "cards" ? "flex flex-col gap-5" : "flex flex-col gap-3"}`}>
             {shown.map((g) => (
               <div key={g.id || "root"} className={page.layout === "grid" ? "contents" : "flex flex-col gap-3"}>
                 {g.title ? (
@@ -236,10 +236,11 @@ export function BioStage({
         .bio-spot {
           position: relative;
           z-index: 50;
-          transform-origin: center;
           animation: bio-spot 1.8s ease-in-out infinite;
         }
-        @keyframes bio-spot { 50% { transform: translateY(-4px) scale(1.06); } }
+        @keyframes bio-spot {
+          50% { margin-inline: -16px; transform: translateY(-6px); }
+        }
         .bio-plate {
           position: absolute;
           inset: 0;
@@ -422,7 +423,7 @@ function linkChrome(
       background: "linear-gradient(180deg, #ffffff 0%, rgba(255,255,255,0.88) 100%)",
       color: "#1a1814",
       border: "1px solid rgba(255,255,255,0.95)",
-      boxShadow: "0 6px 12px rgba(20,16,12,0.14)",
+      boxShadow: "0 10px 18px rgba(20,16,12,0.18)",
     };
   }
   if (highlight || page.button === "solid") {
@@ -576,7 +577,7 @@ function Block({
   const featured = link.highlight;
   const chrome = linkChrome(page, pal, fg, featured, link.spotlight);
   return (
-    <div className={link.spotlight ? "relative z-50" : "relative z-0"}>
+    <div className={link.spotlight ? "relative z-50 overflow-visible" : "relative z-0"}>
     <button
       type="button"
       onClick={onGo}
