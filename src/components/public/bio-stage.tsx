@@ -227,12 +227,18 @@ export function BioStage({
       style={{ background: bg, color: fg, fontFamily: BIO_FONT_STACK[page.font] }}
     >
       <style>{`
-        .bio-link { transition: transform .2s cubic-bezier(.2,.7,.2,1), background .2s ease; }
-        .bio-link:hover { transform: translateY(-2px); }
-        .bio-glass {
-          position: relative;
+        .bio-link { transition: transform .2s cubic-bezier(.2,.7,.2,1), background .2s ease; touch-action: manipulation; }
+        @media (hover: hover) and (pointer: fine) {
+          .bio-link:hover { transform: translateY(-2px); }
+        }
+        .bio-glass { position: relative; isolation: isolate; }
+        .bio-plate {
+          position: absolute;
+          inset: 0;
+          z-index: 0;
           overflow: hidden;
-          isolation: isolate;
+          border-radius: inherit;
+          pointer-events: none;
           background: rgba(255,255,255,0.03);
           border: 1px solid rgba(255,255,255,0.14);
           box-shadow:
@@ -241,14 +247,14 @@ export function BioStage({
           -webkit-backdrop-filter: blur(12px) saturate(1.6);
           backdrop-filter: blur(12px) saturate(1.6);
         }
-        .bio-glass-light {
+        .bio-glass-light .bio-plate {
           background: rgba(255,255,255,0.08);
           border-color: rgba(255,255,255,0.28);
           box-shadow:
             inset 0 1px 0 rgba(255,255,255,0.4),
             inset 0 -1px 0 rgba(255,255,255,0.12);
         }
-        .bio-glass::before {
+        .bio-plate::before {
           content: "";
           position: absolute;
           inset: 0;
@@ -256,7 +262,7 @@ export function BioStage({
           background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0) 16%);
           pointer-events: none;
         }
-        .bio-glass > * { position: relative; z-index: 1; }
+        .bio-glass > :not(.bio-plate) { position: relative; z-index: 1; }
         .bio-spot { animation: bio-spot 1.6s ease-in-out infinite; }
         @keyframes bio-spot { 50% { transform: translateY(-2px) scale(1.02); } }
         @keyframes bio-out-left { to { transform: translateX(-105%); } }
@@ -483,6 +489,7 @@ function Block({
         ...chrome,
       }}
     >
+      {!featured && !link.spotlight && page.button === "glass" ? <span className="bio-plate" aria-hidden /> : null}
       {link.thumb_url ? (
         <img src={link.thumb_url} alt="" className="h-10 w-10 shrink-0 rounded-lg object-cover" />
       ) : link.icon || link.kind === "folder" ? (
