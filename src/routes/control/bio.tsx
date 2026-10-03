@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Plus, Settings, Trash2, Upload } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, GripVertical, Plus, Settings, Trash2, Upload } from "lucide-react";
 import { BioGlyph } from "@/components/public/bio-icons";
 import { toast } from "sonner";
 import { bioReport, saveBio, saveBioAvatar } from "@/lib/docbay/api";
@@ -47,6 +47,11 @@ function BioEditorPage() {
   const [busy, setBusy] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [scopeId, setScopeId] = useState<string | null>(null);
+  const [picked, setPicked] = useState<string[]>([]);
+  const [anchorId, setAnchorId] = useState<string | null>(null);
+  const [selecting, setSelecting] = useState(false);
+  const [over, setOver] = useState<{ id: string; mode: "before" | "after" | "into" } | null>(null);
+  const dragRef = useRef<string[]>([]);
   const [report, setReport] = useState<Awaited<ReturnType<typeof bioReport>> | null>(null);
   const page = cards.find((c) => c.id === activeId) || cards[0]!;
   const editing = page.links.find((l) => l.id === editId) ?? null;
@@ -60,6 +65,11 @@ function BioEditorPage() {
     setCards(next);
     setActiveId(data.tenant.bio?.id || next[0]?.id || "main");
   }, [data.tenant.id]);
+
+  useEffect(() => {
+    setPicked([]);
+    setAnchorId(null);
+  }, [scopeId, activeId]);
 
   const host = data.tenant.public_host;
   const url = page.slug ? `https://${host}/${page.slug}` : "";
@@ -100,6 +110,109 @@ function BioEditorPage() {
       ...page,
       links: page.links.map((x, i) => (i === index ? { ...x, ...patch } : x)),
     });
+  }
+
+  function pickRow(e: React.MouseEvent, id: string) {
+    const ids = rows.map((r) => r.l.id);
+    if (e.shiftKey && anchorId && ids.includes(anchorId) && ids.includes(id)) {
+      const a = ids.indexOf(anchorId);
+      const b = ids.indexOf(id);
+      const [lo, hi] = a < b ? [a, b] : [b, a];
+      setPicked(ids.slice(lo, hi + 1));
+      return true;
+    }
+    if (e.metaKey || e.ctrlKey) {
+      setPicked((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+      setAnchorId(id);
+      return true;
+    }
+    if (selecting) {
+      setPicked([id]);
+      setAnchorId(id);
+      return true;
+    }
+    setAnchorId(id);
+    return false;
+  }
+
+  function dragIdsFor(id: string) {
+    const visible = new Set(rows.map((r) => r.l.id));
+    if (picked.includes(id)) return picked.filter((x) => visible.has(x));
+    return [id];
+  }
+
+  function dropMode(e: React.DragEvent, id: string): "before" | "after" | "into" {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const y = e.clientY - rect.top;
+    const link = page.links.find((l) => l.id === id);
+    const moving = dragRef.current;
+    const onlyFolders = moving.every((did) => page.links.find((l) => l.id === did)?.kind === "folder");
+    if (link?.kind === "folder" && !onlyFolders && !moving.includes(id) && y > rect.height * 0.22 && y < rect.height * 0.78) return "into";
+    return y < rect.height / 2 ? "before" : "after";
+  }
+
+  function applyDrop(movingIds: string[], targetId: string, mode: "before" | "after" | "into") {
+    const movingSet = new Set(movingIds);
+    if (mode === "into") {
+      const folder = page.links.find((l) => l.id === targetId && l.kind === "folder");
+      if (!folder) return;
+      const allowed = page.links.filter((l) => movingSet.has(l.id) && l.kind !== "folder");
+      if (!allowed.length) return;
+      const allowedIds = new Set(allowed.map((l) => l.id));
+      const updated = page.links.map((l) => (allowedIds.has(l.id) ? { ...l, parent_id: folder.id } : l));
+      const siblings = updated.filter((l) => (l.parent_id || "") === folder.id);
+      const stay = siblings.filter((l) => !allowedIds.has(l.id));
+      const moved = siblings.filter((l) => allowedIds.has(l.id));
+      const ordered = [...stay, ...moved];
+      let n = 0;
+      update({ ...page, links: updated.map((l) => ((l.parent_id || "") === folder.id ? ordered[n++]! : l)) });
+      setPicked((prev) => prev.filter((id) => !allowedIds.has(id)));
+      return;
+    }
+    const parent = targetId === "__out" ? "" : scope?.id || "";
+    const moved = page.links.filter((l) => movingSet.has(l.id)).map((l) => ({ ...l, parent_id: parent }));
+    if (!moved.length || (targetId !== "__out" && movingSet.has(targetId))) return;
+    const rest = page.links.filter((l) => !movingSet.has(l.id));
+    if (targetId === "__out") {
+      update({ ...page, links: [...rest, ...moved] });
+      setPicked([]);
+      return;
+    }
+    const at = rest.findIndex((l) => l.id === targetId);
+    const insert = at < 0 ? rest.length : mode === "after" ? at + 1 : at;
+    update({ ...page, links: [...rest.slice(0, insert), ...moved, ...rest.slice(insert)] });
+  }
+
+  function bindDrag(id: string) {
+    return {
+      draggable: true,
+      onDragStart: (e: React.DragEvent) => {
+        const el = e.target as HTMLElement;
+        if (el.closest("input, textarea, button")) {
+          e.preventDefault();
+          return;
+        }
+        const ids = dragIdsFor(id);
+        dragRef.current = ids;
+        e.dataTransfer.setData("text/plain", ids.join(","));
+        e.dataTransfer.effectAllowed = "move";
+      },
+      onDragOver: (e: React.DragEvent) => {
+        e.preventDefault();
+        const mode = dropMode(e, id);
+        setOver((prev) => (prev?.id === id && prev.mode === mode ? prev : { id, mode }));
+      },
+      onDrop: (e: React.DragEvent) => {
+        e.preventDefault();
+        applyDrop(dragRef.current, id, dropMode(e, id));
+        dragRef.current = [];
+        setOver(null);
+      },
+      onDragEnd: () => {
+        dragRef.current = [];
+        setOver(null);
+      },
+    };
   }
 
   async function persist(list = cards, active = page.id) {
@@ -388,14 +501,40 @@ function BioEditorPage() {
 
         <section className="space-y-2 rounded-xl border border-border bg-bg-elevated p-4">
           {scope ? (
-            <button type="button" className="flex items-center gap-1 text-sm text-fg-muted" onClick={() => setScopeId(null)}>
+            <button
+              type="button"
+              className={`flex w-full items-center gap-1 rounded-lg px-1 py-1 text-sm text-fg-muted ${over?.id === "__out" ? "bg-primary/10 ring-1 ring-primary" : ""}`}
+              onClick={() => setScopeId(null)}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setOver({ id: "__out", mode: "before" });
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                applyDrop(dragRef.current, "__out", "before");
+                dragRef.current = [];
+                setOver(null);
+              }}
+            >
               <ChevronLeft className="h-4 w-4" />
-              {scope.label || t("bio.folder")}
+              {over?.id === "__out" ? t("bio.dropOut") : scope.label || t("bio.folder")}
             </button>
           ) : null}
           <div className="flex flex-wrap items-center justify-between gap-2">
             <Label className="mb-0">{scope ? t("bio.folder") : t("bio.elements")}</Label>
             <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant={selecting ? "default" : "secondary"}
+                onClick={() => {
+                  setSelecting((v) => !v);
+                  setPicked([]);
+                  setAnchorId(null);
+                }}
+              >
+                {t("bio.select")}
+              </Button>
               <Button type="button" size="sm" variant="secondary" onClick={() => addItem("link")}>
                 <Plus className="h-3.5 w-3.5" /> {t("bio.addLink")}
               </Button>
@@ -409,9 +548,29 @@ function BioEditorPage() {
               ) : null}
             </div>
           </div>
-          {rows.map(({ l, index }) =>
-            l.kind === "heading" ? (
-              <div key={l.id} className="flex items-center gap-2 rounded-xl bg-bg-subtle px-2 py-1.5">
+          {picked.length > 0 ? (
+            <p className="text-xs text-fg-muted">
+              {picked.length} {t("bio.selected")}
+            </p>
+          ) : selecting ? (
+            <p className="text-xs text-fg-muted">{t("bio.selectHint")}</p>
+          ) : null}
+          {rows.map(({ l, index }) => {
+            const mark = over?.id === l.id ? over.mode : null;
+            const on = picked.includes(l.id);
+            const edge = mark === "before" ? "border-t-2 border-t-primary" : mark === "after" ? "border-b-2 border-b-primary" : "";
+            const into = mark === "into" ? "ring-2 ring-primary bg-primary/10" : "";
+            return l.kind === "heading" ? (
+              <div
+                key={l.id}
+                {...bindDrag(l.id)}
+                onClick={(e) => {
+                  if ((e.target as HTMLElement).closest("input, textarea, button")) return;
+                  pickRow(e, l.id);
+                }}
+                className={`flex cursor-grab items-center gap-2 rounded-xl bg-bg-subtle px-2 py-1.5 active:cursor-grabbing ${on ? "ring-1 ring-primary" : ""} ${edge}`}
+              >
+                <GripVertical className="h-4 w-4 shrink-0 text-fg-muted" />
                 <Nudge onUp={() => moveAmong(page, l.id, -1, update)} onDown={() => moveAmong(page, l.id, 1, update)} />
                 <Input
                   value={l.label}
@@ -429,7 +588,18 @@ function BioEditorPage() {
                 </button>
               </div>
             ) : (
-              <div key={l.id} className={`flex items-center gap-2 rounded-xl border border-border bg-bg px-2 ${l.kind === "folder" ? "min-h-[68px] py-2" : "py-1.5"}`}>
+              <div
+                key={l.id}
+                {...bindDrag(l.id)}
+                onClick={(e) => {
+                  if ((e.target as HTMLElement).closest("button")) return;
+                  if (pickRow(e, l.id)) return;
+                  if (l.kind === "folder") setScopeId(l.id);
+                  else setEditId(l.id);
+                }}
+                className={`flex cursor-grab items-center gap-2 rounded-xl border border-border bg-bg px-2 active:cursor-grabbing ${l.kind === "folder" ? "min-h-[68px] py-2" : "py-1.5"} ${on ? "bg-primary/10 ring-1 ring-primary" : ""} ${into} ${edge}`}
+              >
+                <GripVertical className="h-4 w-4 shrink-0 text-fg-muted" />
                 <Nudge onUp={() => moveAmong(page, l.id, -1, update)} onDown={() => moveAmong(page, l.id, 1, update)} />
                 {l.thumb_url ? (
                   <img src={l.thumb_url} alt="" className="h-9 w-9 shrink-0 rounded-md object-cover" />
@@ -438,18 +608,14 @@ function BioEditorPage() {
                     <BioGlyph name={l.icon || "folder"} className="h-4 w-4" />
                   </span>
                 ) : null}
-                <button
-                  type="button"
-                  className="min-w-0 flex-1 text-left"
-                  onClick={() => (l.kind === "folder" ? setScopeId(l.id) : setEditId(l.id))}
-                >
+                <div className="min-w-0 flex-1 text-left">
                   <p className="truncate text-sm font-medium">{l.label || t("bio.addLink")}</p>
                   <p className="truncate text-xs text-fg-muted">
                     {l.kind === "folder"
                       ? `${page.links.filter((x) => x.parent_id === l.id && x.kind !== "heading").length}`
                       : l.url || t(`bio.kind_${l.kind}`)}
                   </p>
-                </button>
+                </div>
                 {l.clicks > 0 ? <span className="text-xs tabular-nums text-fg-muted">{l.clicks}</span> : null}
                 {l.kind === "folder" ? (
                   <button type="button" className="grid h-9 w-9 place-items-center text-fg-muted" onClick={() => setScopeId(l.id)} aria-label={t("bio.folder")}>
@@ -465,8 +631,8 @@ function BioEditorPage() {
                   <Settings className="h-4 w-4" />
                 </button>
               </div>
-            ),
-          )}
+            );
+          })}
         </section>
 
         <section className="space-y-3 rounded-xl border border-border bg-bg-elevated p-4">
