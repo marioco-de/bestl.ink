@@ -245,17 +245,6 @@ export function BioStage({
           pointer-events: none;
         }
         .bio-glass > * { position: relative; z-index: 1; }
-        .bio-field span {
-          position: absolute;
-          width: 68%;
-          aspect-ratio: 1;
-          border-radius: 999px;
-          filter: blur(46px);
-          opacity: 0.62;
-        }
-        .bio-field span:nth-child(1) { top: 6%; left: -18%; }
-        .bio-field span:nth-child(2) { top: 34%; right: -24%; width: 58%; opacity: 0.45; }
-        .bio-field span:nth-child(3) { bottom: 4%; left: 12%; width: 52%; opacity: 0.4; }
         .bio-spot { animation: bio-spot 1.6s ease-in-out infinite; }
         @keyframes bio-spot { 50% { transform: translateY(-2px) scale(1.02); } }
         @keyframes bio-out-left { to { transform: translateX(-105%); } }
@@ -283,13 +272,6 @@ export function BioStage({
         className="pointer-events-none absolute inset-0"
         style={{ background: `radial-gradient(820px 480px at 50% -8%, ${pageGlow(page, pal)}, transparent 62%)` }}
       />
-      {page.button === "glass" ? (
-        <div className="bio-field pointer-events-none absolute inset-0" aria-hidden>
-          <span style={{ background: pal.accent }} />
-          <span style={{ background: pal.glow }} />
-          <span style={{ background: fg }} />
-        </div>
-      ) : null}
       <div className="relative z-[1] mx-auto flex min-h-dvh w-full max-w-[440px] flex-col px-5 pb-16 pt-14 sm:pt-20">
         <div className="flex flex-col items-center text-center">
           {page.header === "logo" && page.logo_url ? (
