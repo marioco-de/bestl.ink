@@ -402,6 +402,8 @@ export const it: Messages = {
     emptyFolder: "In questa cartella non c'è ancora niente.",
     icon: "Icona",
     noIcon: "Nessuna",
+    iconColor: "Colore icona",
+    iconAuto: "Automatico",
     addLink: "Link",
     linkLabel: "Etichetta",
     linkSettings: "Impostazioni",

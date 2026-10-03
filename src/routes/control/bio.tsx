@@ -9,6 +9,7 @@ import {
   BIO_BUTTONS,
   BIO_FONTS,
   BIO_HEADERS,
+  BIO_ICONS,
   BIO_LAYOUTS,
   LINE_WIDTHS,
   BIO_NETWORKS,
@@ -54,6 +55,7 @@ function BioEditorPage() {
   const [anchorId, setAnchorId] = useState<string | null>(null);
   const [selecting, setSelecting] = useState(false);
   const [over, setOver] = useState<{ id: string; mode: "before" | "after" | "into" } | null>(null);
+  const [iconFor, setIconFor] = useState<string | null>(null);
   const dragRef = useRef<string[]>([]);
   const [report, setReport] = useState<Awaited<ReturnType<typeof bioReport>> | null>(null);
   const page = cards.find((c) => c.id === activeId) || cards[0]!;
@@ -73,6 +75,17 @@ function BioEditorPage() {
     setPicked([]);
     setAnchorId(null);
   }, [scopeId, activeId]);
+
+  useEffect(() => {
+    if (!iconFor) return;
+    function close(e: PointerEvent) {
+      const node = e.target as HTMLElement | null;
+      if (node?.closest("[data-icon-pop], [data-icon-anchor]")) return;
+      setIconFor(null);
+    }
+    document.addEventListener("pointerdown", close);
+    return () => document.removeEventListener("pointerdown", close);
+  }, [iconFor]);
 
   const host = data.tenant.public_host;
   const url = page.slug ? `https://${host}/${page.slug}` : "";
@@ -600,17 +613,63 @@ function BioEditorPage() {
                   if (l.kind === "folder") setScopeId(l.id);
                   else setEditId(l.id);
                 }}
-                className={`flex cursor-grab items-center gap-2 rounded-xl border border-border bg-bg px-2 active:cursor-grabbing ${l.kind === "folder" ? "min-h-[68px] py-2" : "py-1.5"} ${on ? "bg-primary/10 ring-1 ring-primary" : ""} ${into} ${edge}`}
+                className={`relative flex cursor-grab items-center gap-2 rounded-xl border border-border bg-bg px-2 active:cursor-grabbing ${l.kind === "folder" ? "min-h-[68px] py-2" : "py-1.5"} ${on ? "bg-primary/10 ring-1 ring-primary" : ""} ${into} ${edge} ${iconFor === l.id ? "z-20" : ""}`}
               >
                 <GripVertical className="h-4 w-4 shrink-0 text-fg-muted" />
                 <Nudge onUp={() => moveAmong(page, l.id, -1, update)} onDown={() => moveAmong(page, l.id, 1, update)} />
                 {l.thumb_url ? (
                   <img src={l.thumb_url} alt="" className="h-9 w-9 shrink-0 rounded-md object-cover" />
-                ) : l.icon || l.kind === "folder" ? (
-                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-bg-subtle text-fg-muted">
-                    <BioGlyph name={l.icon || "folder"} className="h-4 w-4" />
-                  </span>
                 ) : null}
+                <button
+                  type="button"
+                  className="relative grid h-9 w-9 shrink-0 place-items-center rounded-md border border-border bg-bg-subtle text-fg-muted"
+                  style={{ color: l.icon_color || undefined }}
+                  data-icon-anchor
+                  aria-label={t("bio.icon")}
+                  onClick={() => setIconFor((id) => (id === l.id ? null : l.id))}
+                >
+                  {l.icon || l.kind === "folder" ? <BioGlyph name={l.icon || "folder"} className="h-4 w-4" /> : <span className="h-3 w-3 rounded-sm border border-dashed border-current" />}
+                  {iconFor === l.id ? (
+                    <span
+                      data-icon-pop
+                      className="absolute left-0 top-11 z-30 w-[248px] rounded-xl border border-border bg-bg p-2 text-fg shadow-xl"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <span className="grid grid-cols-8 gap-1">
+                        <button
+                          type="button"
+                          className={`grid h-7 w-7 place-items-center rounded-md border text-[10px] ${!l.icon ? "border-primary" : "border-transparent"}`}
+                          onClick={() => patchLink(index, { icon: "" })}
+                          aria-label={t("bio.noIcon")}
+                        />
+                        {BIO_ICONS.map((id) => (
+                          <button
+                            key={id}
+                            type="button"
+                            className={`grid h-7 w-7 place-items-center rounded-md border ${l.icon === id ? "border-primary bg-primary/10" : "border-transparent hover:bg-bg-subtle"}`}
+                            style={{ color: l.icon_color || undefined }}
+                            onClick={() => patchLink(index, { icon: id })}
+                            aria-label={id}
+                          >
+                            <BioGlyph name={id} className="h-3.5 w-3.5" />
+                          </button>
+                        ))}
+                      </span>
+                      <span className="mt-2 flex items-center gap-2 border-t border-border pt-2">
+                        <input
+                          type="color"
+                          aria-label={t("bio.iconColor")}
+                          value={l.icon_color || "#111111"}
+                          onChange={(e) => patchLink(index, { icon_color: e.target.value })}
+                          className="h-7 w-7 cursor-pointer rounded border border-border bg-transparent"
+                        />
+                        <button type="button" className="text-xs text-fg-muted" onClick={() => patchLink(index, { icon_color: "" })}>
+                          {t("bio.iconAuto")}
+                        </button>
+                      </span>
+                    </span>
+                  ) : null}
+                </button>
                 <div className="min-w-0 flex-1 text-left">
                   <p className="truncate text-sm font-medium">{l.label || t("bio.addLink")}</p>
                   <p className="truncate text-xs text-fg-muted">

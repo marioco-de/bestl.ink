@@ -457,7 +457,7 @@ function Block({
       {link.thumb_url ? (
         <img src={link.thumb_url} alt="" className="h-10 w-10 shrink-0 rounded-lg object-cover" />
       ) : link.icon || link.kind === "folder" ? (
-        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg" style={{ background: "rgba(127,127,127,0.12)" }}>
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg" style={{ background: "rgba(127,127,127,0.12)", color: link.icon_color || undefined }}>
           <BioGlyph name={link.icon || "folder"} className="h-4 w-4" />
         </span>
       ) : null}

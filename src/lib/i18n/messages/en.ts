@@ -402,6 +402,8 @@ export const en: Messages = {
     emptyFolder: "Nothing in this folder yet.",
     icon: "Icon",
     noIcon: "None",
+    iconColor: "Icon color",
+    iconAuto: "Automatic",
     addLink: "Link",
     linkLabel: "Label",
     linkSettings: "Settings",

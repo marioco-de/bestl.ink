@@ -105,6 +105,7 @@ export type BioLink = {
   rule_from: number | null;
   rule_to: number | null;
   icon: string;
+  icon_color: string;
   parent_id: string;
 };
 
@@ -171,6 +172,7 @@ export function blankLink(partial?: Partial<BioLink>): BioLink {
     rule_from: partial?.rule_from ?? null,
     rule_to: partial?.rule_to ?? null,
     icon: partial?.icon || "",
+    icon_color: partial?.icon_color || "",
     parent_id: partial?.parent_id || "",
   };
 }
@@ -448,6 +450,7 @@ export function parseBio(raw: unknown): BioPage {
         rule_from: hourOf(rec.rule_from),
         rule_to: hourOf(rec.rule_to),
         icon: (BIO_ICONS as readonly string[]).includes(String(rec.icon)) ? String(rec.icon) : "",
+        icon_color: /^#[0-9a-fA-F]{6}$/.test(String(rec.icon_color || "")) ? String(rec.icon_color).toLowerCase() : "",
         parent_id: clampText(rec.parent_id, 40),
       }),
     );

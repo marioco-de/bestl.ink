@@ -400,6 +400,8 @@ export const de = {
     emptyFolder: "In diesem Ordner ist noch nichts.",
     icon: "Icon",
     noIcon: "Keins",
+    iconColor: "Iconfarbe",
+    iconAuto: "Automatisch",
     addLink: "Link",
     linkLabel: "Beschriftung",
     linkSettings: "Einstellungen",

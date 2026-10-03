@@ -136,11 +136,25 @@ export function EcardLinkModal({
                     type="button"
                     onClick={() => onChange({ icon: id })}
                     className={`grid h-9 w-9 place-items-center rounded-lg border ${link.icon === id ? "border-primary bg-primary/10" : "border-border text-fg-muted"}`}
+                    style={{ color: link.icon_color || undefined }}
                     aria-label={id}
                   >
                     <BioGlyph name={id} className="h-4 w-4" />
                   </button>
                 ))}
+              </div>
+              <div className="mt-2 flex items-center gap-2">
+                <Label className="mb-0">{t("bio.iconColor")}</Label>
+                <input
+                  type="color"
+                  aria-label={t("bio.iconColor")}
+                  value={link.icon_color || "#111111"}
+                  onChange={(e) => onChange({ icon_color: e.target.value })}
+                  className="h-8 w-8 cursor-pointer rounded border border-border bg-transparent"
+                />
+                <button type="button" className="text-xs text-fg-muted underline" onClick={() => onChange({ icon_color: "" })}>
+                  {t("bio.iconAuto")}
+                </button>
               </div>
             </div>
             {needsUrl && (
