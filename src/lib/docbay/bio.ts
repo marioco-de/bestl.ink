@@ -144,6 +144,8 @@ export type BioPage = {
   button: BioButton;
   line_width: number;
   hide_flag: boolean;
+  impressum_url: string;
+  privacy_url: string;
   collections: BioCollection[];
   links: BioLink[];
   socials: BioSocial[];
@@ -204,6 +206,8 @@ export const DEFAULT_BIO: BioPage = {
   button: "solid",
   line_width: 1,
   hide_flag: false,
+  impressum_url: "",
+  privacy_url: "",
   collections: [],
   links: [],
   socials: [],
@@ -506,6 +510,8 @@ export function parseBio(raw: unknown): BioPage {
     button,
     line_width: lineWidth(obj.line_width),
     hide_flag: Boolean(obj.hide_flag),
+    impressum_url: httpUrl(clampText(obj.impressum_url, 400)) || "",
+    privacy_url: httpUrl(clampText(obj.privacy_url, 400)) || "",
     collections: [],
     links: foldSections(links, collections),
     socials,

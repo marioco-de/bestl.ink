@@ -534,6 +534,17 @@ function BioEditorPage() {
               <Input value={page.seo_description} onChange={(e) => update({ ...page, seo_description: e.target.value })} />
             </div>
           </div>
+          <p className="text-xs text-fg-muted">{t("bio.legalHint")}</p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <Label>{t("bio.customerImprint")}</Label>
+              <Input value={page.impressum_url} placeholder="https://" onChange={(e) => update({ ...page, impressum_url: e.target.value })} />
+            </div>
+            <div>
+              <Label>{t("bio.customerPrivacy")}</Label>
+              <Input value={page.privacy_url} placeholder="https://" onChange={(e) => update({ ...page, privacy_url: e.target.value })} />
+            </div>
+          </div>
         </section>
 
         <section className="space-y-2 rounded-xl border border-border bg-bg-elevated p-4">

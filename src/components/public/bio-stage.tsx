@@ -359,12 +359,22 @@ export function BioStage({
           </div>
         </div>
 
+        {(page.impressum_url || page.privacy_url) && (
+          <nav className={`${page.hide_flag ? "mt-auto pt-12" : "mt-8"} flex flex-wrap justify-center gap-x-4 text-[12px] opacity-70`}>
+            {page.impressum_url ? (
+              <a href={page.impressum_url} target="_blank" rel="noopener noreferrer" className="underline-offset-2 hover:underline">{t("legal.imprint")}</a>
+            ) : null}
+            {page.privacy_url ? (
+              <a href={page.privacy_url} target="_blank" rel="noopener noreferrer" className="underline-offset-2 hover:underline">{t("legal.privacy")}</a>
+            ) : null}
+          </nav>
+        )}
         {!page.hide_flag && (
-          <a href={BRAND_HOME} target="_blank" rel="noopener noreferrer" className="mt-auto pt-12 text-center text-[11px] uppercase tracking-[0.14em] opacity-60">
+          <a href={BRAND_HOME} target="_blank" rel="noopener noreferrer" className={`${page.impressum_url || page.privacy_url ? "mt-6" : "mt-auto pt-12"} text-center text-[11px] uppercase tracking-[0.14em] opacity-60`}>
             {t("bio.made")}
           </a>
         )}
-        <LegalLinks className={`${page.hide_flag ? "mt-auto pt-12" : "mt-3"} justify-center text-[11px] opacity-50`} />
+        <LegalLinks className={`${page.hide_flag && !(page.impressum_url || page.privacy_url) ? "mt-auto pt-12" : "mt-3"} justify-center text-[11px] opacity-50`} />
       </div>
 
       {warn && (
