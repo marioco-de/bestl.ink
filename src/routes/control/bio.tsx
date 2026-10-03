@@ -74,7 +74,18 @@ function BioEditorPage() {
   }
 
   function pickTheme(id: Exclude<BioPage["theme"], "custom">) {
-    update({ ...page, theme: id, bg_color: "", fg_color: "" });
+    update({ ...page, theme: id, bg_color: "", fg_color: "", glow_color: "" });
+  }
+
+  function addItem(kind: "link" | "heading") {
+    if (page.links.length >= 40) return;
+    const row = blankLink({
+      id: nid(kind === "heading" ? "g" : "l"),
+      kind,
+      label: kind === "heading" ? t("bio.addCollection") : "",
+    });
+    update({ ...page, links: [...page.links, row] });
+    if (kind === "link") setEditId(row.id);
   }
 
   function patchLink(index: number, patch: Partial<BioLink>) {
@@ -308,7 +319,7 @@ function BioEditorPage() {
             options={BIO_SHAPES.map((id) => ({ id, label: t(`bio.shape_${id}`) }))}
             onChange={(button_shape) => tune({ button_shape })}
           />
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-3">
             <label className="text-xs text-fg-muted">
               {t("bio.colorBg")}
               <input type="color" className="mt-1 h-9 w-full" value={page.bg_color || paletteFor(page).bg} onChange={(e) => tune({ bg_color: e.target.value })} />
@@ -316,6 +327,10 @@ function BioEditorPage() {
             <label className="text-xs text-fg-muted">
               {t("bio.colorFg")}
               <input type="color" className="mt-1 h-9 w-full" value={page.fg_color || paletteFor(page).fg} onChange={(e) => tune({ fg_color: e.target.value })} />
+            </label>
+            <label className="text-xs text-fg-muted">
+              {t("bio.glow")}
+              <input type="color" className="mt-1 h-9 w-full" value={page.glow_color || paletteFor(page).accent} onChange={(e) => tune({ glow_color: e.target.value })} />
             </label>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -347,91 +362,83 @@ function BioEditorPage() {
           </div>
         </section>
 
-        <section className="space-y-3 rounded-xl border border-border bg-bg-elevated p-4">
-          <div className="flex items-center justify-between">
-            <Label className="mb-0">{t("bio.collection")}</Label>
-            <Button
-              type="button"
-              size="sm"
-              variant="secondary"
-              onClick={() =>
-                update({
-                  ...page,
-                  collections: [...page.collections, { id: nid("g"), title: t("bio.collection") }].slice(0, 12),
-                })
-              }
-            >
-              <Plus className="h-3.5 w-3.5" /> {t("bio.addCollection")}
-            </Button>
-          </div>
-          {page.collections.map((c, i) => (
-            <div key={c.id} className="flex gap-2">
-              <Input
-                value={c.title}
-                onChange={(e) =>
-                  update({
-                    ...page,
-                    collections: page.collections.map((x, idx) => (idx === i ? { ...x, title: e.target.value } : x)),
-                  })
-                }
-              />
+        <section className="space-y-2 rounded-xl border border-border bg-bg-elevated p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <Label className="mb-0">{t("bio.elements")}</Label>
+            <div className="flex gap-2">
               <Button
                 type="button"
-                size="icon"
-                variant="ghost"
-                onClick={() => update({ ...page, collections: page.collections.filter((_, idx) => idx !== i) })}
+                size="sm"
+                variant="secondary"
+                onClick={() => addItem("link")}
               >
-                <Trash2 className="h-3.5 w-3.5 text-danger" />
+                <Plus className="h-3.5 w-3.5" /> {t("bio.addLink")}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                onClick={() => addItem("heading")}
+              >
+                <Plus className="h-3.5 w-3.5" /> {t("bio.addCollection")}
               </Button>
             </div>
-          ))}
-        </section>
-
-        <section className="space-y-2 rounded-xl border border-border bg-bg-elevated p-4">
-          <div className="flex items-center justify-between">
-            <Label className="mb-0">{t("bio.links")}</Label>
-            <Button
-              type="button"
-              size="sm"
-              variant="secondary"
-              onClick={() => {
-                if (page.links.length >= 40) return;
-                const row = blankLink({ id: nid("l") });
-                update({ ...page, links: [...page.links, row] });
-                setEditId(row.id);
-              }}
-            >
-              <Plus className="h-3.5 w-3.5" /> {t("bio.addLink")}
-            </Button>
           </div>
-          {page.links.map((l, i) => (
-            <div key={l.id} className="flex items-center gap-2 rounded-xl border border-border bg-bg px-2 py-1.5">
-              <div className="flex flex-col text-fg-muted">
-                <button type="button" className="rounded p-0.5 hover:bg-bg-subtle" onClick={() => move(page, i, -1, update)} aria-label="up">
-                  <ArrowUp className="h-3.5 w-3.5" />
-                </button>
-                <button type="button" className="rounded p-0.5 hover:bg-bg-subtle" onClick={() => move(page, i, 1, update)} aria-label="down">
-                  <ArrowDown className="h-3.5 w-3.5" />
+          {page.links.map((l, i) =>
+            l.kind === "heading" ? (
+              <div key={l.id} className="flex items-center gap-2 rounded-xl bg-bg-subtle px-2 py-1.5">
+                <div className="flex flex-col text-fg-muted">
+                  <button type="button" className="rounded p-0.5 hover:bg-bg" onClick={() => move(page, i, -1, update)} aria-label="up">
+                    <ArrowUp className="h-3.5 w-3.5" />
+                  </button>
+                  <button type="button" className="rounded p-0.5 hover:bg-bg" onClick={() => move(page, i, 1, update)} aria-label="down">
+                    <ArrowDown className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+                <Input
+                  value={l.label}
+                  placeholder={t("bio.addCollection")}
+                  className="h-9 border-transparent bg-transparent font-medium shadow-none"
+                  onChange={(e) => patchLink(i, { label: e.target.value })}
+                />
+                <button
+                  type="button"
+                  className="grid h-9 w-9 shrink-0 place-items-center rounded-md text-fg-muted hover:text-danger"
+                  onClick={() => update({ ...page, links: page.links.filter((x) => x.id !== l.id) })}
+                  aria-label={t("common.delete")}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
                 </button>
               </div>
-              {l.thumb_url ? (
-                <img src={l.thumb_url} alt="" className="h-9 w-9 shrink-0 rounded-md object-cover" />
-              ) : null}
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium">{l.label || t("bio.addLink")}</p>
-                <p className="truncate text-xs text-fg-muted">{l.url || t(`bio.kind_${l.kind}`)}</p>
+            ) : (
+              <div key={l.id} className="flex items-center gap-2 rounded-xl border border-border bg-bg px-2 py-1.5">
+                <div className="flex flex-col text-fg-muted">
+                  <button type="button" className="rounded p-0.5 hover:bg-bg-subtle" onClick={() => move(page, i, -1, update)} aria-label="up">
+                    <ArrowUp className="h-3.5 w-3.5" />
+                  </button>
+                  <button type="button" className="rounded p-0.5 hover:bg-bg-subtle" onClick={() => move(page, i, 1, update)} aria-label="down">
+                    <ArrowDown className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+                {l.thumb_url ? (
+                  <img src={l.thumb_url} alt="" className="h-9 w-9 shrink-0 rounded-md object-cover" />
+                ) : null}
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium">{l.label || t("bio.addLink")}</p>
+                  <p className="truncate text-xs text-fg-muted">{l.url || t(`bio.kind_${l.kind}`)}</p>
+                </div>
+                {l.clicks > 0 ? <span className="text-xs tabular-nums text-fg-muted">{l.clicks}</span> : null}
+                <button
+                  type="button"
+                  onClick={() => setEditId(l.id)}
+                  className="grid h-9 w-9 shrink-0 place-items-center rounded-md border border-border text-fg-muted hover:bg-bg-subtle hover:text-fg"
+                  aria-label={t("bio.linkSettings")}
+                >
+                  <Settings className="h-4 w-4" />
+                </button>
               </div>
-              {l.clicks > 0 ? <span className="text-xs tabular-nums text-fg-muted">{l.clicks}</span> : null}
-              <button
-                type="button"
-                onClick={() => setEditId(l.id)}
-                className="grid h-9 w-9 shrink-0 place-items-center rounded-md border border-border text-fg-muted hover:bg-bg-subtle hover:text-fg"
-                aria-label={t("bio.linkSettings")}
-              >
-                <Settings className="h-4 w-4" />
-              </button>
-            </div>
-          ))}
+            ),
+          )}
         </section>
 
         <section className="space-y-3 rounded-xl border border-border bg-bg-elevated p-4">
@@ -532,7 +539,6 @@ function BioEditorPage() {
       {editing && (
         <EcardLinkModal
           link={editing}
-          collections={page.collections}
           onChange={(patch) => {
             const i = page.links.findIndex((l) => l.id === editing.id);
             if (i >= 0) patchLink(i, patch);

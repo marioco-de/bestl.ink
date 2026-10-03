@@ -31,7 +31,7 @@ export type BioSize = (typeof BIO_SIZES)[number];
 export const BIO_HEADERS = ["avatar", "hero", "logo"] as const;
 export type BioHeader = (typeof BIO_HEADERS)[number];
 export const BIO_KINDS = ["link", "embed", "form", "capture", "subscribe", "booking"] as const;
-export type BioKind = (typeof BIO_KINDS)[number];
+export type BioKind = (typeof BIO_KINDS)[number] | "heading";
 
 export type BioLink = {
   id: string;
@@ -79,6 +79,7 @@ export type BioPage = {
   button_shape: BioShape;
   bg_color: string;
   fg_color: string;
+  glow_color: string;
   seo_title: string;
   seo_description: string;
   redirect_url: string;
@@ -134,6 +135,7 @@ export const DEFAULT_BIO: BioPage = {
   button_shape: "round",
   bg_color: "",
   fg_color: "",
+  glow_color: "",
   seo_title: "",
   seo_description: "",
   redirect_url: "",
@@ -290,6 +292,21 @@ function oneOf<T extends string>(list: readonly T[], v: unknown, fallback: T): T
   return (list as readonly string[]).includes(String(v)) ? (String(v) as T) : fallback;
 }
 
+export function pageGlow(page: Pick<BioPage, "glow_color">, pal: BioPalette): string {
+  return /^#[0-9a-f]{6}$/i.test(page.glow_color) ? hexAlpha(page.glow_color, 0.55) : pal.glow;
+}
+
+function foldSections(links: BioLink[], collections: BioCollection[]): BioLink[] {
+  if (links.some((l) => l.kind === "heading") || collections.length === 0) return links;
+  const out = links.filter((l) => !l.collection_id).map((l) => ({ ...l, collection_id: "" }));
+  for (const c of collections) {
+    const rows = links.filter((l) => l.collection_id === c.id).map((l) => ({ ...l, collection_id: "" }));
+    out.push(blankLink({ id: c.id, kind: "heading", label: c.title }));
+    out.push(...rows);
+  }
+  return out.slice(0, 40);
+}
+
 function hourOf(v: unknown): number | null {
   if (v === null || v === undefined || v === "") return null;
   const n = Math.floor(Number(v));
@@ -315,12 +332,12 @@ export function parseBio(raw: unknown): BioPage {
     const rec = item as Record<string, unknown>;
     const url = clampText(rec.url, 2000);
     const label = clampText(rec.label, 80);
-    const kind = oneOf(BIO_KINDS, rec.kind, "link");
-    if (!label && !url && kind === "link") continue;
+    const kind: BioKind = rec.kind === "heading" ? "heading" : oneOf(BIO_KINDS, rec.kind, "link");
+    if (kind !== "heading" && !label && !url && kind === "link") continue;
     links.push(
       blankLink({
         id: clampText(rec.id, 40) || `l${links.length}`,
-        label: label || url,
+        label: kind === "heading" ? label : label || url,
         url,
         highlight: Boolean(rec.highlight),
         clicks: Math.max(0, Math.floor(Number(rec.clicks) || 0)),
@@ -381,6 +398,7 @@ export function parseBio(raw: unknown): BioPage {
     button_shape: oneOf(BIO_SHAPES, obj.button_shape, "round"),
     bg_color: hex(obj.bg_color),
     fg_color: hex(obj.fg_color),
+    glow_color: hex(obj.glow_color),
     seo_title: clampText(obj.seo_title, 70),
     seo_description: clampText(obj.seo_description, 180),
     redirect_url: clampText(obj.redirect_url, 2000),
@@ -390,8 +408,8 @@ export function parseBio(raw: unknown): BioPage {
     theme,
     button,
     hide_flag: Boolean(obj.hide_flag),
-    collections,
-    links,
+    collections: [],
+    links: foldSections(links, collections),
     socials,
     views: Math.max(0, Math.floor(Number(obj.views) || 0)),
   };

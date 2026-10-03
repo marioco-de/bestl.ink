@@ -22,6 +22,7 @@ import {
   embedSrc,
   isLightHex,
   linkAllowed,
+  pageGlow,
   paletteFor,
   shapeRadius,
   type BioLink,
@@ -110,14 +111,18 @@ export function BioStage({
     return linkAllowed(link, { device, country, hour });
   }
 
-  const groups = [
-    { id: "", title: "", links: page.links.filter((l) => !l.collection_id && visible(l)) },
-    ...page.collections.map((c) => ({
-      id: c.id,
-      title: c.title,
-      links: page.links.filter((l) => l.collection_id === c.id && visible(l)),
-    })),
-  ].filter((g) => g.links.length || (preview && g.title));
+  const groups: { id: string; title: string; links: BioLink[] }[] = [];
+  let current: { id: string; title: string; links: BioLink[] } = { id: "", title: "", links: [] };
+  for (const link of page.links) {
+    if (link.kind === "heading") {
+      if (current.links.length || current.title) groups.push(current);
+      current = { id: link.id, title: link.label, links: [] };
+      continue;
+    }
+    if (visible(link)) current.links.push(link);
+  }
+  if (current.links.length || current.title) groups.push(current);
+  const shown = groups.filter((g) => g.links.length || (preview && g.title));
 
   return (
     <div
@@ -148,7 +153,7 @@ export function BioStage({
       ) : null}
       <div
         className="pointer-events-none absolute inset-0"
-        style={{ background: `radial-gradient(820px 480px at 50% -8%, ${pal.glow}, transparent 62%)` }}
+        style={{ background: `radial-gradient(820px 480px at 50% -8%, ${pageGlow(page, pal)}, transparent 62%)` }}
       />
       <div className="relative mx-auto flex min-h-dvh w-full max-w-[440px] flex-col px-5 pb-16 pt-14 sm:pt-20">
         <div className="flex flex-col items-center text-center">
@@ -159,7 +164,7 @@ export function BioStage({
               src={page.avatar_url}
               alt=""
               className={page.header === "hero" ? "h-40 w-40 rounded-[36px] object-cover" : "h-24 w-24 rounded-[28px] object-cover"}
-              style={{ boxShadow: `0 0 0 1px ${pal.line}, 0 24px 60px ${pal.glow}` }}
+              style={{ boxShadow: `0 0 0 1px ${pal.line}, 0 24px 60px ${pageGlow(page, pal)}` }}
             />
           ) : (
             <div
@@ -202,7 +207,7 @@ export function BioStage({
         )}
 
         <div className={page.layout === "grid" ? "mt-8 grid grid-cols-2 gap-3" : page.layout === "cards" ? "mt-8 flex flex-col gap-5" : "mt-8 flex flex-col gap-3"}>
-          {groups.map((g) => (
+          {shown.map((g) => (
             <div key={g.id || "root"} className={page.layout === "grid" ? "contents" : "flex flex-col gap-3"}>
               {g.title ? (
                 <p className="px-1 pt-2 text-[11px] font-medium uppercase tracking-[0.16em] opacity-60">{g.title}</p>
@@ -315,7 +320,6 @@ function Block({
   onSent: () => void;
   host: string;
 }) {
-  const t = useT();
   const shape = link.shape || page.button_shape;
   const radius = shapeRadius(shape);
   const minH = link.size === "s" ? 44 : link.size === "l" ? 84 : 58;
@@ -361,11 +365,6 @@ function Block({
         <img src={link.thumb_url} alt="" className="h-10 w-10 shrink-0 rounded-lg object-cover" />
       ) : null}
       <span className="min-w-0 flex-1">
-        {(featured || link.spotlight) && (
-          <span className="mb-0.5 block text-[10px] font-medium uppercase tracking-[0.16em] opacity-70">
-            {link.spotlight ? t("bio.spotlight") : t("bio.highlight")}
-          </span>
-        )}
         <span className="block truncate text-[15px] font-medium">{link.label}</span>
       </span>
       <ArrowUpRight className="h-4 w-4 shrink-0 opacity-70" />

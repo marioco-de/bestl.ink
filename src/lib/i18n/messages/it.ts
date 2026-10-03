@@ -390,6 +390,8 @@ export const it: Messages = {
     btn_glass: "Vetro",
     btn_line: "Linea",
     links: "Link",
+    elements: "Elementi",
+    glow: "Bagliore",
     addLink: "Link",
     linkLabel: "Etichetta",
     linkSettings: "Impostazioni",

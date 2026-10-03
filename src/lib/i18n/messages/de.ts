@@ -388,6 +388,8 @@ export const de = {
     btn_glass: "Glas",
     btn_line: "Linie",
     links: "Links",
+    elements: "Elemente",
+    glow: "Schein",
     addLink: "Link",
     linkLabel: "Beschriftung",
     linkSettings: "Einstellungen",

@@ -390,6 +390,8 @@ export const en: Messages = {
     btn_glass: "Glass",
     btn_line: "Line",
     links: "Links",
+    elements: "Elements",
+    glow: "Glow",
     addLink: "Link",
     linkLabel: "Label",
     linkSettings: "Settings",

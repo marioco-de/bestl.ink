@@ -6,7 +6,6 @@ import {
   BIO_SIZES,
   type BioKind,
   type BioLink,
-  type BioPage,
   type BioShape,
   type BioSize,
 } from "@/lib/docbay/bio";
@@ -23,14 +22,12 @@ const DEVICES = [
 
 export function EcardLinkModal({
   link,
-  collections,
   onChange,
   onUploadThumb,
   onDelete,
   onClose,
 }: {
   link: BioLink;
-  collections: BioPage["collections"];
   onChange: (patch: Partial<BioLink>) => void;
   onUploadThumb: (file: File) => void;
   onDelete: () => void;
@@ -201,23 +198,6 @@ export function EcardLinkModal({
                 ))}
               </div>
             </div>
-            {collections.length > 0 && (
-              <div>
-                <Label>{t("bio.collection")}</Label>
-                <select
-                  className="h-10 w-full rounded-md border border-border bg-bg px-2 text-sm"
-                  value={link.collection_id}
-                  onChange={(e) => onChange({ collection_id: e.target.value })}
-                >
-                  <option value="">{t("bio.sectionNone")}</option>
-                  {collections.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.title}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
             <Toggle checked={link.highlight} label={t("bio.highlight")} hint={t("bio.highlightHint")} onChange={(highlight) => onChange({ highlight })} />
             <Toggle checked={link.spotlight} label={t("bio.spotlight")} hint={t("bio.spotlightHint")} onChange={(spotlight) => onChange({ spotlight })} />
           </section>
