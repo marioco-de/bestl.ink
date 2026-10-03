@@ -264,8 +264,8 @@ export function BioStage({
           pointer-events: none;
         }
         .bio-glass > :not(.bio-plate) { position: relative; z-index: 1; }
-        .bio-spot { animation: bio-spot 1.6s ease-in-out infinite; }
-        @keyframes bio-spot { 50% { transform: translateY(-2px) scale(1.02); } }
+        .bio-spot { animation: bio-spot 1.8s ease-in-out infinite; }
+        @keyframes bio-spot { 50% { transform: translateY(-2px) scale(1.03); } }
         @keyframes bio-out-left { to { transform: translateX(-105%); } }
         @keyframes bio-in-right { from { transform: translateX(105%); } to { transform: none; } }
         @keyframes bio-out-right { to { transform: translateX(105%); } }
@@ -417,7 +417,7 @@ function linkChrome(
       background: "linear-gradient(180deg, #ffffff 0%, rgba(255,255,255,0.88) 100%)",
       color: "#1a1814",
       border: "1px solid rgba(255,255,255,0.95)",
-      boxShadow: "inset 0 1px 0 #fff, 0 14px 36px rgba(255,255,255,0.35), 0 10px 24px rgba(20,16,12,0.12)",
+      boxShadow: "0 6px 12px rgba(20,16,12,0.14)",
     };
   }
   if (highlight || page.button === "solid") {
@@ -571,6 +571,7 @@ function Block({
   const featured = link.highlight;
   const chrome = linkChrome(page, pal, fg, featured, link.spotlight);
   return (
+    <div className={link.spotlight ? "w-full px-5 py-2" : "w-full"}>
     <button
       type="button"
       onClick={onGo}
@@ -598,6 +599,7 @@ function Block({
         <ArrowUpRight className="h-4 w-4 shrink-0 opacity-70" />
       )}
     </button>
+    </div>
   );
 }
 
