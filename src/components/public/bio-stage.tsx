@@ -222,8 +222,8 @@ export function BioStage({
           background: rgba(255,255,255,0.06);
           border: 1px solid rgba(255,255,255,0.22);
           box-shadow:
-            inset 0 1px 0 rgba(255,255,255,0.35),
-            inset 0 -1px 0 rgba(255,255,255,0.12);
+            inset 0 1px 0 rgba(255,255,255,0.55),
+            inset 0 -1px 0 rgba(255,255,255,0.14);
           -webkit-backdrop-filter: blur(16px) saturate(1.8);
           backdrop-filter: blur(16px) saturate(1.8);
         }
@@ -231,8 +231,16 @@ export function BioStage({
           background: rgba(255,255,255,0.14);
           border-color: rgba(255,255,255,0.45);
           box-shadow:
-            inset 0 1px 0 rgba(255,255,255,0.55),
-            inset 0 -1px 0 rgba(255,255,255,0.2);
+            inset 0 1px 0 rgba(255,255,255,0.7),
+            inset 0 -1px 0 rgba(255,255,255,0.22);
+        }
+        .bio-glass::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          border-radius: inherit;
+          background: linear-gradient(180deg, rgba(255,255,255,0.16), rgba(255,255,255,0) 22%);
+          pointer-events: none;
         }
         .bio-glass > * { position: relative; z-index: 1; }
         .bio-spot { animation: bio-spot 1.6s ease-in-out infinite; }
