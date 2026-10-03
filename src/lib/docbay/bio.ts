@@ -31,7 +31,7 @@ export const BIO_SIZES = ["s", "m", "l"] as const;
 export type BioSize = (typeof BIO_SIZES)[number];
 export const BIO_HEADERS = ["avatar", "hero", "logo"] as const;
 export type BioHeader = (typeof BIO_HEADERS)[number];
-export const BIO_KINDS = ["link", "embed", "form", "capture", "subscribe", "booking"] as const;
+export const BIO_KINDS = ["link", "embed", "pdf", "gallery", "form", "capture", "subscribe", "booking"] as const;
 export type BioKind = (typeof BIO_KINDS)[number] | "heading" | "folder";
 
 export const BIO_ICONS = [
@@ -107,6 +107,7 @@ export type BioLink = {
   icon: string;
   icon_color: string;
   parent_id: string;
+  images: string[];
 };
 
 export type BioCollection = { id: string; title: string };
@@ -176,6 +177,7 @@ export function blankLink(partial?: Partial<BioLink>): BioLink {
     icon: partial?.icon || "",
     icon_color: partial?.icon_color || "",
     parent_id: partial?.parent_id || "",
+    images: partial?.images || [],
   };
 }
 
@@ -345,6 +347,12 @@ function clampText(v: unknown, max: number): string {
   return String(v ?? "").trim().slice(0, max);
 }
 
+function mediaUrl(v: unknown): string {
+  const s = clampText(v, 400);
+  if (s.startsWith("/api/og/")) return s;
+  return httpUrl(s) || "";
+}
+
 function asNetwork(v: unknown): BioNetwork {
   return (BIO_NETWORKS as readonly string[]).includes(String(v))
     ? (String(v) as BioNetwork)
@@ -427,10 +435,18 @@ export function parseBio(raw: unknown): BioPage {
   for (const item of Array.isArray(obj.links) ? obj.links : []) {
     if (!item || typeof item !== "object") continue;
     const rec = item as Record<string, unknown>;
-    const url = clampText(rec.url, 2000);
-    const label = clampText(rec.label, 80);
     const kind: BioKind =
       rec.kind === "heading" ? "heading" : rec.kind === "folder" ? "folder" : oneOf(BIO_KINDS, rec.kind, "link");
+    const url = kind === "pdf" ? mediaUrl(rec.url) || clampText(rec.url, 2000) : clampText(rec.url, 2000);
+    const label = clampText(rec.label, 80);
+    const images: string[] = [];
+    if (Array.isArray(rec.images)) {
+      for (const img of rec.images) {
+        const u = mediaUrl(img);
+        if (u) images.push(u);
+        if (images.length >= 20) break;
+      }
+    }
     if (kind !== "heading" && kind !== "folder" && !label && !url && kind === "link") continue;
     links.push(
       blankLink({
@@ -456,6 +472,7 @@ export function parseBio(raw: unknown): BioPage {
         icon: (BIO_ICONS as readonly string[]).includes(String(rec.icon)) ? String(rec.icon) : "",
         icon_color: /^#[0-9a-fA-F]{6}$/.test(String(rec.icon_color || "")) ? String(rec.icon_color).toLowerCase() : "",
         parent_id: clampText(rec.parent_id, 40),
+        images,
       }),
     );
     if (links.length >= 40) break;

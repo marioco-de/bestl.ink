@@ -440,6 +440,83 @@ function linkChrome(
   return { color: fg };
 }
 
+function PdfSheet({
+  link,
+  pal,
+  className,
+}: {
+  link: BioLink;
+  pal: (typeof BIO_PALETTE)[keyof typeof BIO_PALETTE];
+  className?: string;
+}) {
+  const t = useT();
+  const [open, setOpen] = useState(false);
+  const pages = link.images;
+  return (
+    <div className={className}>
+      <button
+        type="button"
+        onClick={() => pages.length && setOpen(true)}
+        className="w-full overflow-hidden rounded-2xl text-left"
+        style={{ border: `1px solid ${pal.line}`, background: pal.glass }}
+      >
+        {pages[0] ? <img src={pages[0]} alt="" className="aspect-[3/4] w-full object-cover object-top" /> : null}
+        <span className="block px-4 py-3">
+          <span className="block truncate text-[15px] font-medium">{link.label || t("bio.addPdf")}</span>
+          <span className="block text-[11px] opacity-60">{t("bio.pdfPages", { n: pages.length })}</span>
+        </span>
+      </button>
+      {link.url ? (
+        <a href={link.url} target="_blank" rel="noopener noreferrer" className="mt-1 block px-1 text-xs underline opacity-70">
+          {t("bio.pdfOpen")}
+        </a>
+      ) : null}
+      {open ? (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/80 p-4" onClick={() => setOpen(false)}>
+          <div className="mx-auto flex max-w-lg flex-col gap-3 py-8" onClick={(e) => e.stopPropagation()}>
+            {pages.map((src, i) => (
+              <img key={src} src={src} alt="" className="w-full bg-white shadow-xl" />
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function GallerySheet({
+  link,
+  pal,
+  className,
+}: {
+  link: BioLink;
+  pal: (typeof BIO_PALETTE)[keyof typeof BIO_PALETTE];
+  className?: string;
+}) {
+  const t = useT();
+  const [at, setAt] = useState<number | null>(null);
+  return (
+    <div className={className}>
+      {link.label ? <p className="mb-2 px-1 text-sm font-medium">{link.label}</p> : null}
+      <div className="grid grid-cols-3 gap-1.5">
+        {link.images.map((src, i) => (
+          <button key={src} type="button" className="aspect-square overflow-hidden rounded-xl" style={{ border: `1px solid ${pal.line}` }} onClick={() => setAt(i)}>
+            <img src={src} alt="" className="h-full w-full object-cover" />
+          </button>
+        ))}
+      </div>
+      {at != null && link.images[at] ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4" onClick={() => setAt(null)}>
+          <button type="button" className="absolute left-3 top-1/2 -translate-y-1/2 px-3 py-2 text-2xl text-white" onClick={(e) => { e.stopPropagation(); setAt((n) => (n == null ? 0 : (n + link.images.length - 1) % link.images.length)); }}>‹</button>
+          <img src={link.images[at]} alt="" className="max-h-[86vh] max-w-full object-contain" />
+          <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 px-3 py-2 text-2xl text-white" onClick={(e) => { e.stopPropagation(); setAt((n) => (n == null ? 0 : (n + 1) % link.images.length)); }}>›</button>
+        </div>
+      ) : null}
+      {!link.images.length ? <p className="text-sm opacity-60">{t("bio.galleryEmpty")}</p> : null}
+    </div>
+  );
+}
+
 function Block({
   link,
   page,
@@ -464,6 +541,9 @@ function Block({
   const radius = shapeRadius(shape);
   const minH = link.kind === "folder" ? 86 : link.size === "s" ? 44 : link.size === "l" ? 84 : 58;
   const embed = link.kind === "embed" ? embedSrc(link.url) : null;
+  const span = page.layout === "grid" && (link.kind === "pdf" || link.kind === "gallery") ? "col-span-full" : "";
+  if (link.kind === "pdf") return <PdfSheet link={link} pal={pal} className={span} />;
+  if (link.kind === "gallery") return <GallerySheet link={link} pal={pal} className={span} />;
   if (embed) {
     return (
       <iframe

@@ -4,6 +4,7 @@ import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, GripVertical, Plus, Sett
 import { BioGlyph } from "@/components/public/bio-icons";
 import { toast } from "sonner";
 import { bioReport, saveBio, saveBioAvatar } from "@/lib/docbay/api";
+import { renderPdfPages } from "@/lib/docbay/pdf-pages";
 import { useControl } from "@/lib/docbay/control-store";
 import {
   BIO_BUTTONS,
@@ -110,16 +111,25 @@ function BioEditorPage() {
     update({ ...page, theme: id, bg_color: "", fg_color: "", glow_color: "" });
   }
 
-  function addItem(kind: "link" | "heading" | "folder") {
+  function addItem(kind: "link" | "heading" | "folder" | "pdf" | "gallery") {
     if (page.links.length >= 40) return;
     const row = blankLink({
-      id: nid(kind === "heading" ? "g" : kind === "folder" ? "f" : "l"),
+      id: nid(kind === "heading" ? "g" : kind === "folder" ? "f" : kind === "pdf" ? "p" : kind === "gallery" ? "a" : "l"),
       kind,
-      label: kind === "heading" ? t("bio.addCollection") : kind === "folder" ? t("bio.folder") : "",
+      label:
+        kind === "heading"
+          ? t("bio.addCollection")
+          : kind === "folder"
+            ? t("bio.folder")
+            : kind === "pdf"
+              ? t("bio.addPdf")
+              : kind === "gallery"
+                ? t("bio.addGallery")
+                : "",
       parent_id: kind === "folder" ? "" : scopeId || "",
     });
     update({ ...page, links: [...page.links, row] });
-    if (kind === "link" || kind === "folder") setEditId(row.id);
+    if (kind !== "heading") setEditId(row.id);
   }
 
   function patchLink(index: number, patch: Partial<BioLink>) {
@@ -287,6 +297,80 @@ function BioEditorPage() {
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t("common.error"));
     } finally {
+      setBusy(false);
+    }
+  }
+
+  async function storeBlob(file: Blob, mime: string) {
+    const buf = await file.arrayBuffer();
+    const bytes = new Uint8Array(buf);
+    let bin = "";
+    for (let i = 0; i < bytes.length; i += 0x8000) {
+      bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    }
+    const saved = (await saveBioAvatar({
+      data: {
+        tenant_id: data.tenant.id,
+        data: `data:${mime};base64,${btoa(bin)}`,
+        mime,
+        field: "file",
+        card_id: page.id,
+      },
+    })) as { url?: string };
+    if (!saved.url) throw new Error(t("common.error"));
+    return saved.url;
+  }
+
+  async function commitLink(linkId: string, patch: Partial<BioLink>) {
+    const nextPage = {
+      ...page,
+      links: page.links.map((l) => (l.id === linkId ? { ...l, ...patch } : l)),
+    };
+    const list = cards.map((c) => (c.id === nextPage.id ? nextPage : c));
+    update(nextPage);
+    await persist(list, nextPage.id);
+  }
+
+  async function addPdf(file: File, linkId: string) {
+    if (file.type !== "application/pdf") {
+      toast.error(t("bio.pdfOnly"));
+      return;
+    }
+    if (file.size > 8_000_000) {
+      toast.error(t("bio.pdfMax"));
+      return;
+    }
+    setBusy(true);
+    try {
+      const rendered = await renderPdfPages(file, 16);
+      const images: string[] = [];
+      for (const blob of rendered.blobs) images.push(await storeBlob(blob, "image/webp"));
+      const url = await storeBlob(file, "application/pdf");
+      if (rendered.total > rendered.blobs.length) toast.message(t("bio.pdfTrim", { n: rendered.blobs.length }));
+      await commitLink(linkId, { url, images });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("common.error"));
+      setBusy(false);
+    }
+  }
+
+  async function addGallery(files: File[], linkId: string) {
+    const images = page.links.find((l) => l.id === linkId)?.images || [];
+    const room = 12 - images.length;
+    if (room <= 0) {
+      toast.error(t("bio.galleryMax"));
+      return;
+    }
+    setBusy(true);
+    try {
+      const next = [...images];
+      for (const file of files.slice(0, room)) {
+        if (!file.type.startsWith("image/")) continue;
+        next.push(await storeBlob(file, file.type || "image/jpeg"));
+      }
+      await commitLink(linkId, { images: next });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("common.error"));
       setBusy(false);
     }
   }
@@ -594,6 +678,12 @@ function BioEditorPage() {
                   <Plus className="h-3.5 w-3.5" /> {t("bio.addFolder")}
                 </Button>
               ) : null}
+              <Button type="button" size="sm" variant="secondary" onClick={() => addItem("pdf")}>
+                <Plus className="h-3.5 w-3.5" /> {t("bio.addPdf")}
+              </Button>
+              <Button type="button" size="sm" variant="secondary" onClick={() => addItem("gallery")}>
+                <Plus className="h-3.5 w-3.5" /> {t("bio.addGallery")}
+              </Button>
             </div>
           </div>
           {picked.length > 0 ? (
@@ -839,6 +929,8 @@ function BioEditorPage() {
             if (i >= 0) patchLink(i, patch);
           }}
           onUploadThumb={(file) => void upload(file, "thumb", editing.id)}
+          onUploadPdf={(file) => void addPdf(file, editing.id)}
+          onAddImages={(files) => void addGallery(files, editing.id)}
           onDelete={() => {
             update({
               ...page,

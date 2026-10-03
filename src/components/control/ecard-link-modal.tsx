@@ -26,12 +26,16 @@ export function EcardLinkModal({
   link,
   onChange,
   onUploadThumb,
+  onUploadPdf,
+  onAddImages,
   onDelete,
   onClose,
 }: {
   link: BioLink;
   onChange: (patch: Partial<BioLink>) => void;
   onUploadThumb: (file: File) => void;
+  onUploadPdf: (file: File) => void;
+  onAddImages: (files: File[]) => void;
   onDelete: () => void;
   onClose: () => void;
 }) {
@@ -161,6 +165,51 @@ export function EcardLinkModal({
               <div>
                 <Label>{link.kind === "embed" ? t("bio.embedUrl") : t("bio.urlLabel")}</Label>
                 <Input value={link.url} placeholder="https://" onChange={(e) => onChange({ url: e.target.value })} />
+              </div>
+            )}
+            {link.kind === "pdf" && (
+              <div>
+                <Label>{t("bio.addPdf")}</Label>
+                <input
+                  type="file"
+                  accept="application/pdf"
+                  className="block w-full text-sm"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    e.target.value = "";
+                    if (file) onUploadPdf(file);
+                  }}
+                />
+                <p className="mt-1 text-[11px] text-fg-muted">{t("bio.pdfHint", { n: link.images.length })}</p>
+              </div>
+            )}
+            {link.kind === "gallery" && (
+              <div>
+                <Label>{t("bio.addGallery")}</Label>
+                <div className="grid grid-cols-4 gap-2">
+                  {link.images.map((src) => (
+                    <button
+                      key={src}
+                      type="button"
+                      className="relative aspect-square overflow-hidden rounded-lg border border-border"
+                      onClick={() => onChange({ images: link.images.filter((u) => u !== src) })}
+                    >
+                      <img src={src} alt="" className="h-full w-full object-cover" />
+                    </button>
+                  ))}
+                </div>
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="mt-2 block w-full text-sm"
+                  onChange={(e) => {
+                    const files = [...(e.target.files || [])];
+                    e.target.value = "";
+                    if (files.length) onAddImages(files);
+                  }}
+                />
+                <p className="mt-1 text-[11px] text-fg-muted">{t("bio.galleryHint")}</p>
               </div>
             )}
             {link.kind === "capture" && (

@@ -2631,7 +2631,7 @@ export const saveBioAvatar = createServerFn({ method: "POST" })
       tenant_id?: string;
       data: string;
       mime?: string;
-      field?: "avatar" | "logo" | "bg" | "thumb";
+      field?: "avatar" | "logo" | "bg" | "thumb" | "file";
       card_id?: string;
       link_id?: string;
     }) => d,
@@ -2645,8 +2645,15 @@ export const saveBioAvatar = createServerFn({ method: "POST" })
     if (!card) throw new Error("Keine Karte");
     const raw = data.data.replace(/^data:[^;]+;base64,/, "");
     const buf = Buffer.from(raw, "base64");
-    if (buf.length > 800_000) throw new Error("Bild max. 800 KB");
     const mime = (data.mime || "image/png").split(";")[0] || "image/png";
+    const isPdf = mime === "application/pdf";
+    if (data.field === "file") {
+      if (buf.length > (isPdf ? 8_000_000 : 2_500_000)) throw new Error(isPdf ? "PDF max. 8 MB" : "Bild max. 2,5 MB");
+      if (!isPdf && !mime.startsWith("image/")) throw new Error("Nur Bilder oder PDF");
+      const { saveOgBlob } = await import("./storage.server");
+      return { url: `/api/og/${await saveOgBlob(buf, mime)}` };
+    }
+    if (buf.length > 800_000) throw new Error("Bild max. 800 KB");
     if (!mime.startsWith("image/")) throw new Error("Nur Bilder");
     const { saveOgBlob } = await import("./storage.server");
     const url = `/api/og/${await saveOgBlob(buf, mime)}`;
