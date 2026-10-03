@@ -128,7 +128,7 @@ export function BioStage({
     if (!href) return;
     onOpen?.(href, link.id);
     if (preview) return;
-    window.location.assign(href);
+    window.open(href, "_blank", "noopener,noreferrer");
   }
 
   function visible(link: BioLink) {
@@ -324,7 +324,7 @@ export function BioStage({
                     if (!href) return;
                     onOpen?.(href);
                     if (preview) return;
-                    window.location.assign(href);
+                    window.open(href, "_blank", "noopener,noreferrer");
                   }}
                   className="bio-link flex h-10 w-10 items-center justify-center rounded-2xl"
                   style={{ background: pal.glass, border: `1px solid ${pal.line}` }}
@@ -354,7 +354,7 @@ export function BioStage({
         </div>
 
         {!page.hide_flag && (
-          <a href={BRAND_HOME} className="mt-auto pt-12 text-center text-[11px] uppercase tracking-[0.14em] opacity-60">
+          <a href={BRAND_HOME} target="_blank" rel="noopener noreferrer" className="mt-auto pt-12 text-center text-[11px] uppercase tracking-[0.14em] opacity-60">
             {t("bio.made")}
           </a>
         )}
