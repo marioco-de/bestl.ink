@@ -18,6 +18,7 @@ import {
   Contact,
   Gauge,
   Building2,
+  IdCard,
 } from "lucide-react";
 import { signOut } from "@/lib/auth/client";
 import { useTheme } from "@/lib/theme";
@@ -112,6 +113,7 @@ export function CommandPalette({
             <Row icon={CalendarDays} label={t("nav.events")} onSelect={() => go("/control/links", { tab: "events" })} />
             <Row icon={Contact} label={t("nav.contacts")} onSelect={() => go("/control/links", { tab: "contacts" })} />
             <Row icon={Link2} label={t("nav.shared")} onSelect={() => go("/control/links", { tab: "shared" })} />
+            <Row icon={IdCard} label={t("nav.bio")} onSelect={() => go("/control/bio")} />
             <Row icon={GitBranch} label={t("nav.parameters")} onSelect={() => go("/control/parameters")} />
             <Row icon={Inbox} label={t("nav.requests")} onSelect={() => go("/control/requests")} />
             <Row icon={MessageSquare} label={t("nav.chat")} onSelect={() => go("/control/chat")} />

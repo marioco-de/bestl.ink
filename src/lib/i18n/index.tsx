@@ -2,28 +2,31 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
 } from "react";
 import { de, type Messages } from "./messages/de";
 import { en } from "./messages/en";
+import { it } from "./messages/it";
 
-export type Locale = "de" | "en";
+export type Locale = "de" | "en" | "it";
 
-const PACKS: Record<Locale, Messages> = { de, en };
+const PACKS: Record<Locale, Messages> = { de, en, it };
 const KEY = "bestl.locale";
 
 function detect(): Locale {
   try {
     const stored = localStorage.getItem(KEY);
-    if (stored === "de" || stored === "en") return stored;
+    if (stored === "de" || stored === "en" || stored === "it") return stored;
   } catch {
     /* ignore */
   }
-  if (typeof navigator !== "undefined" && navigator.language.toLowerCase().startsWith("de")) {
-    return "de";
-  }
+  if (typeof navigator === "undefined") return "en";
+  const lang = navigator.language.toLowerCase();
+  if (lang.startsWith("de")) return "de";
+  if (lang.startsWith("it")) return "it";
   return "en";
 }
 
@@ -85,6 +88,10 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     }
     if (typeof document !== "undefined") document.documentElement.lang = l;
   }, []);
+
+  useEffect(() => {
+    document.documentElement.lang = locale;
+  }, [locale]);
 
   const t = useCallback(
     (path: string, vars?: Vars) => translate(locale, path, vars),

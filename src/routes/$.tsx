@@ -122,8 +122,19 @@ export const Route = createFileRoute("/$")({
     if (!slug.includes("/")) {
       try {
         const bio = await resolveBio({ data: { slug, host } });
-        if (bio?.page) return { kind: "bio" as const, slug, host, page: bio.page };
-      } catch {
+        if (bio?.page) {
+          const dest = bio.page.redirect_url ? httpUrl(bio.page.redirect_url) : null;
+          if (dest) throw redirect({ href: dest, statusCode: 302 });
+          return {
+            kind: "bio" as const,
+            slug,
+            host,
+            page: bio.page,
+            country: bio.country || "",
+          };
+        }
+      } catch (err) {
+        if (isRedirect(err)) throw err;
         /* fall through to links */
       }
     }
@@ -202,7 +213,14 @@ function ResourceGatePage() {
     );
   }
   if (initial && typeof initial === "object" && "kind" in initial && initial.kind === "bio") {
-    return <BioHit slug={initial.slug} host={initial.host} page={initial.page} />;
+    return (
+      <BioHit
+        slug={initial.slug}
+        host={initial.host}
+        page={initial.page}
+        country={"country" in initial ? String(initial.country || "") : ""}
+      />
+    );
   }
   if (initial && typeof initial === "object" && "kind" in initial && initial.kind === "short") {
     return <ShortHit data={initial} />;
@@ -215,10 +233,12 @@ function BioHit({
   slug,
   host,
   page,
+  country,
 }: {
   slug: string;
   host: string;
   page: import("@/lib/docbay/bio").BioPage;
+  country: string;
 }) {
   useEffect(() => {
     const key = `bestl-bio-view:${host}:${slug}`;
@@ -228,14 +248,34 @@ function BioHit({
     } catch {
       /* ignore */
     }
-    void trackBio({ data: { host, slug, event: "view" } });
-  }, [host, slug]);
+    void trackBio({
+      data: {
+        host,
+        slug,
+        event: "view",
+        referrer: document.referrer,
+        user_agent: navigator.userAgent,
+      },
+    });
+    if (page.seo_title || page.name) document.title = page.seo_title || page.name;
+  }, [host, slug, page.seo_title, page.name]);
 
   return (
     <BioStage
       page={page}
+      country={country}
       onOpen={(_url, linkId) => {
-        if (linkId) void trackBio({ data: { host, slug, event: "click", link_id: linkId } });
+        if (linkId)
+          void trackBio({
+            data: {
+              host,
+              slug,
+              event: "click",
+              link_id: linkId,
+              referrer: document.referrer,
+              user_agent: navigator.userAgent,
+            },
+          });
       }}
     />
   );

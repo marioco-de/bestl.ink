@@ -78,7 +78,7 @@ export const Route = createFileRoute("/control")({
 });
 
 const primaryNav: {
-  to: "/control" | "/control/stats" | "/control/links" | "/control/bio" | "/control/parameters" | "/control/requests" | "/control/chat";
+  to: "/control" | "/control/stats" | "/control/links" | "/control/parameters" | "/control/requests" | "/control/chat";
   labelKey: string;
   icon: typeof LayoutDashboard;
   exact?: boolean;
@@ -87,7 +87,6 @@ const primaryNav: {
   { to: "/control", labelKey: "nav.dashboard", icon: LayoutDashboard, exact: true, hue: "teal" },
   { to: "/control/stats", labelKey: "nav.overview", icon: Gauge, hue: "lime" },
   { to: "/control/links", labelKey: "nav.links", icon: Link2, hue: "azure" },
-  { to: "/control/bio", labelKey: "nav.bio", icon: IdCard, hue: "amber" },
   { to: "/control/parameters", labelKey: "nav.parameters", icon: GitBranch, hue: "amber" },
   { to: "/control/requests", labelKey: "nav.requests", icon: Inbox, hue: "ruby" },
   { to: "/control/chat", labelKey: "nav.chat", icon: MessageSquare, hue: "violet" },
@@ -119,6 +118,7 @@ const hueActive: Record<string, string> = {
   teal: "bg-hue-teal/12 text-hue-teal",
   azure: "bg-hue-azure/12 text-hue-azure",
   amber: "bg-hue-amber/14 text-hue-amber",
+  rose: "bg-hue-rose/14 text-hue-rose",
   ruby: "bg-hue-ruby/12 text-hue-ruby",
   violet: "bg-hue-violet/12 text-hue-violet",
   lime: "bg-hue-lime/14 text-hue-lime",
@@ -316,7 +316,9 @@ function ControlShell() {
               return (
                 <LinksNav
                   key={item.to}
-                  open={pathname.startsWith("/control/links")}
+                  open={pathname.startsWith("/control/links") || pathname.startsWith("/control/bio")}
+                  onLinks={pathname.startsWith("/control/links")}
+                  bioActive={pathname.startsWith("/control/bio")}
                   tab={linksTab}
                   searchBag={searchBag}
                   counts={linkCounts}
@@ -454,7 +456,11 @@ function ControlShell() {
                 <button
                   type="button"
                   className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-fg-muted hover:bg-bg-subtle hover:text-fg"
-                  onClick={() => setLocale(locale === "de" ? "en" : "de")}
+                  onClick={() => {
+                    const order = ["de", "en", "it"] as const;
+                    const i = order.indexOf(locale as (typeof order)[number]);
+                    setLocale(order[(i + 1) % order.length] ?? "de");
+                  }}
                 >
                   <Globe2 className="h-3.5 w-3.5" />
                   {t("nav.language")}: {locale.toUpperCase()}
@@ -507,7 +513,9 @@ function ControlShell() {
           style={
             pathname.startsWith("/control/links")
               ? hueStyle(TAB_HUES[linksTab] || "azure")
-              : undefined
+              : pathname.startsWith("/control/bio")
+                ? hueStyle("rose")
+                : undefined
           }
         >
           <Outlet />
@@ -538,6 +546,8 @@ function ControlShell() {
                     <LinksNav
                       key={item.to}
                       open
+                      onLinks={pathname.startsWith("/control/links")}
+                      bioActive={pathname.startsWith("/control/bio")}
                       tab={linksTab}
                       searchBag={searchBag}
                       counts={linkCounts}
@@ -603,6 +613,8 @@ function ControlShell() {
 
 function LinksNav({
   open,
+  onLinks,
+  bioActive,
   tab,
   searchBag,
   counts,
@@ -610,6 +622,8 @@ function LinksNav({
   compact = true,
 }: {
   open: boolean;
+  onLinks: boolean;
+  bioActive: boolean;
   tab: LinksTab;
   searchBag: ControlSearch;
   counts: Record<LinksTab, number>;
@@ -647,7 +661,7 @@ function LinksNav({
           <div className="mt-0.5 ml-3 space-y-0.5 border-l border-border pl-1.5">
             {LINK_TABS.map((item) => {
               const Icon = item.icon;
-              const active = tab === item.id;
+              const active = onLinks && tab === item.id;
               return (
                 <Link
                   key={item.id}
@@ -670,6 +684,23 @@ function LinksNav({
                 </Link>
               );
             })}
+            <Link
+              to="/control/bio"
+              search={searchBag}
+              preload="intent"
+              onClick={onNavigate}
+              tabIndex={open ? 0 : -1}
+              className={cn(
+                "flex items-center gap-2 rounded-md px-2 text-sm transition-colors duration-150",
+                compact ? "py-1.5" : "min-h-11 py-2.5",
+                bioActive
+                  ? hueActive.rose
+                  : "text-fg-muted hover:bg-bg-subtle/70 hover:text-fg",
+              )}
+            >
+              <IdCard className="h-3.5 w-3.5 shrink-0" />
+              <span className="flex-1 truncate">{t("nav.bio")}</span>
+            </Link>
           </div>
         </div>
       </div>

@@ -72,6 +72,7 @@ export interface Tenant {
   dash_user_buttons: "off" | "anywhere" | "above" | "below";
   splash: SplashSettings;
   bio: BioPage;
+  bio_cards: BioPage[];
 }
 
 export interface WorkspaceSummary {

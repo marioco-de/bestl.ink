@@ -25,6 +25,7 @@ export const HUE_VARS: Record<string, string> = {
   amber: "var(--color-hue-amber)",
   ruby: "var(--color-hue-ruby)",
   violet: "var(--color-hue-violet)",
+  rose: "var(--color-hue-rose)",
   lime: "var(--color-hue-lime)",
 };
 

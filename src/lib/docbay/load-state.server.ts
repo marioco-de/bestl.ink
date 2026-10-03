@@ -23,7 +23,7 @@ import { parseJsonArray, parseJsonObj } from "./id";
 import { ensurePlatformSeeded, PLATFORM_LINK_HOST } from "./seed.server";
 import { mapShortRow } from "./shorts.server";
 import { parseSplash, DEFAULT_SPLASH } from "./splash";
-import { parseBio, DEFAULT_BIO } from "./bio";
+import { parseStore, DEFAULT_BIO } from "./bio";
 import { emptyDash, loadDashState } from "./dashboard.server";
 import { loadPresenceMap } from "./activity.server";
 
@@ -65,7 +65,11 @@ export function mapTenant(r: Record<string, unknown>): Tenant {
         : "anywhere"
     ) as Tenant["dash_user_buttons"],
     splash: parseSplash(r.splash),
-    bio: parseBio(r.bio),
+    ...(() => {
+      const store = parseStore(r.bio);
+      const bio = store.cards.find((c) => c.id === store.active) || store.cards[0] || DEFAULT_BIO;
+      return { bio, bio_cards: store.cards };
+    })(),
   };
 }
 
@@ -316,6 +320,7 @@ export async function loadFullState(
       dash_user_buttons: "anywhere",
       splash: DEFAULT_SPLASH,
       bio: DEFAULT_BIO,
+      bio_cards: [DEFAULT_BIO],
     };
     return {
       tenant: emptyTenant,

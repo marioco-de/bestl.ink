@@ -2571,52 +2571,92 @@ export const recordDocAction = createServerFn({ method: "POST" })
 
 export const saveBio = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .inputValidator((d: { tenant_id?: string; page: Record<string, unknown> }) => d)
+  .inputValidator(
+    (d: {
+      tenant_id?: string;
+      page: Record<string, unknown>;
+      cards?: Record<string, unknown>[];
+      active?: string;
+    }) => d,
+  )
   .handler(async ({ context, data }) => {
     const mem = await getMembership(context.userId, data.tenant_id);
     if (!mem || mem.member.role === "member") throw new Error("Keine Berechtigung");
     if (mem.tenant.id === "platform") throw new Error("Kein Workspace gewählt");
     const { parseBio } = await import("./bio");
-    const { loadTenantBio, writeTenantBio, slugTaken, assertBio } = await import("./bio.server");
-    const prev = (await loadTenantBio(mem.tenant.id)) || parseBio(null);
-    const next = parseBio(data.page);
-    const clicks = new Map(prev.links.map((l) => [l.id, l.clicks]));
-    next.views = prev.views;
-    next.links = next.links.map((l) => ({ ...l, clicks: clicks.get(l.id) ?? 0 }));
+    const { loadBioStore, writeBioStore, slugTaken, assertBio } = await import("./bio.server");
+    const prev = await loadBioStore(mem.tenant.id);
+    const incoming = (data.cards?.length ? data.cards : [data.page]).slice(0, 12).map((c) => parseBio(c));
+    const clicks = new Map<string, number>();
+    const views = new Map<string, number>();
+    for (const card of prev.cards) {
+      views.set(card.id, card.views);
+      for (const link of card.links) clicks.set(`${card.id}:${link.id}`, link.clicks);
+    }
+    for (const card of incoming) {
+      card.views = views.get(card.id) ?? card.views;
+      card.links = card.links.map((l) => ({
+        ...l,
+        clicks: clicks.get(`${card.id}:${l.id}`) ?? l.clicks,
+      }));
+      try {
+        assertBio(card);
+      } catch {
+        throw new Error("Adresse: Kleinbuchstaben, Zahlen und Bindestriche.");
+      }
+    }
+    const slugs = incoming.map((c) => c.slug).filter(Boolean);
+    if (new Set(slugs).size !== slugs.length) throw new Error("Zwei Karten dürfen nicht dieselbe Adresse haben.");
+    for (const slug of slugs) {
+      if (await slugTaken(mem.tenant.id, slug)) {
+        throw new Error("Diese Adresse ist schon ein Kurzlink oder eine andere eCard.");
+      }
+    }
     const featRows = (await getSql().then((sql) =>
       sql`select enabled from db_features where tenant_id = ${mem.tenant.id} and feature_key = ${"hide_brand_flag"}`,
     )) as { enabled?: boolean }[];
-    if (next.hide_flag && !featRows.some((r) => r.enabled)) next.hide_flag = false;
-    try {
-      assertBio(next);
-    } catch {
-      throw new Error("Adresse: Kleinbuchstaben, Zahlen und Bindestriche.");
-    }
-    if (next.slug && (await slugTaken(mem.tenant.id, next.slug))) {
-      throw new Error("Diese Adresse ist schon ein Kurzlink oder eine andere Visitenkarte.");
-    }
-    await writeTenantBio(mem.tenant.id, next);
-    await audit(mem.tenant.id, context.userId, "bio.save", { slug: next.slug });
+    const canHide = featRows.some((r) => r.enabled);
+    for (const card of incoming) if (!canHide) card.hide_flag = false;
+    const active =
+      data.active && incoming.some((c) => c.id === data.active) ? data.active : incoming[0]!.id;
+    await writeBioStore(mem.tenant.id, { active, cards: incoming });
+    await audit(mem.tenant.id, context.userId, "bio.save", { slug: incoming.find((c) => c.id === active)?.slug || "" });
     return loadFullState(context.userId, mem.tenant.id);
   });
 
 export const saveBioAvatar = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .inputValidator((d: { tenant_id?: string; data: string; mime?: string }) => d)
+  .inputValidator(
+    (d: {
+      tenant_id?: string;
+      data: string;
+      mime?: string;
+      field?: "avatar" | "logo" | "bg" | "thumb";
+      card_id?: string;
+      link_id?: string;
+    }) => d,
+  )
   .handler(async ({ context, data }) => {
     const mem = await getMembership(context.userId, data.tenant_id);
     if (!mem || mem.member.role === "member") throw new Error("Keine Berechtigung");
-    const { loadTenantBio, writeTenantBio } = await import("./bio.server");
-    const { parseBio } = await import("./bio");
-    const page = (await loadTenantBio(mem.tenant.id)) || parseBio(null);
+    const { loadBioStore, writeBioStore } = await import("./bio.server");
+    const store = await loadBioStore(mem.tenant.id);
+    const card = store.cards.find((c) => c.id === (data.card_id || store.active)) || store.cards[0];
+    if (!card) throw new Error("Keine Karte");
     const raw = data.data.replace(/^data:[^;]+;base64,/, "");
     const buf = Buffer.from(raw, "base64");
     if (buf.length > 800_000) throw new Error("Bild max. 800 KB");
     const mime = (data.mime || "image/png").split(";")[0] || "image/png";
     if (!mime.startsWith("image/")) throw new Error("Nur Bilder");
     const { saveOgBlob } = await import("./storage.server");
-    page.avatar_url = `/api/og/${await saveOgBlob(buf, mime)}`;
-    await writeTenantBio(mem.tenant.id, page);
+    const url = `/api/og/${await saveOgBlob(buf, mime)}`;
+    const field = data.field || "avatar";
+    if (field === "logo") card.logo_url = url;
+    else if (field === "bg") card.bg_image_url = url;
+    else if (field === "thumb" && data.link_id) {
+      card.links = card.links.map((l) => (l.id === data.link_id ? { ...l, thumb_url: url } : l));
+    } else card.avatar_url = url;
+    await writeBioStore(mem.tenant.id, { active: card.id, cards: store.cards });
     return loadFullState(context.userId, mem.tenant.id);
   });
 
@@ -2624,17 +2664,28 @@ export const resolveBio = createServerFn({ method: "POST" })
   .inputValidator((d: { host?: string; slug: string }) => d)
   .handler(async ({ data }) => {
     const { findPublishedBio } = await import("./bio.server");
+    const { requestCountry } = await import("./request-host.server");
     const found = await findPublishedBio(data.slug, data.host);
     if (!found) return null;
-    return { page: found.page, company: found.company };
+    return { page: found.page, company: found.company, country: requestCountry() };
   });
 
 export const trackBio = createServerFn({ method: "POST" })
   .inputValidator(
-    (d: { host?: string; slug: string; event: "view" | "click"; link_id?: string }) => d,
+    (d: {
+      host?: string;
+      slug: string;
+      event: "view" | "click";
+      link_id?: string;
+      referrer?: string;
+      user_agent?: string;
+    }) => d,
   )
   .handler(async ({ data }) => {
     const { findPublishedBio, writeTenantBio } = await import("./bio.server");
+    const { deviceFromUa } = await import("./bio");
+    const { requestCountry } = await import("./request-host.server");
+    const { uid } = await import("./id");
     const found = await findPublishedBio(data.slug, data.host);
     if (!found) return { ok: false };
     if (data.event === "view") found.page.views += 1;
@@ -2643,6 +2694,128 @@ export const trackBio = createServerFn({ method: "POST" })
       if (link) link.clicks += 1;
     }
     await writeTenantBio(found.id, found.page);
+    const sql = await getSql();
+    const ref = String(data.referrer || "").slice(0, 300);
+    await sql`
+      insert into db_bio_hits (id, tenant_id, card_slug, link_id, event, country, device, referrer)
+      values (
+        ${uid("hit")},
+        ${found.id},
+        ${found.page.slug},
+        ${data.link_id || ""},
+        ${data.event},
+        ${requestCountry()},
+        ${deviceFromUa(String(data.user_agent || ""))},
+        ${ref}
+      )
+    `;
     return { ok: true };
+  });
+
+export const submitBioLead = createServerFn({ method: "POST" })
+  .inputValidator(
+    (d: {
+      host?: string;
+      slug: string;
+      kind: "form" | "capture" | "subscribe" | "booking";
+      name?: string;
+      email?: string;
+      phone?: string;
+      message?: string;
+      when_text?: string;
+    }) => d,
+  )
+  .handler(async ({ data }) => {
+    const { findPublishedBio } = await import("./bio.server");
+    const { safeSheetUrl } = await import("./bio");
+    const { uid } = await import("./id");
+    const found = await findPublishedBio(data.slug, data.host);
+    if (!found) throw new Error("Karte nicht gefunden");
+    const email = String(data.email || "").trim().toLowerCase().slice(0, 160);
+    const phone = String(data.phone || "").trim().slice(0, 40);
+    const name = String(data.name || "").trim().slice(0, 80);
+    const message = String(data.message || "").trim().slice(0, 1000);
+    const when = String(data.when_text || "").trim().slice(0, 80);
+    if (data.kind !== "booking" && data.kind !== "form" && !email && !phone) {
+      throw new Error("E-Mail oder Telefon fehlt");
+    }
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("E-Mail ungültig");
+    const sql = await getSql();
+    await sql`
+      insert into db_bio_leads (id, tenant_id, card_slug, kind, name, email, phone, message, when_text)
+      values (
+        ${uid("lead")},
+        ${found.id},
+        ${found.page.slug},
+        ${data.kind},
+        ${name},
+        ${email},
+        ${phone},
+        ${message},
+        ${when}
+      )
+    `;
+    const sheet = safeSheetUrl(found.page.sheets_url);
+    if (sheet) {
+      void fetch(sheet, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ kind: data.kind, name, email, phone, message, when, slug: found.page.slug }),
+      }).catch(() => undefined);
+    }
+    return { ok: true };
+  });
+
+export const bioReport = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .inputValidator((d: { tenant_id?: string; slug?: string }) => d)
+  .handler(async ({ context, data }) => {
+    const mem = await getMembership(context.userId, data.tenant_id);
+    if (!mem) throw new Error("Keine Berechtigung");
+    const sql = await getSql();
+    const slug = String(data.slug || "");
+    const hits = (await sql`
+      select event, country, device, referrer, created_at
+      from db_bio_hits
+      where tenant_id = ${mem.tenant.id}
+        and (${slug} = '' or card_slug = ${slug})
+      order by created_at desc
+      limit 500
+    `) as { event: string; country: string; device: string; referrer: string; created_at: string }[];
+    const leads = (await sql`
+      select kind, name, email, phone, message, when_text, created_at
+      from db_bio_leads
+      where tenant_id = ${mem.tenant.id}
+        and (${slug} = '' or card_slug = ${slug})
+      order by created_at desc
+      limit 200
+    `) as {
+      kind: string;
+      name: string;
+      email: string;
+      phone: string;
+      message: string;
+      when_text: string;
+      created_at: string;
+    }[];
+    const bucket = (key: "country" | "device" | "referrer") => {
+      const map = new Map<string, number>();
+      for (const row of hits) {
+        const k = String(row[key] || "").slice(0, 80) || "–";
+        map.set(k, (map.get(k) || 0) + 1);
+      }
+      return [...map.entries()]
+        .map(([k, n]) => ({ k, n }))
+        .sort((a, b) => b.n - a.n)
+        .slice(0, 8);
+    };
+    return {
+      views: hits.filter((h) => h.event === "view").length,
+      clicks: hits.filter((h) => h.event === "click").length,
+      countries: bucket("country"),
+      devices: bucket("device"),
+      sources: bucket("referrer"),
+      leads,
+    };
   });
 

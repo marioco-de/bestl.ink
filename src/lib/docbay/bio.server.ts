@@ -1,22 +1,43 @@
 import { getSql } from "@/lib/db";
-import { parseBio, bioSlugOk, type BioPage } from "./bio";
+import { parseBio, parseStore, bioSlugOk, type BioPage, type BioStore } from "./bio";
 
 function hostOf(host?: string): string {
   return (host || "").toLowerCase().replace(/:\d+$/, "").replace(/^www\./, "");
 }
 
-export async function loadTenantBio(tenantId: string): Promise<BioPage | null> {
+export async function loadBioStore(tenantId: string): Promise<BioStore> {
   const sql = await getSql();
   const row = (
     await sql`select bio from db_tenants where id = ${tenantId} limit 1`
   )[0] as { bio?: unknown } | undefined;
+  if (!row) return { active: "main", cards: [parseBio(null)] };
+  return parseStore(row.bio);
+}
+
+export async function loadTenantBio(tenantId: string): Promise<BioPage | null> {
+  const sql = await getSql();
+  const row = (
+    await sql`select id from db_tenants where id = ${tenantId} limit 1`
+  )[0];
   if (!row) return null;
-  return parseBio(row.bio);
+  const store = await loadBioStore(tenantId);
+  return store.cards.find((c) => c.id === store.active) || store.cards[0] || null;
+}
+
+export async function writeBioStore(tenantId: string, store: BioStore): Promise<void> {
+  const sql = await getSql();
+  const active = store.cards.find((c) => c.id === store.active) || store.cards[0];
+  if (!active) return;
+  const payload = { ...active, active: store.active, cards: store.cards };
+  await sql`update db_tenants set bio = ${JSON.stringify(payload)}::jsonb where id = ${tenantId}`;
 }
 
 export async function writeTenantBio(tenantId: string, page: BioPage): Promise<void> {
-  const sql = await getSql();
-  await sql`update db_tenants set bio = ${JSON.stringify(page)}::jsonb where id = ${tenantId}`;
+  const store = await loadBioStore(tenantId);
+  const cards = store.cards.some((c) => c.id === page.id)
+    ? store.cards.map((c) => (c.id === page.id ? page : c))
+    : [page, ...store.cards].slice(0, 12);
+  await writeBioStore(tenantId, { active: page.id, cards });
 }
 
 export async function slugTaken(tenantId: string, slug: string): Promise<boolean> {
@@ -47,8 +68,19 @@ async function rowsFor(slug: string, host: string): Promise<Found[]> {
     ? await sql`
         select t.id, t.bio, t.brand_company, t.name
         from db_tenants t
-        where lower(coalesce(t.bio->>'slug', '')) = ${slug}
-          and coalesce(t.bio->>'published', '') = 'true'
+        where (
+            (
+              lower(coalesce(t.bio->>'slug', '')) = ${slug}
+              and coalesce(t.bio->>'published', '') = 'true'
+            )
+            or exists (
+              select 1 from jsonb_array_elements(
+                case when jsonb_typeof(t.bio->'cards') = 'array' then t.bio->'cards' else '[]'::jsonb end
+              ) c
+              where lower(coalesce(c->>'slug', '')) = ${slug}
+                and coalesce(c->>'published', '') = 'true'
+            )
+          )
           and (
             lower(coalesce(t.custom_domain, '')) = ${h}
             or lower(coalesce(t.domain, '')) = ${h}
@@ -63,15 +95,29 @@ async function rowsFor(slug: string, host: string): Promise<Found[]> {
     : await sql`
         select t.id, t.bio, t.brand_company, t.name
         from db_tenants t
-        where lower(coalesce(t.bio->>'slug', '')) = ${slug}
-          and coalesce(t.bio->>'published', '') = 'true'
+        where (
+            lower(coalesce(t.bio->>'slug', '')) = ${slug}
+            and coalesce(t.bio->>'published', '') = 'true'
+          )
+          or exists (
+            select 1 from jsonb_array_elements(
+              case when jsonb_typeof(t.bio->'cards') = 'array' then t.bio->'cards' else '[]'::jsonb end
+            ) c
+            where lower(coalesce(c->>'slug', '')) = ${slug}
+              and coalesce(c->>'published', '') = 'true'
+          )
         limit 2
       `;
-  return (rows as Record<string, unknown>[]).map((r) => ({
-    id: String(r.id),
-    page: parseBio(r.bio),
-    company: String(r.brand_company || r.name || ""),
-  }));
+  return (rows as Record<string, unknown>[]).map((r) => {
+    const store = parseStore(r.bio);
+    const page =
+      store.cards.find((c) => c.slug === slug && c.published) || parseBio(r.bio);
+    return {
+      id: String(r.id),
+      page,
+      company: String(r.brand_company || r.name || ""),
+    };
+  });
 }
 
 export async function findPublishedBio(

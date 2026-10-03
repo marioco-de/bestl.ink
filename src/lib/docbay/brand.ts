@@ -15,6 +15,8 @@ export function isMarketingHost(host: string): boolean {
   if (h === "localhost" || h === "127.0.0.1" || h === "0.0.0.0") return true;
   if (h.endsWith(".localhost")) return true;
   if (h.endsWith(".grok.me") || h.endsWith(".devtunnels.ms")) return true;
+  // Publish proxy calls the deployment URL, not the public *.grok.me host.
+  if (h.endsWith(".vercel.app")) return true;
   return false;
 }
 
